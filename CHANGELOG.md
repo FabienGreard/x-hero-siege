@@ -2,6 +2,19 @@
 
 All notable project changes are recorded here.
 
+## [0.1.4] - 2026-07-10
+
+### Changed
+
+- Replaced Gravebinder's Wraith Host projectile fan with three or more short-lived authoritative spirit summons.
+- Made each wraith acquire nearby demons, move independently, strike repeatedly, retarget after a kill, orbit its owner while idle, and attack the Rift Heart during the counterattack.
+- Added distinct green wraith bodies, eyes, glow, motion, spawn bursts, and strike effects to the rendered battlefield.
+- Added summon state to multiplayer snapshots and a focused authoritative regression test.
+
+### Preserved
+
+- Gravebinder sustain identity, shared Q/E/R/F controls, direct action-bar progression, fixed player-sized lanes, central Nexus pressure, breach, counterattack, and the approved visual language.
+
 ## [0.1.3] - 2026-07-10
 
 ### Changed

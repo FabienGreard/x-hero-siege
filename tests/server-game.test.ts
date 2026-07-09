@@ -248,6 +248,28 @@ describe("authoritative siege world", () => {
     expect(rankTwoRadius).toBeCloseTo(rankOneRadius * 1.08);
   });
 
+  test("Wraith Host raises persistent authoritative summons instead of firing a projectile fan", () => {
+    const game = new GameWorld({ timings: { defenseDuration: 20 }, random: () => 0.5 });
+    expect(game.addPlayer("p1", "Ada").ok).toBe(true);
+    expect(game.claimHero("p1", "gravebinder").ok).toBe(true);
+    expect(game.setReady("p1", true).ok).toBe(true);
+    expect(game.startGame("p1").ok).toBe(true);
+    expect(game.levelAbility("p1", "ability3").ok).toBe(true);
+    expect(game.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
+
+    advance(game, 0.4);
+    const raised = game.getSnapshot();
+    expect(raised.summons).toHaveLength(3);
+    expect(raised.summons.every((summon) => summon.kind === "wraith" && summon.ownerId === "p1")).toBe(true);
+    expect(raised.projectiles).toHaveLength(0);
+    const initialPositions = raised.summons.map((summon) => ({ ...summon.position }));
+
+    advance(game, 0.5);
+    const hunting = game.getSnapshot().summons;
+    expect(hunting).toHaveLength(3);
+    expect(hunting.some((summon, index) => summon.position.x !== initialPositions[index]!.x || summon.position.z !== initialPositions[index]!.z)).toBe(true);
+  });
+
   test("hero attacks expose an authoritative windup before impact", () => {
     const game = new GameWorld({ timings: { defenseDuration: 20 } });
     readySolo(game);

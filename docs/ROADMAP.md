@@ -2,6 +2,16 @@
 
 This roadmap is a scope guard, not a content backlog. Work stops for player review after the first complete 5–10 minute run.
 
+## `0.1.4` — Wraith Host summon fantasy
+
+**Status:** implemented and locally verified on 2026-07-10; deployment verification pending a configured game host.
+
+- Replace the five-projectile placeholder with persistent, authoritative wraith minions.
+- Give summoned spirits independent acquisition, pursuit, repeated strikes, retargeting, idle orbiting, expiry, and Rift Heart interaction.
+- Render a distinct Gravebinder-aligned spirit silhouette without obscuring enemies or the Nexus.
+- Preserve the hero's established controls, cooldown, rank progression, sustain identity, and multiplayer authority boundary.
+- Validate server ownership, real rendered motion, horde readability, multiplayer snapshots, and production build.
+
 ## `0.1.3` — action-bar skill progression
 
 **Status:** implemented, verified, and stopped for player review on 2026-07-10.
@@ -12,7 +22,7 @@ This roadmap is a scope guard, not a content backlog. Work stops for player revi
 - Cap banked points against remaining ranks so fully maxed builds never receive an unusable point or prompt.
 - Verify direct mouse upgrade, keyboard upgrade, and normal casting at 1440×900; stop here for review.
 
-**Still deferred:** Gravebinder's Wraith Host needs its own authoritative summon/minion checkpoint.
+**Resolved in `0.1.4`:** Gravebinder's Wraith Host now uses authoritative summon/minion behavior.
 
 ## `0.1.2` — player-count-native siege space
 

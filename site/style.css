@@ -1,0 +1,31 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  background: #080b10;
+  color: #f1eee4;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(circle at 50% 0, #17313a 0, #090d12 34rem, #05070a 70rem); }
+main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 80px 0; }
+.hero { max-width: 860px; padding: 70px 0 90px; }
+.rune { color: #75e7c0; font-size: 24px; text-shadow: 0 0 20px #75e7c0; }
+.eyebrow { color: #8da7ae; font-size: 11px; font-weight: 900; letter-spacing: .22em; }
+h1, h2, h3 { font-family: Georgia, serif; font-weight: 400; }
+h1 { max-width: 760px; margin: 16px 0; font-size: clamp(54px, 9vw, 112px); line-height: .9; }
+.promise { max-width: 720px; color: #b7c1c4; font-family: Georgia, serif; font-size: 21px; line-height: 1.55; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.actions a { padding: 13px 18px; color: #06100d; background: #88e7c2; border: 1px solid #bfffe4; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+.actions a.quiet { color: #d8e3e5; background: #10171d; border-color: #35444b; }
+.checkpoint { display: grid; grid-template-columns: .9fr 1.1fr; gap: 46px; padding: 44px; background: linear-gradient(135deg, rgba(87, 217, 171, .1), rgba(15, 21, 27, .96) 42%); border: 1px solid #2d4342; }
+.checkpoint h2 { margin: 10px 0 16px; font-size: 48px; }
+.checkpoint p, .checkpoint li { color: #aebbbe; line-height: 1.65; }
+.checkpoint figure { margin: 0; }
+.checkpoint img { display: block; width: 100%; border: 1px solid #36534d; box-shadow: 0 18px 50px #000; }
+.checkpoint figcaption { margin-top: 10px; color: #6f8085; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 28px; background: #263238; border: 1px solid #263238; }
+.pillars article { padding: 30px; background: #0b1015; }
+.pillars span { color: #75e7c0; font-size: 11px; font-weight: 900; }
+.pillars h3 { margin: 30px 0 10px; font-size: 25px; }
+.pillars p { color: #89979b; line-height: 1.55; }
+@media (max-width: 800px) { main { padding-top: 20px; } .checkpoint, .pillars { grid-template-columns: 1fr; } .checkpoint { padding: 24px; } }

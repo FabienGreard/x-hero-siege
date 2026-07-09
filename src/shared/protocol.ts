@@ -149,6 +149,18 @@ export interface ProjectileSnapshot {
   remaining: number;
 }
 
+export interface SummonSnapshot {
+  id: string;
+  ownerId: string;
+  kind: "wraith";
+  position: Vec2;
+  velocity: Vec2;
+  facing: Vec2;
+  radius: number;
+  remaining: number;
+  targetId: string | null;
+}
+
 export type PickupKind = "gold" | "heal" | "rift_shard";
 
 export interface PickupSnapshot {
@@ -229,6 +241,7 @@ export interface GameSnapshot {
   players: PlayerSnapshot[];
   enemies: EnemySnapshot[];
   projectiles: ProjectileSnapshot[];
+  summons: SummonSnapshot[];
   pickups: PickupSnapshot[];
   effects: EffectSnapshot[];
   events: GameEvent[];

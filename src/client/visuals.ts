@@ -627,6 +627,45 @@ export function createProjectileVisual(kind: ProjectileKind, team: "heroes" | "d
   return group;
 }
 
+export function createWraithVisual(): THREE.Group {
+  const group = new THREE.Group();
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture("#74efc0"),
+    color: 0x74efc0,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }));
+  glow.scale.set(3.8, 4.8, 1);
+  glow.position.y = 1.55;
+  const body = new THREE.Mesh(
+    new THREE.ConeGeometry(0.72, 2.4, 5),
+    new THREE.MeshBasicMaterial({ color: 0x8ff2ca, transparent: true, opacity: 0.82 }),
+  );
+  body.position.y = 1.35;
+  body.rotation.z = Math.PI;
+  const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xeafff7 });
+  const eyeA = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.13, 0.12), eyeMaterial);
+  eyeA.position.set(-0.22, 1.82, 0.58);
+  const eyeB = eyeA.clone();
+  eyeB.position.x = 0.22;
+  group.add(glow, body, eyeA, eyeB);
+  group.userData.glow = glow;
+  group.userData.body = body;
+  return group;
+}
+
+export function updateWraithVisual(group: THREE.Group, elapsed: number, seed: number, moving: boolean): void {
+  const pulse = 0.88 + Math.sin(elapsed * 7 + seed) * 0.12;
+  const glow = group.userData.glow as THREE.Sprite;
+  const body = group.userData.body as THREE.Mesh;
+  glow.scale.set(3.8 * pulse, 4.8 * pulse, 1);
+  glow.material.opacity = 0.48 + pulse * 0.2;
+  body.position.y = 1.35 + Math.sin(elapsed * 4.8 + seed) * 0.28;
+  body.rotation.y += moving ? 0.13 : 0.045;
+  group.scale.setScalar(moving ? 1.08 : 1);
+}
+
 export function createPickupVisual(kind: PickupKind): THREE.Group {
   const group = new THREE.Group();
   const colors: Record<PickupKind, number> = { gold: 0xffcd5c, heal: 0x68e192, rift_shard: 0xbd78ff };

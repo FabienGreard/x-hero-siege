@@ -26,6 +26,7 @@ import type {
   PlayerSnapshot,
   ProjectileKind,
   ProjectileSnapshot,
+  SummonSnapshot,
   Vec2,
 } from "../shared/protocol";
 
@@ -92,6 +93,13 @@ interface ProjectileState extends ProjectileSnapshot {
   damage: number;
   pierce: number;
   hitIds: Set<string>;
+}
+
+interface SummonState extends SummonSnapshot {
+  damage: number;
+  speed: number;
+  strikeCooldown: number;
+  orbitOffset: number;
 }
 
 interface EffectState extends EffectSnapshot {}
@@ -178,6 +186,7 @@ export class GameWorld {
   private readonly enemyCap: number;
   private enemies = new Map<string, EnemyState>();
   private projectiles = new Map<string, ProjectileState>();
+  private summons = new Map<string, SummonState>();
   private pickups = new Map<string, PickupState>();
   private effects = new Map<string, EffectState>();
   private delayed: DelayedStrike[] = [];
@@ -308,6 +317,7 @@ export class GameWorld {
     this.activeLanes = [];
     this.enemies.clear();
     this.projectiles.clear();
+    this.summons.clear();
     this.pickups.clear();
     this.effects.clear();
     this.recentEvents = [];
@@ -350,6 +360,7 @@ export class GameWorld {
     if (this.phase === "lobby" || this.phase === "victory" || this.phase === "defeat") return;
     this.updatePlayers(dt);
     this.updateProjectiles(dt);
+    this.updateSummons(dt);
     this.updateEnemies(dt);
     this.updatePickups(dt);
     this.updateDelayed();
@@ -468,6 +479,7 @@ export class GameWorld {
       players: [...this.players.values()].map((player) => this.playerSnapshot(player)),
       enemies: [...this.enemies.values()].map((enemy) => this.enemySnapshot(enemy)),
       projectiles: [...this.projectiles.values()].map(({ damage: _d, pierce: _p, hitIds: _h, ...projectile }) => projectile),
+      summons: [...this.summons.values()].map(({ damage: _d, speed: _s, strikeCooldown: _c, orbitOffset: _o, ...summon }) => summon),
       pickups: [...this.pickups.values()],
       effects: [...this.effects.values()],
       events: this.recentEvents.slice(-12),
@@ -485,6 +497,7 @@ export class GameWorld {
     this.gatebreakerId = null;
     this.enemies.clear();
     this.projectiles.clear();
+    this.summons.clear();
     this.pickups.clear();
     this.effects.clear();
     this.delayed = [];
@@ -622,8 +635,8 @@ export class GameWorld {
     } else if (slot === "ability2") {
       player.barrier = Math.min(player.maxBarrier, player.barrier + this.rankDamage(75, rank)); this.effect("heal", player.position, this.rankRadius(4, rank), player.id);
     } else if (slot === "ability3") {
-      for (let index = -2; index <= 2; index++) this.fireProjectile(player, "soul", rotate(aim, index * 0.22), this.rankDamage(38, rank), 22, 2, this.rankRadius(0.45, rank));
-      this.effect("souls", player.position, this.rankRadius(6, rank), player.id);
+      this.raiseWraithHost(player, rank);
+      this.effect("souls", player.position, this.rankRadius(7, rank), player.id, 0.8);
     } else {
       this.fireProjectile(player, "death_tide", aim, this.rankDamage(125, rank), 19, 99, this.rankRadius(3.2, rank));
       this.effect("souls", player.position, this.rankRadius(10, rank), player.id, 1);
@@ -739,6 +752,80 @@ export class GameWorld {
       if (this.phase === "push" && this.riftHeart.active && distance(projectile.position, WORLD_LAYOUT.riftHeart) <= projectile.radius + 6) {
         this.damageRiftHeart(projectile.damage);
         this.projectiles.delete(projectile.id);
+      }
+    }
+  }
+
+  private raiseWraithHost(player: PlayerState, rank: number): void {
+    const count = 2 + rank;
+    for (let index = 0; index < count; index += 1) {
+      const angle = (index / count) * Math.PI * 2;
+      const summon: SummonState = {
+        id: this.id("wraith"),
+        ownerId: player.id,
+        kind: "wraith",
+        position: {
+          x: player.position.x + Math.cos(angle) * 2.4,
+          z: player.position.z + Math.sin(angle) * 2.4,
+        },
+        velocity: { x: 0, z: 0 },
+        facing: copy(player.aim),
+        radius: 0.72,
+        remaining: 6 + rank * 1.25,
+        targetId: null,
+        damage: this.rankDamage(24, rank),
+        speed: 14.5 + rank,
+        strikeCooldown: index * 0.12,
+        orbitOffset: angle,
+      };
+      this.summons.set(summon.id, summon);
+    }
+  }
+
+  private updateSummons(dt: number): void {
+    for (const summon of [...this.summons.values()]) {
+      summon.remaining -= dt;
+      summon.strikeCooldown = Math.max(0, summon.strikeCooldown - dt);
+      const owner = this.players.get(summon.ownerId);
+      if (!owner || summon.remaining <= 0) {
+        this.summons.delete(summon.id);
+        continue;
+      }
+
+      let target = summon.targetId ? this.enemies.get(summon.targetId) : undefined;
+      if (!target || distance(summon.position, target.position) > 34) {
+        target = this.closestEnemy(summon.position, 30) ?? undefined;
+        summon.targetId = target?.id ?? null;
+      }
+
+      const riftTarget = !target && this.phase === "push" && this.riftHeart.active;
+      const orbitAngle = this.totalTime * 1.7 + summon.orbitOffset;
+      const targetPosition = target?.position
+        ?? (riftTarget
+          ? WORLD_LAYOUT.riftHeart
+          : { x: owner.position.x + Math.cos(orbitAngle) * 3.2, z: owner.position.z + Math.sin(orbitAngle) * 3.2 });
+      const toTarget = { x: targetPosition.x - summon.position.x, z: targetPosition.z - summon.position.z };
+      const direction = normalize(toTarget);
+      summon.facing = direction;
+      const strikeRange = target ? target.radius + 1.15 : riftTarget ? 6.2 : 0.65;
+
+      if (distance(summon.position, targetPosition) > strikeRange) {
+        const step = Math.min(length(toTarget), summon.speed * dt);
+        summon.velocity = { x: direction.x * summon.speed, z: direction.z * summon.speed };
+        summon.position.x += direction.x * step;
+        summon.position.z += direction.z * step;
+      } else {
+        summon.velocity = { x: 0, z: 0 };
+        if (summon.strikeCooldown <= 0) {
+          summon.strikeCooldown = 0.72;
+          if (target) {
+            this.damageEnemy(target, summon.damage, owner);
+            if (!this.enemies.has(target.id)) summon.targetId = null;
+          } else if (riftTarget) {
+            this.damageRiftHeart(summon.damage);
+          }
+          this.effect("souls", summon.position, 1.8, owner.id, 0.22);
+        }
       }
     }
   }
@@ -1053,6 +1140,19 @@ export class GameWorld {
       if (player.downedFor > 0) continue;
       const value = distance(position, player.position);
       if (value < best) { best = value; found = player; }
+    }
+    return found;
+  }
+
+  private closestEnemy(position: Vec2, range: number): EnemyState | null {
+    let found: EnemyState | null = null;
+    let best = range;
+    for (const enemy of this.enemies.values()) {
+      const value = distance(position, enemy.position);
+      if (value < best) {
+        best = value;
+        found = enemy;
+      }
     }
     return found;
   }

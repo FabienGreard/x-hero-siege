@@ -19,6 +19,7 @@ import type {
   PickupSnapshot,
   PlayerSnapshot,
   ProjectileSnapshot,
+  SummonSnapshot,
   ServerMessage,
   Vec2,
 } from "../shared/protocol";
@@ -31,11 +32,13 @@ import {
   createHealthBar,
   createPickupVisual,
   createProjectileVisual,
+  createWraithVisual,
   setEntityFlash,
   updateEffectVisual,
   updateEntityVisual,
   updateHealthBar,
   updatePickupVisual,
+  updateWraithVisual,
   type EntityVisual,
 } from "./visuals";
 
@@ -149,6 +152,7 @@ interface TrackedObject {
 const playerVisuals = new Map<string, TrackedEntity>();
 const enemyVisuals = new Map<string, TrackedEntity>();
 const projectileVisuals = new Map<string, TrackedObject>();
+const summonVisuals = new Map<string, TrackedObject>();
 const pickupVisuals = new Map<string, TrackedObject>();
 const effectVisuals = new Map<string, { visual: THREE.Group; snapshot: EffectSnapshot }>();
 const floatingTexts: THREE.Sprite[] = [];
@@ -531,6 +535,7 @@ function applySnapshot(next: GameSnapshot): void {
   syncPlayers(next.players);
   syncEnemies(next.enemies);
   syncProjectiles(next.projectiles);
+  syncSummons(next.summons);
   syncPickups(next.pickups);
   syncEffects(next.effects);
   updateHud(next, self);
@@ -703,6 +708,31 @@ function syncProjectiles(projectiles: ProjectileSnapshot[]): void {
     if (active.has(id)) continue;
     world.remove(tracked.visual);
     projectileVisuals.delete(id);
+  }
+}
+
+function syncSummons(summons: SummonSnapshot[]): void {
+  const active = new Set<string>();
+  for (const summon of summons) {
+    active.add(summon.id);
+    let tracked = summonVisuals.get(summon.id);
+    if (!tracked) {
+      const visual = createWraithVisual();
+      visual.position.set(summon.position.x, 0, summon.position.z);
+      world.add(visual);
+      tracked = { visual, target: visual.position.clone(), velocity: summon.velocity, seed: Math.random() * 10 };
+      summonVisuals.set(summon.id, tracked);
+      spawnBurst(summon.position, 0x72e4b7, 7, 0.8);
+    }
+    tracked.target.set(summon.position.x, 0, summon.position.z);
+    tracked.velocity = summon.velocity;
+    tracked.visual.rotation.y = Math.atan2(-summon.facing.z, summon.facing.x);
+  }
+  for (const [id, tracked] of summonVisuals) {
+    if (active.has(id)) continue;
+    spawnBurst({ x: tracked.visual.position.x, z: tracked.visual.position.z }, 0x72e4b7, 5, 0.65);
+    world.remove(tracked.visual);
+    summonVisuals.delete(id);
   }
 }
 
@@ -1227,6 +1257,10 @@ function updateWorld(now: number, delta: number): void {
     updateEntityVisual(tracked.visual, now, Math.hypot(tracked.velocity.x, tracked.velocity.z) > 0.1, elapsed + tracked.target.x * 0.03, tracked.facing, tracked.action);
   }
   for (const tracked of projectileVisuals.values()) tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 28));
+  for (const tracked of summonVisuals.values()) {
+    tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 20));
+    updateWraithVisual(tracked.visual as THREE.Group, elapsed, tracked.seed, Math.hypot(tracked.velocity.x, tracked.velocity.z) > 0.1);
+  }
   for (const tracked of pickupVisuals.values()) {
     tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 12));
     updatePickupVisual(tracked.visual as THREE.Group, elapsed, tracked.seed);

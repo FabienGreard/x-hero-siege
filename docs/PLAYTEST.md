@@ -86,6 +86,16 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 
 Stop after verifying the slice. Do not use playtest observations as permission to add deferred systems before review.
 
+## Recorded verification — `0.1.4`, 2026-07-10
+
+- Began from pushed commit `1d19f78` and replayed the current Gravebinder opening at 1440×900 with keyboard and mouse.
+- Confirmed the player-visible mismatch recorded in the roadmap: Wraith Host rank 1 emitted five generic soul projectiles even though the hero fantasy promises summoned spirits.
+- Replayed the implemented checkpoint in the accelerated visual-QA timeline. Casting Wraith Host raised three distinct green wraiths around the Gravebinder; they separated from the hero, acquired nearby demons, pursued them, struck repeatedly, and retargeted.
+- The summons remained readable against the cyan Heartfire Nexus and red demon horde. The run recorded 13 kills after the host entered combat without adding a second HUD or obscuring enemy telegraphs.
+- Authoritative coverage proves rank-1 Wraith Host creates three persistent summon snapshots owned by the caster, creates no projectile fan, and moves the spirits independently over subsequent ticks.
+- Typecheck, 22 server tests with 285 assertions, the real four-client WebSocket smoke test, and production build passed. Game deployment verification remains pending a configured Bun/WebSocket host.
+- Saved evidence: [authoritative Wraith Host summons](playtest/wraith-host-summons.jpg).
+
 ## Recorded verification — `0.1.3`, 2026-07-10
 
 - Played the untouched `0.1.2` Warden run first at 1440×900 with keyboard and mouse. The initial point opened a separate 350px choice panel while the actual action slots remained disabled; spending through that panel then allowed a normal `Q` cast.
