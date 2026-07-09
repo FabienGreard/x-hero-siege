@@ -407,7 +407,7 @@ function createFacingIndicator(hero: boolean, scale: number): THREE.Group {
 function createAttackTelegraph(kind: "hero" | EnemyKind, scale: number): THREE.Group {
   const group = new THREE.Group();
   const heavy = kind === "brute" || kind === "siege" || kind === "rift_guard";
-  const length = heavy ? scale * 1.16 : scale * 0.86;
+  const length = heavy ? scale * 1.16 : kind === "hero" ? scale * 0.86 : 4.4;
   const width = heavy ? scale * 0.72 : scale * 0.48;
   const fillMaterial = groundMaterial(heavy ? 0xff513f : 0xf36a50, 0);
   const fill = new THREE.Mesh(new THREE.BoxGeometry(length, 0.02, width), fillMaterial);
@@ -435,7 +435,7 @@ export function createEntityVisual(
   const texture = entityTexture(kind, variant, elite);
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: 0.08, depthWrite: false });
   const sprite = new THREE.Sprite(material);
-  const scale = kind === "hero" ? 6.2 : kind === "hound" ? 4.2 : kind === "brute" || kind === "siege" || kind === "rift_guard" ? 7.5 : 4.8;
+  const scale = kind === "hero" ? 6.2 : kind === "hound" ? 2.9 : kind === "brute" || kind === "siege" || kind === "rift_guard" ? 7.2 : 3.35;
   sprite.scale.set(scale * 0.75, scale, 1);
   sprite.position.y = scale * 0.49;
   sprite.renderOrder = 12;

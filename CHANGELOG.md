@@ -2,6 +2,20 @@
 
 All notable project changes are recorded here.
 
+## [0.1.5] - 2026-07-10
+
+### Changed
+
+- Replaced exact-point enemy convergence with deterministic engagement slots around heroes, gates, and the Heartfire Nexus.
+- Added modest local separation while enemies travel so identical paths fan into a horde instead of merging into one queue.
+- Spread simultaneous gate attackers across lateral positions and depth rows, and Nexus attackers across approach-facing rings.
+- Gave Wraith Host spirits distinct approach angles around shared prey and the Rift Heart.
+- Reduced common imp and hound silhouettes toward the approved concept's hero-to-horde scale while preserving large elite silhouettes.
+
+### Preserved
+
+- Enemy counts, spawn cadence, health, damage, wave scaling, lane allocation, attack windups, hero controls, camera, objective rules, and phase flow.
+
 ## [0.1.4] - 2026-07-10
 
 ### Changed

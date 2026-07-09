@@ -1,6 +1,14 @@
 # Siegeheart devlog
 
-This is the human-readable record of why each shipped checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
+This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
+
+## 2026-07-10 — A horde, not a queue
+
+The city was receiving enough demons, but they did not look like an invasion. Every creature chose the exact center of its target, so a dense wave collapsed into a narrow road queue and then one unreadable pile at the gate or Nexus.
+
+`0.1.5` gives each attacker a stable place in the fight. Demons fan apart while travelling, fill separate rows across a gate, and occupy approach-facing rings around the Heartfire. Wraiths also keep distinct angles when they descend on the same victim. Common demons are smaller relative to the heroes and elites, matching the approved concept's combat scale more closely.
+
+Nothing was added to the encounter and no difficulty numbers changed. The same invasion now reads as a surrounding force rather than duplicated sprites sharing a coordinate.
 
 ## 2026-07-10 — Wraiths that actually haunt the battlefield
 
@@ -12,6 +20,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Earlier checkpoints
 
+- `0.1.4`: made Wraith Host raise authoritative hunting spirits.
 - `0.1.3`: moved skill upgrades directly onto the action bar.
 - `0.1.2`: made siege space and pressure proportional to starting player count.
 - `0.1.1`: established the LMB plus Q/E/R/F combat grammar and readable attack phases.

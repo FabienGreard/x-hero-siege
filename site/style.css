@@ -17,6 +17,7 @@ h1 { max-width: 760px; margin: 16px 0; font-size: clamp(54px, 9vw, 112px); line-
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .actions a { padding: 13px 18px; color: #06100d; background: #88e7c2; border: 1px solid #bfffe4; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
 .actions a.quiet { color: #d8e3e5; background: #10171d; border-color: #35444b; }
+.private-note { align-self: center; color: #68787d; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .checkpoint { display: grid; grid-template-columns: .9fr 1.1fr; gap: 46px; padding: 44px; background: linear-gradient(135deg, rgba(87, 217, 171, .1), rgba(15, 21, 27, .96) 42%); border: 1px solid #2d4342; }
 .checkpoint h2 { margin: 10px 0 16px; font-size: 48px; }
 .checkpoint p, .checkpoint li { color: #aebbbe; line-height: 1.65; }

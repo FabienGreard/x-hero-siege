@@ -87,6 +87,10 @@ interface EnemyState extends EnemySnapshot {
   slowFor: number;
   attackTargetKind: "player" | "gate" | "nexus" | null;
   attackTargetId: string | null;
+  attackTargetPosition: Vec2 | null;
+  engagementAngle: number;
+  engagementBias: number;
+  engagementArc: number;
 }
 
 interface ProjectileState extends ProjectileSnapshot {
@@ -800,14 +804,22 @@ export class GameWorld {
 
       const riftTarget = !target && this.phase === "push" && this.riftHeart.active;
       const orbitAngle = this.totalTime * 1.7 + summon.orbitOffset;
+      const engagementDirection = { x: Math.cos(summon.orbitOffset), z: Math.sin(summon.orbitOffset) };
       const targetPosition = target?.position
-        ?? (riftTarget
-          ? WORLD_LAYOUT.riftHeart
+        ? {
+          x: target.position.x + engagementDirection.x * (target.radius + 0.9),
+          z: target.position.z + engagementDirection.z * (target.radius + 0.9),
+        }
+        : (riftTarget
+          ? {
+            x: WORLD_LAYOUT.riftHeart.x + engagementDirection.x * 5.7,
+            z: WORLD_LAYOUT.riftHeart.z + engagementDirection.z * 5.7,
+          }
           : { x: owner.position.x + Math.cos(orbitAngle) * 3.2, z: owner.position.z + Math.sin(orbitAngle) * 3.2 });
       const toTarget = { x: targetPosition.x - summon.position.x, z: targetPosition.z - summon.position.z };
       const direction = normalize(toTarget);
       summon.facing = direction;
-      const strikeRange = target ? target.radius + 1.15 : riftTarget ? 6.2 : 0.65;
+      const strikeRange = target || riftTarget ? 0.52 : 0.65;
 
       if (distance(summon.position, targetPosition) > strikeRange) {
         const step = Math.min(length(toTarget), summon.speed * dt);
@@ -840,26 +852,41 @@ export class GameWorld {
         continue;
       }
       let targetPosition: Vec2;
+      let damageTargetPosition: Vec2;
       const targetPlayer = this.closestLivingPlayer(enemy.position, 9);
       if (targetPlayer) {
-        enemy.targetKind = "player"; enemy.targetId = targetPlayer.id; targetPosition = targetPlayer.position;
+        enemy.targetKind = "player";
+        enemy.targetId = targetPlayer.id;
+        damageTargetPosition = targetPlayer.position;
+        targetPosition = this.playerEngagementPoint(enemy, targetPlayer.position);
       } else if (this.phase !== "push" && !this.gates.get(enemy.lane)!.breached) {
-        enemy.targetKind = "gate"; enemy.targetId = enemy.lane; targetPosition = WORLD_LAYOUT.gates[enemy.lane];
+        enemy.targetKind = "gate";
+        enemy.targetId = enemy.lane;
+        damageTargetPosition = WORLD_LAYOUT.gates[enemy.lane];
+        targetPosition = this.gateEngagementPoint(enemy, enemy.lane);
       } else {
-        enemy.targetKind = this.phase === "push" ? "advance" : "nexus"; enemy.targetId = null; targetPosition = WORLD_LAYOUT.nexus;
+        enemy.targetKind = this.phase === "push" ? "advance" : "nexus";
+        enemy.targetId = null;
+        damageTargetPosition = WORLD_LAYOUT.nexus;
+        targetPosition = this.nexusEngagementPoint(enemy);
       }
       const direction = normalize({ x: targetPosition.x - enemy.position.x, z: targetPosition.z - enemy.position.z });
-      enemy.facing = direction;
-      const attackRange = enemy.radius + (targetPlayer ? 1 : enemy.targetKind === "gate" ? 4 : 6);
+      const separation = this.enemySeparation(enemy);
+      const steering = normalize({ x: direction.x + separation.x * 0.82, z: direction.z + separation.z * 0.82 });
+      enemy.facing = steering;
+      const attackRange = targetPlayer ? 0.52 : 0.72;
       if (distance(enemy.position, targetPosition) > attackRange) {
         const speed = enemy.speed * (enemy.slowed ? 0.5 : 1);
-        enemy.velocity = { x: direction.x * speed, z: direction.z * speed };
+        enemy.velocity = { x: steering.x * speed, z: steering.z * speed };
         enemy.position.x += enemy.velocity.x * dt; enemy.position.z += enemy.velocity.z * dt;
       } else {
         enemy.velocity = { x: 0, z: 0 };
         enemy.attackTargetKind = targetPlayer ? "player" : enemy.targetKind === "gate" ? "gate" : "nexus";
         enemy.attackTargetId = targetPlayer?.id ?? (enemy.targetKind === "gate" ? enemy.lane : null);
-        enemy.action = this.action("enemy_attack", "windup", ENEMY_WINDUPS[enemy.kind], direction);
+        enemy.attackTargetPosition = copy(targetPosition);
+        const attackDirection = normalize({ x: damageTargetPosition.x - enemy.position.x, z: damageTargetPosition.z - enemy.position.z });
+        enemy.facing = attackDirection;
+        enemy.action = this.action("enemy_attack", "windup", ENEMY_WINDUPS[enemy.kind], attackDirection);
       }
     }
   }
@@ -881,20 +908,23 @@ export class GameWorld {
     enemy.action = null;
     enemy.attackTargetKind = null;
     enemy.attackTargetId = null;
+    enemy.attackTargetPosition = null;
   }
 
   private resolveEnemyAttack(enemy: EnemyState): void {
     if (enemy.attackTargetKind === "player" && enemy.attackTargetId) {
       const target = this.players.get(enemy.attackTargetId);
-      if (target && target.downedFor <= 0 && distance(enemy.position, target.position) <= enemy.radius + 2.25) this.damagePlayer(target, enemy.damage);
+      if (target && target.downedFor <= 0 && distance(enemy.position, target.position) <= enemy.radius + 3.75) this.damagePlayer(target, enemy.damage);
       return;
     }
     if (enemy.attackTargetKind === "gate" && enemy.attackTargetId) {
       const lane = enemy.attackTargetId as LaneId;
-      if (distance(enemy.position, WORLD_LAYOUT.gates[lane]) <= enemy.radius + 4.75) this.damageGate(lane, enemy.damage);
+      if (enemy.attackTargetPosition && distance(enemy.position, enemy.attackTargetPosition) <= enemy.radius + 1.5) this.damageGate(lane, enemy.damage);
       return;
     }
-    if (enemy.attackTargetKind === "nexus" && distance(enemy.position, WORLD_LAYOUT.nexus) <= enemy.radius + 6.75) this.damageNexus(enemy.damage);
+    if (enemy.attackTargetKind === "nexus" && enemy.attackTargetPosition && distance(enemy.position, enemy.attackTargetPosition) <= enemy.radius + 1.5) {
+      this.damageNexus(enemy.damage);
+    }
   }
 
   private updateDirector(dt: number): void {
@@ -983,12 +1013,16 @@ export class GameWorld {
       else position.z += (this.random() - 0.5) * 22;
     }
     const hp = Math.round(base.hp * healthScale);
+    const id = this.id("enemy");
     const enemy: EnemyState = {
-      id: this.id("enemy"), kind, lane, position, velocity: { x: 0, z: 0 }, hp, maxHp: hp,
+      id, kind, lane, position, velocity: { x: 0, z: 0 }, hp, maxHp: hp,
       facing: normalize({ x: WORLD_LAYOUT.gates[lane].x - position.x, z: WORLD_LAYOUT.gates[lane].z - position.z }),
       radius: base.radius, elite: kind === "siege" || kind === "brute", targetKind: "gate", targetId: lane,
       slowed: false, action: null, damage: base.damage, speed: base.speed, attackCooldown: base.attackCooldown,
-      xp: base.xp, gold: base.gold, slowFor: 0, attackTargetKind: null, attackTargetId: null,
+      xp: base.xp, gold: base.gold, slowFor: 0, attackTargetKind: null, attackTargetId: null, attackTargetPosition: null,
+      engagementAngle: this.stableAngle(id),
+      engagementBias: this.stableUnit(id, 53),
+      engagementArc: this.stableUnit(id, 91),
     };
     this.enemies.set(enemy.id, enemy);
     this.spawned += 1;
@@ -1155,6 +1189,88 @@ export class GameWorld {
       }
     }
     return found;
+  }
+
+  private playerEngagementPoint(enemy: EnemyState, position: Vec2): Vec2 {
+    const radius = 2.5 + enemy.radius * 0.65 + enemy.engagementBias * 0.75;
+    return {
+      x: position.x + Math.cos(enemy.engagementAngle) * radius,
+      z: position.z + Math.sin(enemy.engagementAngle) * radius,
+    };
+  }
+
+  private gateEngagementPoint(enemy: EnemyState, lane: LaneId): Vec2 {
+    const gate = WORLD_LAYOUT.gates[lane];
+    const tangentOffset = (enemy.engagementBias * 2 - 1) * 6.2;
+    const rowOffset = enemy.engagementArc < 0.55 ? 0 : 3.2;
+    if (lane === "north") return { x: gate.x + tangentOffset, z: gate.z - rowOffset };
+    if (lane === "south") return { x: gate.x + tangentOffset, z: gate.z + rowOffset };
+    if (lane === "east") return { x: gate.x + rowOffset, z: gate.z + tangentOffset };
+    return { x: gate.x - rowOffset, z: gate.z + tangentOffset };
+  }
+
+  private nexusEngagementPoint(enemy: EnemyState): Vec2 {
+    const baseAngles: Record<LaneId, number> = {
+      north: -Math.PI / 2,
+      east: 0,
+      south: Math.PI / 2,
+      west: Math.PI,
+    };
+    const ring = Math.min(2, Math.floor(enemy.engagementBias * 3));
+    const radius = 6.55 + ring * 2.1 + enemy.radius * 0.2;
+    const angle = baseAngles[enemy.lane] + (enemy.engagementArc * 2 - 1) * 1.2;
+    return {
+      x: WORLD_LAYOUT.nexus.x + Math.cos(angle) * radius,
+      z: WORLD_LAYOUT.nexus.z + Math.sin(angle) * radius,
+    };
+  }
+
+  private enemySeparation(enemy: EnemyState): Vec2 {
+    let x = 0;
+    let z = 0;
+    for (const other of this.enemies.values()) {
+      if (other.id === enemy.id) continue;
+      const dx = enemy.position.x - other.position.x;
+      const dz = enemy.position.z - other.position.z;
+      const currentDistance = Math.hypot(dx, dz);
+      const desiredDistance = enemy.radius + other.radius + 0.5;
+      if (currentDistance >= desiredDistance) continue;
+      const strength = (desiredDistance - currentDistance) / desiredDistance;
+      if (currentDistance > 0.001) {
+        x += (dx / currentDistance) * strength;
+        z += (dz / currentDistance) * strength;
+      } else {
+        x += Math.cos(enemy.engagementAngle) * strength;
+        z += Math.sin(enemy.engagementAngle) * strength;
+      }
+    }
+    const magnitude = Math.hypot(x, z);
+    return magnitude > 1 ? { x: x / magnitude, z: z / magnitude } : { x, z };
+  }
+
+  private stableUnit(id: string, salt: number): number {
+    const numericSuffix = Number(id.slice(id.lastIndexOf("-") + 1));
+    let hash = Number.isFinite(numericSuffix)
+      ? (numericSuffix + Math.imul(salt, 0x9e3779b9)) >>> 0
+      : (2166136261 ^ salt) >>> 0;
+    if (!Number.isFinite(numericSuffix)) {
+      for (let index = 0; index < id.length; index += 1) {
+        hash ^= id.charCodeAt(index);
+        hash = Math.imul(hash, 16777619) >>> 0;
+      }
+    }
+    hash ^= hash >>> 16;
+    hash = Math.imul(hash, 0x7feb352d) >>> 0;
+    hash ^= hash >>> 15;
+    hash = Math.imul(hash, 0x846ca68b) >>> 0;
+    hash ^= hash >>> 16;
+    return (hash >>> 0) / 0xffffffff;
+  }
+
+  private stableAngle(id: string): number {
+    const numericSuffix = Number(id.slice(id.lastIndexOf("-") + 1));
+    const sequence = Number.isFinite(numericSuffix) ? numericSuffix : Math.floor(this.stableUnit(id, 17) * 10_000);
+    return (sequence * 2.399963229728653) % (Math.PI * 2);
   }
 
   private clampPlayer(player: PlayerState): void {

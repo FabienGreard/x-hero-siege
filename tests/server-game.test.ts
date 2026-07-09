@@ -82,6 +82,23 @@ describe("authoritative siege world", () => {
     expect(new Set(snapshot.enemies.map((enemy) => enemy.lane))).toEqual(new Set(["north"]));
   });
 
+  test("enemies take stable spread-out gate positions instead of collapsing onto one contact point", () => {
+    const game = new GameWorld({
+      timings: { defenseDuration: 60, waveCount: 1 },
+      random: () => 0.5,
+      enemyCap: 24,
+    });
+    readySolo(game);
+    advance(game, 14);
+
+    const snapshot = game.getSnapshot();
+    const attackers = snapshot.enemies.filter((enemy) => enemy.targetKind === "gate" && enemy.action);
+    expect(attackers.length).toBeGreaterThanOrEqual(4);
+    const xPositions = attackers.map((enemy) => enemy.position.x);
+    expect(Math.max(...xPositions) - Math.min(...xPositions)).toBeGreaterThan(4);
+    expect(snapshot.gates.find((gate) => gate.lane === "north")!.hp).toBeLessThan(260);
+  });
+
   for (const playerCount of [1, 2, 3, 4]) {
     test(`${playerCount} player${playerCount === 1 ? "" : "s"} open ${playerCount} fixed lane${playerCount === 1 ? "" : "s"} with solo-calibrated pressure per lane`, () => {
       const solo = new GameWorld({ timings: { defenseDuration: 20, waveCount: 4 }, random: () => 0.5 });
@@ -268,6 +285,10 @@ describe("authoritative siege world", () => {
     const hunting = game.getSnapshot().summons;
     expect(hunting).toHaveLength(3);
     expect(hunting.some((summon, index) => summon.position.x !== initialPositions[index]!.x || summon.position.z !== initialPositions[index]!.z)).toBe(true);
+    const pairDistances = hunting.flatMap((summon, index) => hunting.slice(index + 1).map((other) =>
+      Math.hypot(summon.position.x - other.position.x, summon.position.z - other.position.z),
+    ));
+    expect(Math.min(...pairDistances)).toBeGreaterThan(2);
   });
 
   test("hero attacks expose an authoritative windup before impact", () => {

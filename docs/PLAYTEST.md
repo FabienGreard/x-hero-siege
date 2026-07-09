@@ -84,7 +84,18 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - Any input, networking, or frame-rate issue.
 - One change that would most improve the next playtest.
 
-Stop after verifying the slice. Do not use playtest observations as permission to add deferred systems before review.
+After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.5`, 2026-07-10
+
+- Began from pushed `0.1.4` at 1280×720 and compared live breach contact against the first two approved concept panels. The server still sent every enemy and wraith to one exact target coordinate, producing a north-road queue and one oversized red/cyan pile at the Nexus.
+- The first narrow slot pass still overlapped heavily at breach density. The verified pass uses stable per-entity gate rows, approach-facing Nexus rings, player engagement angles, and modest travel separation; common imp and hound silhouettes were reduced toward the concept's hero-to-horde scale.
+- Replayed a normal-speed Warden run and held movement to meet the first wave at the north gate. More than fifty live threats remained individually locatable across the road and gate mouth instead of merging into a single column; the local hero and gate opening remained readable.
+- Raw enemy count, cadence, health, damage, lane allocation, and attack timing were unchanged. An unattended run still lost the Nexus, proving the checkpoint changed contact readability rather than difficulty.
+- Deterministic coverage proves simultaneous north-gate attackers occupy more than four world units of lateral space while still damaging the gate. Wraith coverage proves the three rank-one spirits remain separated while moving.
+- At the configured 260-enemy cap, 300 authoritative 30 Hz updates averaged 1.098 ms in the local Bun runtime.
+- Typecheck, 23 server tests with 293 assertions, the real four-client WebSocket smoke test, and production build passed. Browser console warnings/errors: none.
+- Saved comparison evidence: [tight contact before final spacing](playtest/contact-spacing-before.jpg) and [dispersed north-gate horde](playtest/contact-spacing-after.jpg).
 
 ## Recorded verification — `0.1.4`, 2026-07-10
 

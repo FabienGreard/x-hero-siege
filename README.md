@@ -2,7 +2,7 @@
 
 A browser-first, 1–4 player co-op action RPG about defending humanity's last city from a demon invasion. Four distinct heroes protect the central Heartfire Nexus, survive a breach, then counterattack through the rift.
 
-Version `0.1.4` is deliberately small: one 5–10 minute run that proves readable movement and attacks, party-sized lane defense, direct action-bar progression, an authoritative summon fantasy, one pressure spike, and one boss payoff.
+Version `0.1.5` is deliberately small: one 5–10 minute run that proves readable movement and attacks, party-sized lane defense, direct action-bar progression, authoritative summons, dispersed horde contact, one pressure spike, and one boss payoff.
 
 ![Siegeheart player-scaled siege checkpoint during the first breach](docs/playtest/player-scaled-siege-battle.png)
 

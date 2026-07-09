@@ -1,6 +1,17 @@
 # Slice-first roadmap
 
-This roadmap is a scope guard, not a content backlog. Work stops for player review after the first complete 5–10 minute run.
+This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
+
+## `0.1.5` — authoritative contact spacing
+
+**Status:** implemented and locally verified on 2026-07-10; deployment verification pending a configured game host.
+
+- Give enemies deterministic engagement slots around players, gates, and the Nexus instead of one exact shared destination.
+- Add restrained local separation during travel without introducing navigation, physics, or pathfinding scope.
+- Keep Wraith Host spirits individually legible when several attack the same prey.
+- Match the approved concept's common-demon scale more closely while retaining large elite silhouettes.
+- Preserve counts, cadence, health, damage, attack timing, controls, camera, and encounter content.
+- Verify gate damage, telegraph readability, solo and four-client state, high-density update cost, and the real rendered formation.
 
 ## `0.1.4` — Wraith Host summon fantasy
 
@@ -77,11 +88,11 @@ This roadmap is a scope guard, not a content backlog. Work stops for player revi
 - Camera, performance, effects, HUD, and threat readability receive a manual browser playtest.
 - `/health` and `/debug/state` expose enough information to diagnose a run without changing gameplay.
 
-## Stop and review
+## Checkpoint operating gate
 
-The implementation is currently at this gate. Do not begin deferred work until the playable build has been reviewed.
+The first playable has been reviewed and ongoing technical and gameplay direction is authorized. Begin each checkpoint by playing the latest verified build, choose the highest-leverage player-visible weakness, implement one bounded improvement, and validate the real rendered result before versioning it. Do not begin deferred work or change the approved promise as a consequence of routine playtest findings.
 
-After the `0.1.0` proof is playable, collect feedback on only these questions:
+Keep evaluating these questions against the actual build:
 
 1. Does movement and attacking feel immediately satisfying?
 2. Is the central Nexus objective always clear?
@@ -90,7 +101,7 @@ After the `0.1.0` proof is playable, collect feedback on only these questions:
 5. Does the counterattack and Rift destruction feel like a payoff?
 6. Is the camera close enough for impact and wide enough for co-op awareness?
 
-Do not schedule expansion until those answers are reviewed against the actual build.
+Do not schedule expansion until those answers support it in the actual build.
 
 ## Deferred beyond the slice
 
