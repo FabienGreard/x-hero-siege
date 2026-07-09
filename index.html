@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#080a10" />
+    <meta name="description" content="Siegeheart — a four-player dark fantasy action RPG vertical slice." />
+    <title>Siegeheart</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main id="game-shell" aria-label="Siegeheart game">
+      <div id="viewport" aria-hidden="true"></div>
+      <div class="screen-noise" aria-hidden="true"></div>
+      <div class="screen-vignette" aria-hidden="true"></div>
+
+      <section id="hud" class="hud is-hidden" aria-label="Game status">
+        <div id="connection-pill" class="connection-pill is-connecting">
+          <span class="connection-dot"></span>
+          <span id="connection-label">Waking the realm…</span>
+        </div>
+
+        <aside class="team-panel panel-chrome" aria-label="Party">
+          <div class="eyebrow">DEFENDERS</div>
+          <div id="team-list" class="team-list"></div>
+        </aside>
+
+        <header class="objective-hud" aria-live="polite">
+          <div class="objective-heading">
+            <span id="phase-label">THE FIRST BREACH</span>
+            <span id="wave-label">WAVE 1 / 3</span>
+          </div>
+          <div class="nexus-frame">
+            <div id="nexus-bar" class="nexus-fill"></div>
+            <div class="nexus-sheen"></div>
+            <div class="nexus-label">
+              <span class="nexus-gem">◆</span>
+              <span>HEARTFIRE NEXUS</span>
+              <span id="nexus-value">100%</span>
+            </div>
+          </div>
+          <div id="objective-copy" class="objective-copy">Hold the four approaches</div>
+        </header>
+
+        <div id="wave-banner" class="wave-banner" aria-live="assertive">
+          <span id="wave-kicker">THE HORNS SOUND</span>
+          <strong id="wave-title">WAVE I</strong>
+          <span id="wave-subtitle">NORTH ROAD</span>
+        </div>
+
+        <aside class="threat-panel panel-chrome" aria-label="Lane pressure">
+          <div class="eyebrow">CITY WATCH</div>
+          <div class="threat-compass">
+            <div id="threat-north" class="threat-lane lane-north" data-lane="N"><b>N</b><span></span></div>
+            <div id="threat-west" class="threat-lane lane-west" data-lane="W"><b>W</b><span></span></div>
+            <div class="threat-nexus">◆</div>
+            <div id="threat-east" class="threat-lane lane-east" data-lane="E"><b>E</b><span></span></div>
+            <div id="threat-south" class="threat-lane lane-south" data-lane="S"><b>S</b><span></span></div>
+          </div>
+          <canvas id="minimap" class="minimap" width="152" height="152" aria-label="Battlefield minimap"></canvas>
+        </aside>
+
+        <div id="combat-feed" class="combat-feed" aria-live="polite"></div>
+
+        <div id="boss-hud" class="boss-hud is-hidden">
+          <div class="boss-title"><span id="boss-name">RIFT TYRANT</span><small>INVASION COMMANDER</small></div>
+          <div class="boss-bar-frame"><div id="boss-bar" class="boss-bar-fill"></div></div>
+        </div>
+
+        <footer class="action-hud">
+          <div class="hero-orb-wrap">
+            <div id="hero-orb" class="hero-orb"><span id="hero-level">1</span></div>
+            <div class="hero-health-track"><div id="hero-health"></div></div>
+            <span id="hero-health-value">120 / 120</span>
+          </div>
+          <div class="combat-actions">
+            <span id="skill-point-count" class="ability-point-bank is-hidden" aria-live="polite">1 SKILL POINT · CLICK +</span>
+            <div class="basic-readout" aria-label="Basic attack">
+              <span class="basic-key">LMB</span>
+              <span class="basic-icon">⚔</span>
+              <span id="basic-attack-name" class="basic-name">Strike</span>
+            </div>
+            <div id="ability-bar" class="ability-bar" aria-label="Abilities">
+              <div class="ability-slot-wrap">
+                <button type="button" class="ability-slot" data-action="ability1">
+                  <span class="ability-key">Q</span><span class="ability-icon">✦</span><span class="ability-name">Skill I</span>
+                  <span class="ability-ranks" aria-label="Ability rank"></span><span class="ability-status">LOCKED</span><span class="cooldown-value"></span><i></i>
+                </button>
+                <button type="button" class="ability-upgrade" data-upgrade="ability1" aria-label="Upgrade Skill I" hidden>+</button>
+              </div>
+              <div class="ability-slot-wrap">
+                <button type="button" class="ability-slot" data-action="ability2">
+                  <span class="ability-key">E</span><span class="ability-icon">◈</span><span class="ability-name">Skill II</span>
+                  <span class="ability-ranks" aria-label="Ability rank"></span><span class="ability-status">LOCKED</span><span class="cooldown-value"></span><i></i>
+                </button>
+                <button type="button" class="ability-upgrade" data-upgrade="ability2" aria-label="Upgrade Skill II" hidden>+</button>
+              </div>
+              <div class="ability-slot-wrap">
+                <button type="button" class="ability-slot" data-action="ability3">
+                  <span class="ability-key">R</span><span class="ability-icon">✺</span><span class="ability-name">Skill III</span>
+                  <span class="ability-ranks" aria-label="Ability rank"></span><span class="ability-status">LOCKED</span><span class="cooldown-value"></span><i></i>
+                </button>
+                <button type="button" class="ability-upgrade" data-upgrade="ability3" aria-label="Upgrade Skill III" hidden>+</button>
+              </div>
+              <div class="ability-slot-wrap ultimate-wrap">
+                <button type="button" class="ability-slot ultimate" data-action="ultimate">
+                  <span class="ability-key">F</span><span class="ability-icon">◆</span><span class="ability-name">Ultimate</span>
+                  <span class="ability-ranks" aria-label="Ability rank"></span><span class="ability-requirement">LEVEL 3</span><span class="ability-status">LOCKED</span><span class="cooldown-value"></span><i></i>
+                </button>
+                <button type="button" class="ability-upgrade" data-upgrade="ultimate" aria-label="Upgrade Ultimate" hidden>+</button>
+              </div>
+            </div>
+          </div>
+          <div class="resource-readout">
+            <div><span class="resource-icon gold">●</span><strong id="gold-value">0</strong><small>GOLD</small></div>
+            <div><span class="resource-icon kills">✝</span><strong id="kills-value">0</strong><small>DEMONS</small></div>
+          </div>
+        </footer>
+
+        <div class="controls-hint">
+          <span><kbd>WASD</kbd> MOVE</span>
+          <span><kbd>MOUSE</kbd> AIM</span>
+          <span><kbd>LMB</kbd> ATTACK</span>
+          <span><kbd>Q E R F</kbd> ABILITIES</span>
+        </div>
+      </section>
+
+      <section id="hero-select" class="hero-select" aria-labelledby="select-title">
+        <div class="select-backdrop"></div>
+        <div class="select-content">
+          <div class="brand-lockup">
+            <span class="brand-rune">◆</span>
+            <h1>SIEGEHEART</h1>
+            <p>THE LAST CITY STANDS</p>
+          </div>
+          <div class="select-heading">
+            <span class="eyebrow">1–4 PLAYER CO-OP · NO DUPLICATE HEROES</span>
+            <h2 id="select-title">Choose your defender</h2>
+            <p>Every hero can hold a gate. Together, you can break the siege.</p>
+          </div>
+          <div id="hero-grid" class="hero-grid"></div>
+          <div class="lobby-footer panel-chrome">
+            <label class="name-field">
+              <span>YOUR NAME</span>
+              <input id="player-name" maxlength="18" autocomplete="off" spellcheck="false" value="Defender" />
+            </label>
+            <div class="lobby-status">
+              <span id="lobby-count">1 / 4 defenders</span>
+              <span id="lobby-note">Choose a hero to reserve them</span>
+            </div>
+            <button id="ready-button" class="ready-button" disabled>
+              <span class="ready-main">READY</span>
+              <span class="ready-sub">ENTER THE CITY</span>
+            </button>
+          </div>
+          <p class="slice-note">VERTICAL SLICE · 5–10 MINUTES · DESKTOP KEYBOARD &amp; MOUSE</p>
+        </div>
+      </section>
+
+      <section id="end-screen" class="end-screen is-hidden" aria-live="assertive">
+        <div class="end-card panel-chrome">
+          <span id="end-kicker" class="eyebrow">THE RIFT COLLAPSES</span>
+          <h2 id="end-title">THE CITY ENDURES</h2>
+          <p id="end-copy">The invasion recoils—for now.</p>
+          <div id="end-stats" class="end-stats"></div>
+          <button id="play-again" class="ready-button"><span class="ready-main">DEFEND AGAIN</span><span class="ready-sub">RETURN TO THE WAR TABLE</span></button>
+        </div>
+      </section>
+
+      <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+      <div id="interaction-prompt" class="interaction-prompt is-hidden"></div>
+    </main>
+    <noscript>Siegeheart requires JavaScript and WebGL.</noscript>
+    <script type="module" src="/assets/main.js"></script>
+  </body>
+</html>
