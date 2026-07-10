@@ -1,4 +1,4 @@
-import type { EquipmentSlots, ItemId, VendorId, Vec2 } from "./protocol";
+import type { EquipmentSlotIndex, EquipmentSlots, ItemId, VendorId, Vec2 } from "./protocol";
 
 export const EQUIPMENT_SLOT_COUNT = 6;
 export const ARMORY_WARE_PRICE = 30;
@@ -27,6 +27,12 @@ export interface EquipmentStackSummary {
   itemId: ItemId;
   count: number;
   totalEffectLabel: string;
+}
+
+export interface EquipmentChangeProjection {
+  equipment: EquipmentSlots;
+  slotIndex: EquipmentSlotIndex;
+  replacedItemId: ItemId | null;
 }
 
 export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
@@ -95,6 +101,23 @@ export const VENDOR_DEFINITIONS: Record<VendorId, VendorDefinition> = {
 
 export function createEmptyEquipment(): EquipmentSlots {
   return [null, null, null, null, null, null];
+}
+
+/** Mirrors the six-slot mutation rule without spending or changing authoritative state. */
+export function projectEquipmentChange(
+  equipment: EquipmentSlots,
+  incomingItemId: ItemId,
+  replacementSlotIndex: EquipmentSlotIndex | null = null,
+): EquipmentChangeProjection | null {
+  const candidateIndex = replacementSlotIndex ?? equipment.indexOf(null);
+  if (!Number.isInteger(candidateIndex) || candidateIndex < 0 || candidateIndex >= EQUIPMENT_SLOT_COUNT) return null;
+  const slotIndex = candidateIndex as EquipmentSlotIndex;
+  const replacedItemId = equipment[slotIndex];
+  if (replacementSlotIndex !== null && !replacedItemId) return null;
+  if (replacedItemId === incomingItemId) return null;
+  const nextEquipment = [...equipment] as EquipmentSlots;
+  nextEquipment[slotIndex] = incomingItemId;
+  return { equipment: nextEquipment, slotIndex, replacedItemId };
 }
 
 function formatPercent(value: number): string {

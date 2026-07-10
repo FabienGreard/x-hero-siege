@@ -4,6 +4,7 @@ import {
   createEmptyEquipment,
   isItemId,
   isVendorId,
+  projectEquipmentChange,
 } from "../shared/armory-data";
 import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
@@ -646,9 +647,11 @@ export class GameWorld {
       slotIndex = emptySlotIndex;
     }
 
+    const projection = projectEquipmentChange(player.equipment, itemId, replacementSlotIndex);
+    if (!projection) return this.failure("EQUIPMENT_CHANGED", "The equipment change is no longer available.");
+    slotIndex = projection.slotIndex;
     const previousRecovery = this.heroStats(player).cooldownRecovery;
-    const nextEquipment = [...player.equipment] as EquipmentSlots;
-    nextEquipment[slotIndex] = itemId;
+    const nextEquipment = projection.equipment;
     const nextRecovery = deriveHeroStats(player.heroId, player.level, nextEquipment).cooldownRecovery;
     const nextCooldowns = { ...player.cooldowns };
     if (nextRecovery !== previousRecovery) {

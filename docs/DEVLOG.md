@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — Know what thirty gold buys
+
+`0.1.12` made a committed build visible on the hero, but its most consequential shop decision was still partly blind. The reforge confirmation could say that Focus left and Edge entered; it did not say that this Warden would move from two Focuses to one, two Edges to three, Basic Damage `42 → 48`, Skill Power `130% → 115%`, and a violet signature to a warm one. Spending a fresh combat window's gold still required arithmetic and knowledge of a hidden tie-break.
+
+`0.1.13` puts that exact answer inside the final confirmation. It shows the two affected stacks, every changed Hero Stat, and the signature that will appear in battle if the server accepts the trade. The current Hero Stats panel deliberately does not change early: it remains the champion's authoritative state, while the compact shop block is clearly the proposed outcome.
+
+No item became stronger and no new rule appeared. One shared equipment projection now powers both the server's purchase path and the client's read-only question, and parity tests prove that question receives the same answer for all 12 ordered item pairings across every champion at levels 1 and 4. Thirty gold now buys the same decision, but the player can understand it before making it.
+
 ## 2026-07-10 — Power should live on the hero
 
 `0.1.11` made a six-slot build understandable, but only while reading a panel. Closing Hero Stats returned the same battlefield silhouette whether the Warden carried no equipment or had committed the entire run to one kind of power. The numbers had identity; the hero did not wear it.
@@ -86,6 +94,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.13`: made every irreversible reforge's exact champion result knowable before spending.
 - `0.1.12`: made authoritative socket investment visible on every equipped battlefield hero.
 - `0.1.11`: made six-slot build identity and duplicate totals readable at a glance.
 - `0.1.10`: made each ware and later reshape require a distinct, earned combat window.

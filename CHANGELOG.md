@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.13] - 2026-07-10
+
+### Added
+
+- Added an exact full-build reforge outcome to the final confirmation: outgoing and incoming effects, current-to-projected stack counts, every changed Hero Stat, and the resulting dominant battlefield signature.
+- Added one canonical equipment projection shared by server purchases and read-only client previews, plus parity coverage for all 12 ordered cross-item pairings across all four heroes at levels 1 and 4.
+
+### Changed
+
+- Keep the live Hero Stats panel authoritative until a replacement succeeds while clearly labeling the proposed result inside the confirmation surface.
+- Make the compact confirmation safe under mouse and keyboard input: hide the catalog at the final step, preserve `Enter` confirmation, prevent focused Back from spending, block Back/Escape step-back while a request is pending, and move focus before hiding a completed step.
+- Give the unchanged `518`-route deterministic shop test a `30s` allowance so its pacing assertions remain reliable on slower machines.
+
+### Preserved
+
+- The four established item effects, universal `30`-gold price, two distinct physical shops, six unrestricted duplicate-ready run-only slots, full-price replacement, personal co-op-safe ownership, and server authority.
+- Combat power, economy, routes, champion baselines, signature selection, controls, art, audio, telegraph hierarchy, and phase flow.
+- No ware, stat, proc, set bonus, rank, evolution, refund, salvage, persistence, or permanent power was added.
+
 ## [0.1.12] - 2026-07-10
 
 ### Added

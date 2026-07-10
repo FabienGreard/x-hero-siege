@@ -588,6 +588,14 @@ button.equipment-slot {
   border-color: rgba(170, 150, 221, 0.3);
 }
 
+.shop-panel.is-confirming .shop-items {
+  display: none;
+}
+
+.shop-panel.is-confirming {
+  min-height: 0;
+}
+
 .shop-panel::before {
   position: absolute;
   top: 0;
@@ -712,6 +720,39 @@ button.equipment-slot {
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shop-replace-outcomes {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 3px;
+  padding: 4px 5px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.shop-replace-outcome {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.shop-replace-outcome > span {
+  color: var(--shop-accent);
+  font-size: 5.25px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.shop-replace-outcome > strong {
+  min-width: 0;
+  color: #d9dedc;
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: 0.035em;
+  line-height: 1.35;
 }
 
 .shop-replace-terms {

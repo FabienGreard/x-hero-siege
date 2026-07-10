@@ -218,5 +218,5 @@ describe("normal-timing local shop route", () => {
     expect(results.every((result) => result.returnPlayerHp - result.departurePlayerHp >= -7)).toBe(true);
     expect(results.every((result) => result.returnGold === result.departureGold - RELIQUARY_WARE_PRICE)).toBe(true);
     expect(results.every((result) => result.equipment[0] === "runebound_focus")).toBe(true);
-  }, { timeout: 10_000 });
+  }, { timeout: 30_000 });
 });

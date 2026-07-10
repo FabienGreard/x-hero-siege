@@ -10,8 +10,10 @@ import {
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
   dominantEquipmentItem,
+  projectEquipmentChange,
   summarizeEquipment,
 } from "../shared/armory-data";
+import { deriveHeroStats } from "../shared/hero-stats";
 import type {
   ActionSnapshot,
   AbilitySlot,
@@ -23,6 +25,7 @@ import type {
   GamePhase,
   GameSnapshot,
   HeroId,
+  HeroStatsSnapshot,
   ItemId,
   LaneId,
   PickupSnapshot,
@@ -99,6 +102,9 @@ const shopReplaceGuide = requiredElement<HTMLElement>("shop-replace-guide");
 const shopReplaceItem = requiredElement<HTMLElement>("shop-replace-item");
 const shopReplaceConfirm = requiredElement<HTMLElement>("shop-replace-confirm");
 const shopReplacePreview = requiredElement<HTMLElement>("shop-replace-preview");
+const shopReplaceStacks = requiredElement<HTMLElement>("shop-replace-stacks");
+const shopReplaceStats = requiredElement<HTMLElement>("shop-replace-stats");
+const shopReplaceSignature = requiredElement<HTMLElement>("shop-replace-signature");
 const shopReplaceTerms = requiredElement<HTMLElement>("shop-replace-terms");
 const shopReplaceSubmit = requiredElement<HTMLButtonElement>("shop-replace-submit");
 const shopReplaceCancel = requiredElement<HTMLButtonElement>("shop-replace-cancel");
@@ -439,6 +445,63 @@ function formatHeroStat(value: number, decimals = 0): string {
   return fixed.replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
 }
 
+const REFORGE_STAT_FIELDS = [
+  { key: "basicDamage", label: "Basic Damage" },
+  { key: "moveSpeed", label: "Move Speed" },
+  { key: "abilityPower", label: "Skill Power" },
+  { key: "cooldownRecovery", label: "Cooldown Speed" },
+] as const satisfies ReadonlyArray<{ key: keyof HeroStatsSnapshot; label: string }>;
+
+const REFORGE_ITEM_NAMES: Record<ItemId, string> = {
+  tempered_edge: "Edge",
+  fleetstep_greaves: "Greaves",
+  runebound_focus: "Focus",
+  quickening_sigil: "Sigil",
+};
+
+function formatReforgeStat(key: (typeof REFORGE_STAT_FIELDS)[number]["key"], value: number): string {
+  if (key === "moveSpeed") return formatHeroStat(value, 1);
+  if (key === "abilityPower" || key === "cooldownRecovery") return `${formatHeroStat(value * 100)}%`;
+  return formatHeroStat(value, 1);
+}
+
+function equipmentCopyCount(equipment: PlayerSnapshot["equipment"], itemId: ItemId): number {
+  let count = 0;
+  for (const equippedItemId of equipment) {
+    if (equippedItemId === itemId) count += 1;
+  }
+  return count;
+}
+
+function replacementStackPreview(
+  current: PlayerSnapshot["equipment"],
+  projected: PlayerSnapshot["equipment"],
+  outgoingItemId: ItemId,
+  incomingItemId: ItemId,
+): string {
+  return [outgoingItemId, incomingItemId]
+    .map((itemId) => `${REFORGE_ITEM_NAMES[itemId]} ×${equipmentCopyCount(current, itemId)} → ×${equipmentCopyCount(projected, itemId)}`)
+    .join(" · ");
+}
+
+function replacementStatsPreview(current: HeroStatsSnapshot, projected: HeroStatsSnapshot): string {
+  return REFORGE_STAT_FIELDS
+    .filter(({ key }) => Math.abs(current[key] - projected[key]) > 1e-9)
+    .map(({ key, label }) => `${label} ${formatReforgeStat(key, current[key])} → ${formatReforgeStat(key, projected[key])}`)
+    .join(" · ");
+}
+
+function replacementSignaturePreview(
+  current: PlayerSnapshot["equipment"],
+  projected: PlayerSnapshot["equipment"],
+): string {
+  const currentItemId = dominantEquipmentItem(current);
+  const projectedItemId = dominantEquipmentItem(projected);
+  const currentName = currentItemId ? REFORGE_ITEM_NAMES[currentItemId] : "None";
+  const projectedName = projectedItemId ? REFORGE_ITEM_NAMES[projectedItemId] : "None";
+  return currentItemId === projectedItemId ? `${currentName} · unchanged` : `${currentName} → ${projectedName}`;
+}
+
 function updateHeroStats(self: PlayerSnapshot): void {
   const stats = self.stats;
   heroStatsName.textContent = self.heroId ? HERO_DEFINITIONS[self.heroId].name : "Defender";
@@ -603,6 +666,9 @@ function refreshReplacementState(self: PlayerSnapshot | undefined = currentPlaye
   const selectedOutgoingId = replacementSlotIndex !== null ? self?.equipment[replacementSlotIndex] ?? null : null;
   const selectedOutgoing = selectedOutgoingId ? ITEM_DEFINITIONS[selectedOutgoingId] : null;
   const confirming = Boolean(selectedItem && selectedOutgoing && replacementExpectedItemId === selectedOutgoingId);
+  if (!confirming && shopReplaceConfirm.contains(document.activeElement)) {
+    (shopOpen ? shopClose : heroStatsToggle).focus();
+  }
   shopPanel.classList.toggle("is-replacing", Boolean(selectedItem));
   shopPanel.classList.toggle("is-confirming", confirming);
   shopLoadoutLabel.textContent = confirming ? "CONFIRM THE REFORGE" : selectedItem ? "CHOOSE A SLOT TO DISCARD" : "YOUR LOADOUT";
@@ -610,16 +676,39 @@ function refreshReplacementState(self: PlayerSnapshot | undefined = currentPlaye
   shopReplaceGuide.setAttribute("aria-hidden", String(!selectedItem || confirming));
   shopReplaceConfirm.classList.toggle("is-hidden", !confirming);
   shopReplaceConfirm.setAttribute("aria-hidden", String(!confirming));
+  shopReplaceStacks.textContent = "—";
+  shopReplaceStats.textContent = "—";
+  shopReplaceSignature.textContent = "—";
+  shopReplaceConfirm.removeAttribute("aria-label");
   if (selectedItem) {
     shopReplaceItem.textContent = replacementRequestPending
       ? `REFORGING ${selectedItem.name.toUpperCase()}…`
       : `${ITEM_SYMBOLS[selectedItem.id]} ${selectedItem.name.toUpperCase()} · ${selectedItem.price} GOLD`;
   }
-  if (confirming && selectedItem && selectedOutgoing) {
-    shopReplacePreview.textContent = `OUT ${selectedOutgoing.name} ${selectedOutgoing.effectLabel} → IN ${selectedItem.name} ${selectedItem.effectLabel}`;
+  let previewReady = false;
+  if (confirming && selectedItem && selectedOutgoing && self?.heroId && replacementSlotIndex !== null) {
+    shopReplacePreview.textContent = `OUT ${REFORGE_ITEM_NAMES[selectedOutgoing.id].toUpperCase()} ${selectedOutgoing.effectLabel} → IN ${REFORGE_ITEM_NAMES[selectedItem.id].toUpperCase()} ${selectedItem.effectLabel}`;
     shopReplaceTerms.textContent = `${selectedItem.price} GOLD · OLD ITEM DISCARDED`;
+    const projection = projectEquipmentChange(self.equipment, selectedItem.id, replacementSlotIndex);
+    if (projection?.replacedItemId === selectedOutgoing.id) {
+      const projectedStats = deriveHeroStats(self.heroId, self.level, projection.equipment);
+      shopReplaceStacks.textContent = replacementStackPreview(
+        self.equipment,
+        projection.equipment,
+        selectedOutgoing.id,
+        selectedItem.id,
+      );
+      shopReplaceStats.textContent = replacementStatsPreview(self.stats, projectedStats) || "No Hero Stat change";
+      shopReplaceSignature.textContent = replacementSignaturePreview(self.equipment, projection.equipment);
+      shopReplaceConfirm.setAttribute(
+        "aria-label",
+        `${shopReplacePreview.textContent}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${shopReplaceTerms.textContent}.`,
+      );
+      previewReady = true;
+    }
   }
-  shopReplaceSubmit.disabled = !confirming || replacementRequestPending;
+  shopReplaceSubmit.disabled = !confirming || !previewReady || replacementRequestPending;
+  shopReplaceCancel.disabled = replacementRequestPending;
   shopReplaceSubmit.innerHTML = replacementRequestPending ? "REFORGING…" : "BUY &amp; REPLACE <kbd>ENTER</kbd>";
   if (self) {
     renderEquipmentSlots(shopEquipmentSlots, self.equipment, replacementItemId, replacementSlotIndex);
@@ -694,7 +783,7 @@ function selectReplacementSlot(slotIndex: EquipmentSlotIndex): void {
   replacementSlotIndex = slotIndex;
   replacementExpectedItemId = outgoingItemId;
   refreshReplacementState(self);
-  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Out ${outgoing.name}, ${outgoing.effectLabel}; in ${incoming.name}, ${incoming.effectLabel}; ${incoming.price} gold; old item discarded. Press Enter or choose Buy and Replace to confirm, or Escape to go back.`;
+  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Out ${outgoing.name}, ${outgoing.effectLabel}; in ${incoming.name}, ${incoming.effectLabel}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${incoming.price} gold; old item discarded. Press Enter or choose Buy and Replace to confirm, or Escape to go back.`;
   requestAnimationFrame(() => shopReplaceSubmit.focus());
 }
 
@@ -731,6 +820,13 @@ function confirmReplacement(): void {
   if (currentOutgoingItemId === replacementItemId) {
     clearReplacementSlot();
     toast(`${incoming.name} is already in that slot.`, "warning");
+    return;
+  }
+  const projection = projectEquipmentChange(self.equipment, replacementItemId, replacementSlotIndex);
+  if (!projection || projection.replacedItemId !== replacementExpectedItemId) {
+    clearReplacementSlot();
+    toast("That replacement can no longer be previewed.", "warning");
+    shopAnnouncement.textContent = "The projected equipment change is no longer available. No gold was spent; choose a slot again.";
     return;
   }
   if (self.gold < incoming.price) {
@@ -1790,7 +1886,13 @@ function cast(slot: AbilitySlot): void {
 heroStatsToggle.addEventListener("click", () => setHeroStatsOpen(!heroStatsOpen));
 shopClose.addEventListener("click", () => setShopOpen(false));
 shopReplaceSubmit.addEventListener("click", confirmReplacement);
-shopReplaceCancel.addEventListener("click", () => clearReplacementSlot(true));
+shopReplaceCancel.addEventListener("click", () => {
+  if (replacementRequestPending) {
+    shopAnnouncement.textContent = "The reforge is already being verified by the server.";
+    return;
+  }
+  clearReplacementSlot(true);
+});
 
 window.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement) return;
@@ -1813,6 +1915,19 @@ window.addEventListener("keydown", (event) => {
         clearReplacementSelection(true);
       } else {
         setShopOpen(false);
+      }
+      return;
+    }
+    if (
+      event.code === "Enter" &&
+      replacementSlotIndex !== null &&
+      (!(event.target instanceof HTMLButtonElement) || event.target === shopReplaceSubmit)
+    ) {
+      event.preventDefault();
+      if (replacementRequestPending) {
+        shopAnnouncement.textContent = "The reforge is already being verified by the server.";
+      } else {
+        confirmReplacement();
       }
       return;
     }
