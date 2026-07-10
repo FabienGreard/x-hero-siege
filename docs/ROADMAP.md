@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.12` — Wear the Build
 
-**Status:** implemented and locally verified on 2026-07-10; companion site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the visual weakness exposed by shipped `0.1.11`: panels explained a build, but the battlefield hero looked identical with zero equipment and a committed six-slot loadout.
 - Give every equipped hero one restrained, shape-coded corona for the ware with the greatest socket investment; ties resolve to the ware occupying the lowest slot.
