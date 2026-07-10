@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.13` — Know the Reforge
 
-**Status:** implemented and locally verified on 2026-07-10; companion site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the decision weakness exposed by shipped `0.1.12`: a destructive `30`-gold replacement named generic outgoing and incoming effects but did not reveal the exact champion-specific result before spending.
 - Show current-to-projected stack counts, every changed Hero Stat, and the resulting dominant battlefield signature in the final compact confirmation.
