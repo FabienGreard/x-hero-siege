@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.11` — Read the Build
 
-**Status:** implemented and locally verified on 2026-07-10; companion site release verification pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the presentation weakness exposed by shipped `0.1.10`: six socket symbols communicated capacity and legality, but made the actual build and duplicate investment difficult to read.
 - Group equipped wares in Hero Stats by first-equipped order, showing each name, copy count, and canonical total effect.
