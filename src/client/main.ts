@@ -9,6 +9,7 @@ import {
   EQUIPMENT_SLOT_COUNT,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
+  summarizeEquipment,
 } from "../shared/armory-data";
 import type {
   ActionSnapshot,
@@ -82,6 +83,7 @@ const statAbilityPower = requiredElement<HTMLElement>("stat-ability-power");
 const statCooldownRecovery = requiredElement<HTMLElement>("stat-cooldown-recovery");
 const equipmentCount = requiredElement<HTMLElement>("equipment-count");
 const heroEquipmentSlots = requiredElement<HTMLDivElement>("hero-equipment-slots");
+const heroEquipmentSummary = requiredElement<HTMLDivElement>("hero-equipment-summary");
 const shopPanel = requiredElement<HTMLElement>("shop-panel");
 const shopDistrict = requiredElement<HTMLElement>("shop-district");
 const shopTitle = requiredElement<HTMLElement>("shop-title");
@@ -517,12 +519,47 @@ function renderEquipmentSlots(
   }
 }
 
+function renderEquipmentSummary(equipment: PlayerSnapshot["equipment"]): void {
+  const key = equipment.map((itemId) => itemId ?? "empty").join("|");
+  if (heroEquipmentSummary.dataset.equipment === key) return;
+  heroEquipmentSummary.dataset.equipment = key;
+  heroEquipmentSummary.replaceChildren();
+  const stacks = summarizeEquipment(equipment);
+  if (stacks.length === 0) {
+    heroEquipmentSummary.hidden = true;
+    heroEquipmentSummary.setAttribute("aria-label", "Equipped item totals: none");
+    return;
+  }
+  heroEquipmentSummary.hidden = false;
+  heroEquipmentSummary.setAttribute(
+    "aria-label",
+    stacks
+      .map(({ itemId, count, totalEffectLabel }) => `${ITEM_DEFINITIONS[itemId].name}, ${count} ${count === 1 ? "copy" : "copies"}, ${totalEffectLabel}`)
+      .join("; "),
+  );
+  for (const { itemId, count, totalEffectLabel } of stacks) {
+    const item = ITEM_DEFINITIONS[itemId];
+    const stack = document.createElement("div");
+    stack.className = "equipment-stack";
+    stack.dataset.item = itemId;
+    stack.setAttribute("role", "listitem");
+    stack.innerHTML = `
+      <span class="equipment-stack-icon" aria-hidden="true">${ITEM_SYMBOLS[itemId]}</span>
+      <span class="equipment-stack-copy">
+        <strong><span>${item.name}</span><b>×${count}</b></strong>
+        <small>${totalEffectLabel}</small>
+      </span>`;
+    heroEquipmentSummary.append(stack);
+  }
+}
+
 function updateEquipmentReadouts(self: PlayerSnapshot): void {
   const used = self.equipment.filter((itemId) => itemId !== null).length;
   equipmentCount.textContent = `${used} / ${EQUIPMENT_SLOT_COUNT} SLOTS`;
   shopEquipmentCount.textContent = `${used} / ${EQUIPMENT_SLOT_COUNT}`;
   shopGold.textContent = `${Math.floor(self.gold)} GOLD`;
   renderEquipmentSlots(heroEquipmentSlots, self.equipment);
+  renderEquipmentSummary(self.equipment);
   renderEquipmentSlots(shopEquipmentSlots, self.equipment, replacementItemId, replacementSlotIndex);
 }
 
@@ -540,7 +577,7 @@ function renderShopCatalog(vendorId: VendorId): void {
       <span class="shop-item-key">${index + 1}</span>
       <span class="shop-item-icon" aria-hidden="true">${ITEM_SYMBOLS[itemId]}</span>
       <strong class="shop-item-name">${item.name}</strong>
-      <span class="shop-item-effect">${item.effectLabel}</span>
+      <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">0 OWNED</small></span>
       <small class="shop-item-description">${item.description}</small>
       <span class="shop-item-price"><span>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
     button.addEventListener("click", () => buyShopItem(itemId));
@@ -721,6 +758,12 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const selected = replacementItemId === itemId;
     const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending;
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
+    const owned = self.equipment.filter((equippedItemId) => equippedItemId === itemId).length;
+    const ownedLabel = button.querySelector<HTMLElement>("[data-shop-owned]");
+    if (ownedLabel) {
+      ownedLabel.textContent = `${owned} OWNED`;
+      ownedLabel.classList.toggle("has-items", owned > 0);
+    }
     button.disabled = !canBuy;
     button.classList.toggle("can-buy", canBuy);
     button.classList.toggle("is-selected", selected);
@@ -741,7 +784,7 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     }
     button.setAttribute(
       "aria-label",
-      `${item.name}, ${item.effectLabel}, ${item.price} gold. ${!withinPurchaseRange
+      `${item.name}, ${item.effectLabel}, ${item.price} gold. You own ${owned} ${owned === 1 ? "copy" : "copies"}. ${!withinPurchaseRange
         ? `Move closer to ${vendorName}.`
         : replacementRequestPending && selected
           ? "Replacement request pending."

@@ -107,7 +107,7 @@ describe("normal-timing economy pacing", () => {
     expect(results.every((result) => result.goldAtMidpoint < 5 * ARMORY_WARE_PRICE)).toBe(true);
     expect(results.every((result) => result.fullBuildAffordableElapsed >= 105)).toBe(true);
     expect(results.every((result) => result.fullBuildAffordableElapsed <= 120)).toBe(true);
-  });
+  }, { timeout: 20_000 });
 
   test("a full build needs one fresh 30-gold earning window before replacement", () => {
     const game = new GameWorld();

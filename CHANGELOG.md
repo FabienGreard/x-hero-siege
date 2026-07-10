@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.11] - 2026-07-10
+
+### Added
+
+- Added a grouped Hero Stats build summary that names every equipped ware, counts its copies, and totals its additive effect from canonical item data.
+- Added live owned-count badges to both physical shops so repeat purchases and full-build replacements expose the hero's current investment before commitment.
+- Added focused coverage for empty, mixed, one-of-each, and six-duplicate loadouts, including aggregate percentage formatting without floating-point artifacts.
+
+### Changed
+
+- Kept build explanation presentational: the readable summary derives from the authoritative equipment snapshot and the same canonical numeric item definitions used by gameplay.
+- Gave the existing `100`-seed normal-timing economy gate an explicit `20s` test allowance so slower machines do not fail its unchanged pacing assertions at Bun's default `5s` limit.
+
+### Preserved
+
+- Both physical shops, four established wares and effects, universal `30`-gold pricing, exactly six unrestricted duplicate-ready run-only slots, first-empty auto-equip, explicit full-build replacement, and personal co-op-safe ownership.
+- Combat, economy pacing, routes, hero baselines, authority, controls, art, audio, and phase flow.
+- No item, stat, effect, slot rule, inventory, rarity, recipe, persistence, or permanent power was added.
+
 ## [0.1.10] - 2026-07-10
 
 ### Added

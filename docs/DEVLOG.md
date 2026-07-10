@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — A build should read like a decision
+
+`0.1.10` gave each purchase time and weight, but a completed build still collapsed into six tiny socket symbols. The symbols showed that a slot was occupied; they did not tell the player whether the hero had committed to two Edges, two Focuses, or how much those duplicates contributed in total.
+
+`0.1.11` teaches the existing Hero Stats panel to explain that answer. Equipped wares are grouped into named stacks with copy counts and total bonuses, while each local shop card shows how many copies the hero already owns. A replacement decision can now be read against the build before a socket is sacrificed.
+
+No power or rule changed. The shops, four effects, 30-gold pacing, six unrestricted sockets, duplicate freedom, and authoritative stats are exactly the same; the decisions they already create are simply legible while the siege continues.
+
 ## 2026-07-10 — Gold should carry weight
 
 `0.1.9` made a full build changeable, but normal play exposed a deeper problem: the wallet had become a faucet. An efficient Warden filled all six sockets before the first minute and soon held enough gold to replace the entire build repeatedly. The item decisions were real; their cost was not.
@@ -70,6 +78,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.11`: made six-slot build identity and duplicate totals readable at a glance.
 - `0.1.10`: made each ware and later reshape require a distinct, earned combat window.
 - `0.1.9`: kept both local shops useful at six slots through one explicit full-price replacement decision.
 - `0.1.8`: turned one shop into a real local route and build choice without adding a global catalog.

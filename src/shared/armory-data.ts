@@ -23,6 +23,12 @@ export interface VendorDefinition {
   itemIds: ItemId[];
 }
 
+export interface EquipmentStackSummary {
+  itemId: ItemId;
+  count: number;
+  totalEffectLabel: string;
+}
+
 export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
   tempered_edge: {
     id: "tempered_edge",
@@ -89,6 +95,37 @@ export const VENDOR_DEFINITIONS: Record<VendorId, VendorDefinition> = {
 
 export function createEmptyEquipment(): EquipmentSlots {
   return [null, null, null, null, null, null];
+}
+
+function formatPercent(value: number): string {
+  const percent = value * 100;
+  return Number.isInteger(percent) ? String(percent) : String(Number(percent.toFixed(1)));
+}
+
+function totalEffectLabel(itemId: ItemId, count: number): string {
+  const item = ITEM_DEFINITIONS[itemId];
+  const effects = [
+    [item.basicDamagePercent, "Basic Damage"],
+    [item.moveSpeedPercent, "Move Speed"],
+    [item.abilityPowerPercent, "Skill Power"],
+    [item.cooldownRecoveryPercent, "Cooldown Speed"],
+  ] as const;
+  return effects
+    .filter(([value]) => value !== 0)
+    .map(([value, label]) => `+${formatPercent(value * count)}% ${label}`)
+    .join(" · ");
+}
+
+export function summarizeEquipment(equipment: EquipmentSlots): EquipmentStackSummary[] {
+  const counts = new Map<ItemId, number>();
+  for (const itemId of equipment) {
+    if (itemId) counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
+  }
+  return [...counts].map(([itemId, count]) => ({
+    itemId,
+    count,
+    totalEffectLabel: totalEffectLabel(itemId, count),
+  }));
 }
 
 export function isItemId(value: unknown): value is ItemId {

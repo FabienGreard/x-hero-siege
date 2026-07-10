@@ -2,6 +2,19 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.11` — Read the Build
+
+**Status:** implemented and locally verified on 2026-07-10; companion site release verification pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Correct the presentation weakness exposed by shipped `0.1.10`: six socket symbols communicated capacity and legality, but made the actual build and duplicate investment difficult to read.
+- Group equipped wares in Hero Stats by first-equipped order, showing each name, copy count, and canonical total effect.
+- Show the current owned count directly on every local shop card so repeat-purchase and replacement decisions are readable before commitment.
+- Keep this layer presentational: authoritative equipment snapshots and canonical item definitions remain the only source of truth.
+- Preserve both physical shops, four established effects, universal `30`-gold price, six unrestricted duplicate-ready run-only sockets, full-build replacement, economy pacing, routes, combat, controls, art, audio, and phase flow.
+- Prove empty, mixed, and six-duplicate summaries; shop and replacement readability at 1280×720; accessible labels; typecheck, authoritative tests, production build, four-client smoke, and clean rendered diagnostics.
+
+**Next-cycle nomination:** replay shipped `0.1.11` at normal timing and choose the next highest-leverage player-visible shop, item, or Hero Stats weakness without adding catalog breadth or a parallel system.
+
 ## `0.1.10` — Weight of Gold
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
@@ -63,7 +76,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows; `0.1.11` makes each completed build and duplicate investment legible without changing its rules. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 
@@ -165,6 +178,10 @@ Keep evaluating these questions against the actual build:
 6. Is the camera close enough for impact and wide enough for co-op awareness?
 
 Do not schedule expansion until those answers support it in the actual build.
+
+## Playable-hosting quality gate
+
+Before claiming a public playable deployment, disable or protect debug mutation routes; enforce WebSocket Origin, payload-size, and input-rate limits; fingerprint client assets instead of serving a stale immutable bundle at one URL; preserve a disconnected player's hero, wallet, and run-only equipment through bounded reconnects without adding persistence; and prove the supported room and snapshot scale. A configured Bun/WebSocket target must then pass the complete rendered run and diagnostics live. Until those gates pass, only the companion site is deployed.
 
 ## Deferred beyond the slice
 
