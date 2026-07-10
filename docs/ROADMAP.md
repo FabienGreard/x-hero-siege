@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.21` — Read the Commitment
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the early-commitment weakness exposed by shipped `0.1.20`: a normal Warden wearing one Edge and one Focus could read every exact champion consequence, yet both duplicate stacks still appeared as isolated `×1` bonuses until the shop suddenly announced the threshold at three copies.
 - Add restrained `ATTUNEMENT 1/4` and `ATTUNEMENT 2/4` labels to each owned stack in Hero Stats and the matching local shop card. Preserve `NEXT ATTUNES` at three, `ATTUNED` from four onward, and no progress label at zero.
