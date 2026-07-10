@@ -18,6 +18,7 @@ import {
   summarizeEquipment,
 } from "../shared/armory-data";
 import { deriveHeroStats } from "../shared/hero-stats";
+import { deriveAbilityImpactReadout } from "../shared/ability-impact";
 import type {
   ActionSnapshot,
   AbilitySlot,
@@ -110,6 +111,8 @@ const statAttackRate = requiredElement<HTMLElement>("stat-attack-rate");
 const statMoveSpeed = requiredElement<HTMLElement>("stat-move-speed");
 const statAbilityPower = requiredElement<HTMLElement>("stat-ability-power");
 const statCooldownRecovery = requiredElement<HTMLElement>("stat-cooldown-recovery");
+const abilityImpactReadout = requiredElement<HTMLElement>("ability-impact-readout");
+const heroAbilityImpact = requiredElement<HTMLDivElement>("hero-ability-impact");
 const equipmentCount = requiredElement<HTMLElement>("equipment-count");
 const heroEquipmentSlots = requiredElement<HTMLDivElement>("hero-equipment-slots");
 const heroEquipmentSummary = requiredElement<HTMLDivElement>("hero-equipment-summary");
@@ -291,6 +294,21 @@ const VENDOR_PRESENTATION: Record<VendorId, { district: string; tagline: string 
     district: "NORTHEAST CITADEL",
     tagline: "ARCANE RELICS · THE SIEGE CONTINUES",
   },
+};
+const ABILITY_READOUT_SLOTS = [
+  ["ability1", "Q"],
+  ["ability2", "E"],
+  ["ability3", "R"],
+  ["ultimate", "F"],
+] as const satisfies ReadonlyArray<readonly [AbilitySlot, string]>;
+const ABILITY_METRIC_SHORT_LABELS: Record<string, string> = {
+  DAMAGE: "DMG",
+  "ARROW DAMAGE": "ARROW",
+  "BOLT DAMAGE": "BOLT",
+  "DAMAGE / HIT": "DMG/HIT",
+  BARRIER: "BAR",
+  "HEAL / HIT": "HEAL/HIT",
+  "WRAITH DAMAGE": "WRAITH",
 };
 const shopItemButtons = new Map<ItemId, HTMLButtonElement>();
 
@@ -482,6 +500,53 @@ function formatHeroStat(value: number, decimals = 0): string {
   return fixed.replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
 }
 
+function updateHeroAbilityImpact(self: PlayerSnapshot): void {
+  if (!self.heroId) {
+    heroAbilityImpact.replaceChildren();
+    delete heroAbilityImpact.dataset.impact;
+    return;
+  }
+  const key = [
+    self.heroId,
+    ...ABILITY_READOUT_SLOTS.map(([slot]) => self.abilityRanks[slot]),
+    self.stats.abilityPower,
+    self.stats.cooldownRecovery,
+  ].join("|");
+  if (heroAbilityImpact.dataset.impact === key) return;
+  heroAbilityImpact.dataset.impact = key;
+  heroAbilityImpact.replaceChildren();
+
+  for (const [slot, keyLabel] of ABILITY_READOUT_SLOTS) {
+    const impact = deriveAbilityImpactReadout(
+      self.heroId,
+      slot,
+      self.abilityRanks[slot],
+      self.stats.abilityPower,
+      self.stats.cooldownRecovery,
+    );
+    const row = document.createElement("div");
+    row.className = `ability-impact${impact.learned ? "" : " is-unlearned"}`;
+    row.setAttribute("role", "listitem");
+    const fullMetrics = impact.metrics
+      .map((metric) => `${formatHeroStat(metric.value, 1)} ${metric.label}`)
+      .join(" and ");
+    const compactMetrics = impact.metrics
+      .map((metric) => `${formatHeroStat(metric.value, 1)} ${ABILITY_METRIC_SHORT_LABELS[metric.label] ?? metric.label}`)
+      .join("/");
+    const cooldown = `${formatHeroStat(impact.cooldown, 1)}S`;
+    row.setAttribute(
+      "aria-label",
+      impact.learned
+        ? `${keyLabel}, ${impact.name}, rank ${impact.rank}. ${fullMetrics}. ${formatHeroStat(impact.cooldown, 1)} second cooldown.`
+        : `${keyLabel}, ${impact.name}, unlearned.`,
+    );
+    row.innerHTML = `
+      <div class="ability-impact-heading"><kbd>${keyLabel}</kbd><strong>${impact.name}</strong><small>${impact.learned ? `R${impact.rank}` : "R0"}</small></div>
+      <div class="ability-impact-result"><span>${impact.learned ? compactMetrics : "UNLEARNED"}</span><em>${impact.learned ? cooldown : "—"}</em></div>`;
+    heroAbilityImpact.append(row);
+  }
+}
+
 const REFORGE_ITEM_NAMES: Record<ItemId, string> = {
   tempered_edge: "Edge",
   fleetstep_greaves: "Greaves",
@@ -538,6 +603,7 @@ function updateHeroStats(self: PlayerSnapshot): void {
   statMoveSpeed.textContent = formatHeroStat(stats.moveSpeed, 1);
   statAbilityPower.textContent = `${formatHeroStat(stats.abilityPower * 100)}%`;
   statCooldownRecovery.textContent = `${formatHeroStat(stats.cooldownRecovery * 100)}%`;
+  updateHeroAbilityImpact(self);
 }
 
 function distanceBetween(a: Vec2, b: Vec2): number {
@@ -1119,11 +1185,17 @@ function pulsePurchasedStat(itemId: ItemId | undefined): void {
           ? statCooldownRecovery
           : null;
   const stat = value?.closest<HTMLElement>(".hero-stat");
-  if (!stat) return;
-  stat.classList.remove("is-purchased");
+  const targets = [
+    ...(stat ? [stat] : []),
+    ...(itemId === "runebound_focus" || itemId === "quickening_sigil" ? [abilityImpactReadout] : []),
+  ];
+  if (targets.length === 0) return;
+  for (const target of targets) target.classList.remove("is-purchased");
   requestAnimationFrame(() => {
-    stat.classList.add("is-purchased");
-    window.setTimeout(() => stat.classList.remove("is-purchased"), 760);
+    for (const target of targets) target.classList.add("is-purchased");
+    window.setTimeout(() => {
+      for (const target of targets) target.classList.remove("is-purchased");
+    }, 760);
   });
 }
 

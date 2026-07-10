@@ -8,6 +8,11 @@ import {
   isVendorId,
   projectEquipmentChange,
 } from "../shared/armory-data";
+import {
+  ABILITY_IMPACT_DEFINITIONS,
+  scaleAbilityMagnitude,
+  type AbilityImpactMetricId,
+} from "../shared/ability-impact";
 import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
   DEBUG_TIMINGS,
@@ -732,22 +737,22 @@ export class GameWorld {
     if (slot === "ability1") {
       const origin = copy(player.position);
       const reach = this.rankRadius(10, rank);
-      this.damageLine(player, origin, aim, reach, this.rankRadius(2.5, rank), this.abilityMagnitude(player, 58, rank));
+      this.damageLine(player, origin, aim, reach, this.rankRadius(2.5, rank), this.abilityMagnitude(player, slot, rank));
       player.position.x += aim.x * reach; player.position.z += aim.z * reach; this.clampPlayer(player);
       const midpoint = { x: origin.x + aim.x * reach * 0.5, z: origin.z + aim.z * reach * 0.5 };
       this.effect("warden_charge", midpoint, reach * 0.5, player.id, 0.55, null, this.directionYaw(aim));
     } else if (slot === "ability2") {
       const reach = this.rankRadius(15, rank);
-      this.damageLine(player, player.position, aim, reach, this.rankRadius(3.7, rank), this.abilityMagnitude(player, 72, rank));
+      this.damageLine(player, player.position, aim, reach, this.rankRadius(3.7, rank), this.abilityMagnitude(player, slot, rank));
       this.effect("warden_wave", player.position, reach, player.id, 0.65, null, this.directionYaw(aim));
     } else if (slot === "ability3") {
       const radius = this.rankRadius(9, rank);
-      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 38, rank));
-      player.barrier = Math.min(player.maxBarrier, player.barrier + this.abilityMagnitude(player, 30, rank));
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, slot, rank));
+      player.barrier = Math.min(player.maxBarrier, player.barrier + this.abilityMagnitude(player, slot, rank, "secondary"));
       this.effect("war_standard", player.position, radius, player.id, 5 + rank);
     } else {
       const radius = this.rankRadius(17, rank);
-      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 145, rank));
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, slot, rank));
       player.barrier = player.maxBarrier;
       this.effect("warden_bastion", player.position, radius, player.id, 1.2);
     }
@@ -756,55 +761,55 @@ export class GameWorld {
   private castRiftstalker(player: PlayerState, slot: AbilitySlot, aim: Vec2, target: Vec2, rank: number): void {
     if (slot === "ability1") {
       player.position.x -= aim.x * 6; player.position.z -= aim.z * 6; this.clampPlayer(player); player.invulnerableFor = 0.3;
-      this.fireProjectile(player, "arrow", aim, this.abilityMagnitude(player, 44, rank), 31, 2, this.rankRadius(0.45, rank));
+      this.fireProjectile(player, "arrow", aim, this.abilityMagnitude(player, slot, rank), 31, 2, this.rankRadius(0.45, rank));
       this.effect("slash", player.position, this.rankRadius(2, rank), player.id);
     } else if (slot === "ability2") {
-      for (const angle of [-0.18, 0, 0.18]) this.fireProjectile(player, "splitbolt", rotate(aim, angle), this.abilityMagnitude(player, 47, rank), 29, 4, this.rankRadius(0.45, rank));
+      for (const angle of [-0.18, 0, 0.18]) this.fireProjectile(player, "splitbolt", rotate(aim, angle), this.abilityMagnitude(player, slot, rank), 29, 4, this.rankRadius(0.45, rank));
     } else if (slot === "ability3") {
       const radius = this.rankRadius(7.5, rank);
-      this.damageCircle(player, target, radius, this.abilityMagnitude(player, 28, rank), 4); this.effect("snare", target, radius, player.id, 1.1);
+      this.damageCircle(player, target, radius, this.abilityMagnitude(player, slot, rank), 4); this.effect("snare", target, radius, player.id, 1.1);
     } else {
-      for (let index = -5; index <= 5; index++) this.fireProjectile(player, "arrow", rotate(aim, index * 0.075), this.abilityMagnitude(player, 48, rank), 34, 3, this.rankRadius(0.45, rank));
+      for (let index = -5; index <= 5; index++) this.fireProjectile(player, "arrow", rotate(aim, index * 0.075), this.abilityMagnitude(player, slot, rank), 34, 3, this.rankRadius(0.45, rank));
     }
   }
 
   private castAshcaller(player: PlayerState, slot: AbilitySlot, aim: Vec2, target: Vec2, rank: number): void {
     if (slot === "ability1") {
       const radius = this.rankRadius(7, rank);
-      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 54, rank)); this.effect("fire", player.position, radius, player.id);
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, slot, rank)); this.effect("fire", player.position, radius, player.id);
     } else if (slot === "ability2") {
       const hit = new Set<string>();
       for (let step = 1; step <= 5; step++) {
         const point = { x: player.position.x + aim.x * step * 3.2, z: player.position.z + aim.z * step * 3.2 };
         const radius = this.rankRadius(3.2, rank);
-        this.damageCircle(player, point, radius, this.abilityMagnitude(player, 42, rank), 2, hit); this.effect("fire", point, radius, player.id, 1);
+        this.damageCircle(player, point, radius, this.abilityMagnitude(player, slot, rank), 2, hit); this.effect("fire", point, radius, player.id, 1);
       }
     } else if (slot === "ability3") {
       const radius = this.rankRadius(8, rank);
       this.effect("meteor_warning", target, radius, player.id, 0.9);
-      this.delayed.push({ at: this.totalTime + 0.8, ownerId: player.id, position: target, radius, damage: this.abilityMagnitude(player, 105, rank), kind: "meteor" });
+      this.delayed.push({ at: this.totalTime + 0.8, ownerId: player.id, position: target, radius, damage: this.abilityMagnitude(player, slot, rank), kind: "meteor" });
     } else {
       const radius = this.rankRadius(19, rank);
-      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 155, rank)); this.effect("fire", player.position, radius, player.id, 1.2);
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, slot, rank)); this.effect("fire", player.position, radius, player.id, 1.2);
     }
   }
 
   private castGravebinder(player: PlayerState, slot: AbilitySlot, aim: Vec2, target: Vec2, rank: number): void {
     if (slot === "ability1") {
       const radius = this.rankRadius(8, rank);
-      const hit = this.damageCircle(player, target, radius, this.abilityMagnitude(player, 67, rank));
+      const hit = this.damageCircle(player, target, radius, this.abilityMagnitude(player, slot, rank));
       for (const enemy of this.enemies.values()) if (distance(enemy.position, target) <= radius) {
         const pull = normalize({ x: player.position.x - enemy.position.x, z: player.position.z - enemy.position.z });
         enemy.position.x += pull.x * 4; enemy.position.z += pull.z * 4;
       }
-      player.hp = Math.min(this.heroStats(player).maxHp, player.hp + hit * this.abilityMagnitude(player, 7, rank)); this.effect("souls", target, radius, player.id);
+      player.hp = Math.min(this.heroStats(player).maxHp, player.hp + hit * this.abilityMagnitude(player, slot, rank, "secondary")); this.effect("souls", target, radius, player.id);
     } else if (slot === "ability2") {
-      player.barrier = Math.min(player.maxBarrier, player.barrier + this.abilityMagnitude(player, 75, rank)); this.effect("heal", player.position, this.rankRadius(4, rank), player.id);
+      player.barrier = Math.min(player.maxBarrier, player.barrier + this.abilityMagnitude(player, slot, rank)); this.effect("heal", player.position, this.rankRadius(4, rank), player.id);
     } else if (slot === "ability3") {
       this.raiseWraithHost(player, rank);
       this.effect("souls", player.position, this.rankRadius(7, rank), player.id, 0.8);
     } else {
-      this.fireProjectile(player, "death_tide", aim, this.abilityMagnitude(player, 125, rank), 19, 99, this.rankRadius(3.2, rank));
+      this.fireProjectile(player, "death_tide", aim, this.abilityMagnitude(player, slot, rank), 19, 99, this.rankRadius(3.2, rank));
       this.effect("souls", player.position, this.rankRadius(10, rank), player.id, 1);
     }
   }
@@ -939,7 +944,7 @@ export class GameWorld {
         radius: 0.72,
         remaining: 6 + rank * 1.25,
         targetId: null,
-        damage: this.abilityMagnitude(player, 24, rank),
+        damage: this.abilityMagnitude(player, "ability3", rank),
         speed: 14.5 + rank,
         strikeCooldown: index * 0.12,
         orbitOffset: angle,
@@ -1229,8 +1234,16 @@ export class GameWorld {
     return deriveHeroStats(player.heroId, player.level, player.equipment);
   }
 
-  private abilityMagnitude(player: PlayerState, base: number, rank: number): number {
-    return base * (1 + Math.max(0, rank - 1) * 0.25) * this.heroStats(player).abilityPower;
+  private abilityMagnitude(
+    player: PlayerState,
+    slot: AbilitySlot,
+    rank: number,
+    metricId: AbilityImpactMetricId = "primary",
+  ): number {
+    if (!player.heroId) return 0;
+    const metric = ABILITY_IMPACT_DEFINITIONS[player.heroId][slot][metricId];
+    if (!metric) return 0;
+    return scaleAbilityMagnitude(metric.base, rank, this.heroStats(player).abilityPower);
   }
 
   private rankRadius(base: number, rank: number): number {

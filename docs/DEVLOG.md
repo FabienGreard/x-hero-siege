@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — Arcane power should name the cast it changes
+
+`0.1.18` made a purchase land, but an Ashcaller wearing both Reliquary wares exposed the next abstraction. Hero Stats said `Skill Power 115%` and `Cooldown Speed 115%`; equipment repeated the same percentages. Flame Ring and Falling Star were visibly learned on the action bar, yet no surface joined those truths into the damage and recovery the current build could actually deliver.
+
+`0.1.19` adds that join inside Hero Stats. The existing panel now names every learned champion ability, its rank, exact current per-target magnitude, and effective cooldown. In the played Ashcaller build, one Focus and one Sigil resolve into Flame Ring at `77.6` damage every `5.2s` and Falling Star at `181.1` damage every `10.4s`. A second accepted Focus updates those exact outputs to `87.8` and `204.8` without pretending Quickening changed.
+
+The values are not client-authored descriptions. All sixteen server cast paths now read their magnitude bases from the same shared definitions used by the panel, including Warden barrier, Gravebinder healing and Wraith strikes, and per-projectile Riftstalker values. Unlearned abilities stay `UNLEARNED`; the panel is a truthful current build, not a skill planner. The result deepens the four existing wares and champions without adding a fifth item, another stat, or a parallel screen.
+
 ## 2026-07-10 — A purchase should land on the hero
 
 `0.1.17` completed the route into the Armory: the wallet announced readiness, both physical destinations remained equally legible, each card named the exact next stat, and Hero Stats reconciled the accepted build. Normal play through one Focus and one Edge then exposed a smaller but important break in the sentence. Gold left, a combat-log line appeared, and the hero returned to battle; the ordinary decision itself barely arrived in the world. Only the fourth-copy Attunement felt like an earned equipment moment.

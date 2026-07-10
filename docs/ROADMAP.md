@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.19` — Read Every Cast
+
+**Status:** implemented and locally verified on 2026-07-10; push and companion-site deployment pending.
+
+- Correct the champion-stat comprehension weakness exposed by shipped `0.1.18`: an Ashcaller carrying Focus and Quickening truthfully showed `Skill Power 115%` and `Cooldown Speed 115%`, but those aggregates never answered what happened to Flame Ring, Cinder Wall, Falling Star, or Worldfire.
+- Add one compact `ABILITY IMPACT` block inside the existing non-pausing Hero Stats panel. For every learned ability, name the champion's cast, current rank, exact current per-target magnitude, and effective cooldown; keep rank-zero casts explicitly unlearned.
+- Establish one shared canonical impact definition for all sixteen abilities and use it in both authoritative server resolution and the client readout. Include real secondary magnitudes only where they exist, without reducing complex abilities to a false total-pack claim.
+- Keep the block visible beside either physical shop and pulse it when Focus or Quickening is accepted, so aggregate arcane stats reconcile into champion-specific consequences without a new screen, hover dependency, or pre-acceptance mutation.
+- Prove every hero, legal ability rank, primary and secondary magnitude, effective cooldown, Focus and Quickening changes, native 1280×720 stats/shop coexistence, clean diagnostics, production build, authoritative suite, and real four-client convergence.
+
+**Next-cycle nomination:** replay shipped `0.1.19` at normal timing and choose the next highest-leverage shop, item, or champion-stat weakness from real use. Do not turn exact current cast consequences into a speculative skill planner or expand the catalog.
+
 ## `0.1.18` — Wear the Gain
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.

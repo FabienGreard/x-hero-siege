@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.19] - 2026-07-10
+
+### Added
+
+- Added a compact champion-specific `ABILITY IMPACT` block to Hero Stats: every learned `Q`/`E`/`R`/`F` names its current rank, exact per-target magnitude, and effective cooldown.
+- Added shared canonical impact definitions for all sixteen abilities, including secondary Warden barrier and Gravebinder healing values, plus precise labels for arrows, bolts, Cinder Wall hits, and Wraith strikes.
+- Added exhaustive server/readout parity across every legal rank for all four heroes and all sixteen abilities.
+
+### Changed
+
+- Replaced server-only ability-magnitude constants with the shared canonical definitions, so combat resolution and the rendered champion readout cannot drift.
+- Pulse the complete ability-impact block when Focus or Quickening is accepted, while leaving unlearned abilities explicitly unlearned instead of presenting speculative rank-one output.
+
+### Preserved
+
+- Every ability's damage, barrier, healing, summon power, rank scaling, cooldown, radius, behavior, creation-time snapshot rule, and existing balance.
+- All four wares, prices, rewards, shops, routes, six unrestricted run-only slots, Attunement, replacement, controls, art, audio, and server authority.
+- No new ability, stat, item, proc, tooltip mode, hover dependency, comparison screen, permanent progression, or balance change was added.
+
 ## [0.1.18] - 2026-07-10
 
 ### Added
