@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.20` — Read Every Strike
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the remaining champion-stat disconnect exposed by shipped `0.1.19`: the Warden's accepted Focus resolved into exact Rupturing Arc output, but `Basic Damage 30`, `Attack Rate 1.92`, and the named `Iron Cleave` primary still lived on separate surfaces.
 - Broaden the existing current-build block to `ACTION IMPACT` and add one full-width `LMB` row naming each hero's primary, exact damage per target, and attacks per second. Include Soul Scythe's real fixed heal per struck target without estimating pack totals or DPS.
