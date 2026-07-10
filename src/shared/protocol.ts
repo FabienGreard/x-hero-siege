@@ -17,8 +17,12 @@ export type GamePhase =
 export type AbilitySlot = "ability1" | "ability2" | "ability3" | "ultimate";
 export type ActionSlot = "basic" | AbilitySlot;
 export type ActionPhase = "idle" | "windup" | "active" | "recovery";
-export type ItemId = "tempered_edge" | "fleetstep_greaves";
-export type VendorId = "ironbound_forge";
+export type ItemId =
+  | "tempered_edge"
+  | "fleetstep_greaves"
+  | "runebound_focus"
+  | "quickening_sigil";
+export type VendorId = "ironbound_forge" | "veilglass_reliquary";
 export type EquipmentSlots = [
   ItemId | null,
   ItemId | null,

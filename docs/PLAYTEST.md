@@ -40,11 +40,13 @@ Useful read-only diagnostics:
 3. Move, aim independently, attack while repositioning, and use every learned ability once.
 4. Fight the opening wave and note whether common enemies die quickly with readable impact feedback.
 5. Spend each earned skill point from the action bar without pausing the fight. Confirm the `+` disappears, the rank pip fills, and clicking the learned slot still casts normally.
-6. After earning 24 gold, deliberately retreat to the northwest Ironbound Forge. Confirm the marker, physical landmark, proximity prompt, and travel cost are readable without a global shop button.
-7. Open the Forge with `B`, choose a ware by mouse or `1`/`2`, and confirm gold, one of six sockets, the affected Hero Stat, and subsequent movement or basic damage update while enemies continue acting.
-8. Respond to the forced gate breach. Confirm pressure clearly shifts toward protecting the Nexus and that a fallen gate does not itself end the run.
-9. Defeat the siege threat, follow the opened counterattack route as a group, and destroy the Rift source.
-10. Confirm the victory payoff is unambiguous and the run ends cleanly.
+6. Earn at least 48 gold, read the real outbound pressure, and create a safe retreat window rather than shopping while enemies are already striking the gate.
+7. Visit the northwest Ironbound Forge. Confirm its warm landmark, minimap marker, proximity prompt, and travel cost are readable; open it with `B`, buy by mouse or `1`/`2`, and verify Basic Damage or Move Speed changes in Hero Stats while enemies continue acting.
+8. Re-establish the lane, create a second safe window, and visit the northeast Veilglass Reliquary. Confirm its cool shrine and marker cannot be confused with the Forge; buy one ware and verify Skill Power changes real ability output or Cooldown Speed shortens `Q`/`E`/`R`/`F` recovery without changing LMB cadence.
+9. Leave each vendor's range and confirm the panel closes. Press `B` remotely, then enter the other vendor's range and reopen it; only that physical shop's two wares should appear.
+10. Respond to the forced gate breach. Confirm pressure clearly shifts toward protecting the Nexus and that a fallen gate does not itself end the run.
+11. Defeat the siege threat, follow the opened counterattack route as a group, and destroy the Rift source.
+12. Confirm the victory payoff is unambiguous and the run ends cleanly.
 
 Repeat once while allowing enemies to reach and destroy the Nexus. Confirm defeat occurs because Nexus health reaches zero, not merely because a gate falls.
 
@@ -90,6 +92,21 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - One change that would most improve the next playtest.
 
 After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.8`, 2026-07-10
+
+- Began from pushed `0.1.7` and replayed the rendered Forge loop at 1280×720. The first physical vendor was readable and functional, but one location offered no route comparison: every funded hero made the same retreat and saw the same two-item answer.
+- Compared the approved concept's warm market props and cool crystal shrine language with the live Citadel. Replaced one existing shell rather than adding a menu, extra district, inventory grid, or decorative vendor.
+- The first implementation placed the Reliquary southeast. A default 210-second, normal-speed Warden run earned its gold from real kills and completed the local purchase round trip in `11.12s`, but North fell from `176 → 0` while the Nexus remained untouched. That location was rejected rather than weakening the siege or making trade remote.
+- Moved the same shop to the northeast mirror of the Forge. The first replay departed while demons immediately outside North were already committed to the gate; although the `6.02s` trip technically left `22` health, release review rejected that one-hit margin rather than calling it acceptable tension.
+- Replayed the corrected route at normal `210`-second defense timing in the rendered client with only legal Warden input and earned gold. The defender attacked only inside real cleave range, pushed the most advanced threat, and departed only after the outbound danger band was controlled: at `22.81s`, North was `260`, Nexus `800`, the Warden `199` health, and the wallet held `96` gold from `32` kills. The nearest imp was `49.61` units from North with a straight-line `9.19s` ETA. Runebound Focus was bought locally; the Warden returned in `9.53s` with North `253`, Nexus `800`, health unchanged, and the item equipped. The rendered route therefore cost one seven-damage hit, not the gate.
+- Repeated the same non-accelerated route rule across `100` deterministic seeds. All `100/100` purchases and returns completed in `8.33–9.70s`; North retained `176–260` health (`218.35` average), the Nexus remained `800` every time, no hero was downed, and trip health loss was at most `7`. This makes pressure control—not a lucky roll or a moved shop—the verified strategic requirement.
+- Captured the saved normal-siege return image from a separate frozen rendered replay of that rule so its visible state is auditable: Wave `1/5`, `31` kills, `69` gold after the 24-gold purchase, Runebound Focus in slot one, Skill Power `115%`, and Nexus `100%`. Its authoritative return record was `9.53s`, North `260 → 232`, Nexus `800`, Warden `199` health, and no down; it illustrates the verified envelope rather than pretending to be the stricter seven-damage sample above.
+- In a protected one-enemy visual-QA room, the Ashcaller reached the Reliquary with a 48-gold test wallet. Keyboard `1` bought Runebound Focus and changed Skill Power `100% → 115%`; mouse bought Quickening Sigil and changed Cooldown Speed `100% → 115%`. Both items filled the shared first two of six unrestricted slots while the siege continued.
+- Pressing remote `B` left the panel closed. After the Reliquary purchase, walking beyond the close threshold dismissed the panel; reaching the Forge and pressing `B` reopened the same panel with only Tempered Edge and Fleetstep Greaves. No Reliquary card or stale vendor state survived the transition.
+- Authoritative coverage proves real Rupturing Arc output changes `72 → 82.8`, Quickening preserves remaining `Q`/`E`/`R`/`F` cooldown progress without touching LMB cadence, six duplicates reach `190%`, a seventh cross-shop purchase is atomic, simultaneous different-vendor purchases stay personal, and existing Splitbolts, Falling Stars, and Wraiths retain creation-time damage.
+- Typecheck, 57 tests with 761 assertions, production build, the real four-client WebSocket smoke with both vendor inventories, and browser warnings/errors all passed. The suite now preserves the `100`-seed normal route margin and creation-time Splitbolt damage explicitly. Companion deployment remains pending; playable-game deployment remains pending a configured Bun/WebSocket host.
+- Saved comparison evidence: [`0.1.7` single-shop before](playtest/first-forge-after.jpg), [two-road Reliquary catalog](playtest/two-roads-after.jpg), and [normal-siege returned loadout from the separate frozen replay](playtest/two-roads-route.jpg).
 
 ## Recorded verification — `0.1.7`, 2026-07-10
 

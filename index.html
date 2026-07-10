@@ -80,9 +80,9 @@
         >
           <header class="shop-header">
             <div>
-              <span class="eyebrow">NORTHWEST CITADEL</span>
+              <span id="shop-district" class="eyebrow">NORTHWEST CITADEL</span>
               <strong id="shop-title">IRONBOUND FORGE</strong>
-              <small>MARTIAL GOODS · THE SIEGE CONTINUES</small>
+              <small id="shop-tagline">MARTIAL GOODS · THE SIEGE CONTINUES</small>
             </div>
             <button id="shop-close" type="button" aria-label="Close Ironbound Forge"><kbd>B</kbd> CLOSE</button>
           </header>
@@ -95,6 +95,7 @@
           </div>
           <div id="shop-items" class="shop-items" aria-label="Items for sale"></div>
         </aside>
+        <div id="shop-announcement" class="screen-reader-only" aria-live="polite"></div>
 
         <aside class="team-panel panel-chrome" aria-label="Party">
           <div class="eyebrow">DEFENDERS</div>
@@ -244,7 +245,7 @@
       </section>
 
       <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
-      <div id="interaction-prompt" class="interaction-prompt is-hidden"></div>
+      <div id="interaction-prompt" class="interaction-prompt is-hidden" aria-live="polite"></div>
     </main>
     <noscript>Siegeheart requires JavaScript and WebGL.</noscript>
     <script type="module" src="/assets/main.js"></script>

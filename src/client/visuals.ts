@@ -908,6 +908,15 @@ interface ForgeVisual {
   light: THREE.PointLight;
 }
 
+interface ReliquaryVisual {
+  sigil: THREE.Group;
+  core: THREE.Mesh;
+  glow: THREE.Sprite;
+  light: THREE.PointLight;
+  prisms: THREE.Mesh[];
+  motes: THREE.Points;
+}
+
 interface GateSealVisual {
   root: THREE.Group;
   ward: THREE.Mesh;
@@ -1076,6 +1085,121 @@ function addIronboundForge(parent: THREE.Group, braziers: Brazier[]): ForgeVisua
   parent.add(sigil, sigilGlow, light);
 
   return { sigil, sigilGlow, sign, light };
+}
+
+function addVeilglassReliquary(parent: THREE.Group): ReliquaryVisual {
+  const vendor = VENDOR_DEFINITIONS.veilglass_reliquary;
+  const buildingX = 20;
+  const buildingZ = -19;
+  const stone = stoneMaterial("reliquary-stone", 0x303543);
+  const darkStone = stoneMaterial("reliquary-dark-stone", 0x222633);
+  const trim = stoneMaterial("reliquary-trim", 0x4b5266);
+  const roof = stoneMaterial("reliquary-roof", 0x29253d);
+  const lecternMaterial = stoneMaterial("reliquary-lectern", 0x353b4b);
+
+  // A tall shrine silhouette deliberately opposes the Forge's low timber span.
+  addBox(parent, [6.5, 5.3, 6], [buildingX, 2.65, buildingZ], stone);
+  const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(4.75, 3.9, 4), roof);
+  roofMesh.position.set(buildingX, 7.55, buildingZ);
+  roofMesh.rotation.y = Math.PI / 4;
+  parent.add(roofMesh);
+
+  // Open arched facade and lectern face the Nexus from the northeast corner.
+  for (const x of [buildingX - 2.25, buildingX + 2.25]) {
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.46, 4.25, 6), trim);
+    pillar.position.set(x, 2.15, -15.65);
+    parent.add(pillar);
+    const cap = new THREE.Mesh(new THREE.OctahedronGeometry(0.48, 0), darkStone);
+    cap.position.set(x, 4.5, -15.65);
+    parent.add(cap);
+  }
+  addBox(parent, [5.2, 0.48, 0.7], [buildingX, 4.38, -15.65], trim);
+  addBox(parent, [2.25, 1.55, 1.2], [buildingX, 0.78, -15.2], lecternMaterial);
+  addBox(parent, [2.55, 0.22, 1.4], [buildingX, 1.58, -15.2], trim);
+
+  // A still, masked curator keeps the physical shop inhabited without adding AI.
+  const curator = new THREE.Mesh(new THREE.ConeGeometry(0.7, 2.25, 6), darkStone);
+  curator.position.set(buildingX, 2.1, -16.35);
+  const mask = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.42, 0),
+    new THREE.MeshLambertMaterial({ color: 0xb9d9e6, emissive: 0x29465a, emissiveIntensity: 0.45, flatShading: true }),
+  );
+  mask.scale.set(0.72, 1, 0.55);
+  mask.position.set(buildingX, 3.32, -16.35);
+  parent.add(curator, mask);
+
+  const prisms: THREE.Mesh[] = [];
+  for (const [index, x] of [buildingX - 1.55, buildingX + 1.55].entries()) {
+    const prism = new THREE.Mesh(
+      new THREE.OctahedronGeometry(index === 0 ? 0.48 : 0.42, 0),
+      new THREE.MeshStandardMaterial({
+        color: index === 0 ? 0x9eeaff : 0xc19cff,
+        emissive: index === 0 ? 0x24677f : 0x5b2d82,
+        emissiveIntensity: 1.25,
+        roughness: 0.2,
+      }),
+    );
+    prism.position.set(x, 1.65, -14.8);
+    parent.add(prism);
+    prisms.push(prism);
+  }
+
+  // A four-point hanging sign matches the minimap marker without using text.
+  const sign = new THREE.Group();
+  sign.position.set(buildingX + 2.9, 5.05, -15.45);
+  addBox(sign, [0.22, 1.65, 0.16], [0, 0, 0], trim).rotation.z = 0.76;
+  addBox(sign, [0.22, 1.65, 0.16], [0, 0, 0.02], trim).rotation.z = -0.76;
+  const signCore = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.32, 0),
+    new THREE.MeshBasicMaterial({ color: 0xbfa2ff }),
+  );
+  signCore.position.z = 0.14;
+  sign.add(signCore);
+  parent.add(sign);
+
+  const sigil = new THREE.Group();
+  sigil.position.set(vendor.position.x, 6.55, vendor.position.z);
+  const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xbfa2ff, transparent: true, opacity: 0.86 });
+  const ringA = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.075, 6, 24), ringMaterial);
+  const ringB = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.06, 6, 20), ringMaterial.clone());
+  ringB.rotation.y = Math.PI / 2;
+  const core = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.43, 0),
+    new THREE.MeshStandardMaterial({ color: 0xbcefff, emissive: 0x3f6b99, emissiveIntensity: 1.7, roughness: 0.18 }),
+  );
+  sigil.add(ringA, ringB, core);
+  parent.add(sigil);
+
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture("#bfa2ff"),
+    color: 0xbfa2ff,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }));
+  glow.position.copy(sigil.position);
+  glow.scale.set(4.4, 4.4, 1);
+  const light = new THREE.PointLight(0x8ecfff, 1.45, 18, 2);
+  light.position.set(vendor.position.x, 4.2, vendor.position.z);
+  parent.add(glow, light);
+
+  const motePositions = new Float32Array(18 * 3);
+  for (let index = 0; index < 18; index += 1) {
+    const angle = (index / 18) * Math.PI * 2;
+    const radius = 1.5 + (index % 4) * 0.52;
+    motePositions[index * 3] = vendor.position.x + Math.cos(angle) * radius;
+    motePositions[index * 3 + 1] = 1.2 + (index % 6) * 0.62;
+    motePositions[index * 3 + 2] = vendor.position.z + Math.sin(angle) * radius * 0.58;
+  }
+  const moteGeometry = new THREE.BufferGeometry();
+  moteGeometry.setAttribute("position", new THREE.BufferAttribute(motePositions, 3));
+  const motes = new THREE.Points(
+    moteGeometry,
+    new THREE.PointsMaterial({ color: 0xaedfff, size: 0.14, transparent: true, opacity: 0.48, depthWrite: false }),
+  );
+  parent.add(motes);
+
+  return { sigil, core, glow, light, prisms, motes };
 }
 
 function addBanner(parent: THREE.Group, x: number, z: number, rotation: number, color: number): void {
@@ -1313,6 +1437,7 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
     addBrazier(root, point[0] ?? 0, point[1] ?? 0, braziers, index * 0.81);
   }
   const forge = addIronboundForge(root, braziers);
+  const reliquary = addVeilglassReliquary(root);
   addBanner(root, -10.5, -43, 0, 0x2f6e99);
   addBanner(root, 10.5, -43, Math.PI, 0x2f6e99);
   addBanner(root, -43, -10.5, Math.PI / 2, 0x3c7560);
@@ -1320,11 +1445,11 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
   addWagon(root, -31, 26, -0.4);
   addWagon(root, 30, -29, 2.2);
 
-  // Remaining city silhouettes: storehouse, chapel ruin, and watch hut. The
-  // northwest building is the distinct, playable Ironbound Forge above.
+  // Remaining city silhouettes: storehouse and chapel ruin. The northwest and
+  // northeast buildings are the distinct playable shops above.
   const roof = stoneMaterial("roof", 0x442b2c);
   const timber = stoneMaterial("timber", 0x513827);
-  for (const [x, z, w, d, h] of [[20, 19, 7, 8, 4.8], [-19, 20, 6, 6, 5.2], [20, -20, 6, 6, 3.5]] as const) {
+  for (const [x, z, w, d, h] of [[20, 19, 7, 8, 4.8], [-19, 20, 6, 6, 5.2]] as const) {
     addBox(root, [w, h, d], [x, h / 2, z], stoneMaterial("building", 0x30383a));
     const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 2.6, 4), roof);
     roofMesh.position.set(x, h + 1.25, z);
@@ -1422,6 +1547,22 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
     forge.sigilGlow.material.opacity = 0.38 + forgePulse * 0.2;
     forge.light.intensity = 1.15 + forgePulse * 0.72;
     forge.sign.rotation.z = Math.sin(elapsed * 0.9) * 0.012;
+    const reliquaryPulse = 0.9 + Math.sin(elapsed * 2.7 + 0.8) * 0.1;
+    reliquary.sigil.rotation.y = elapsed * 0.48;
+    reliquary.sigil.rotation.z = Math.sin(elapsed * 1.25) * 0.1;
+    reliquary.sigil.position.y = 6.55 + Math.sin(elapsed * 1.9) * 0.2;
+    reliquary.core.rotation.y = -elapsed * 1.35;
+    reliquary.core.scale.setScalar(0.9 + reliquaryPulse * 0.12);
+    reliquary.glow.position.y = reliquary.sigil.position.y;
+    reliquary.glow.scale.setScalar(3.95 + reliquaryPulse * 0.6);
+    reliquary.glow.material.opacity = 0.3 + reliquaryPulse * 0.2;
+    reliquary.light.intensity = 0.95 + reliquaryPulse * 0.68;
+    reliquary.prisms.forEach((prism, index) => {
+      prism.rotation.y = elapsed * (index === 0 ? 0.72 : -0.64);
+      prism.position.y = 1.65 + Math.sin(elapsed * 2.4 + index * 1.8) * 0.08;
+    });
+    reliquary.motes.position.y = Math.sin(elapsed * 0.8) * 0.1;
+    (reliquary.motes.material as THREE.PointsMaterial).opacity = 0.38 + reliquaryPulse * 0.12;
     const laneSelectionActive = phase === "defense" || phase === "breach";
     for (const lane of ["north", "east", "south", "west"] as const) {
       const isPressure = lane === pressure;

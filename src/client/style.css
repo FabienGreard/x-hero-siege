@@ -97,6 +97,18 @@ button {
   display: none !important;
 }
 
+.screen-reader-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .hud {
   position: absolute;
   inset: 0;
@@ -401,12 +413,29 @@ button {
   border-color: rgba(104, 216, 255, 0.44);
 }
 
+.equipment-slot[data-item="runebound_focus"] {
+  color: #d2baff;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(182, 118, 255, 0.2), transparent 62%),
+    rgba(11, 8, 16, 0.92);
+  border-color: rgba(190, 153, 255, 0.48);
+}
+
+.equipment-slot[data-item="quickening_sigil"] {
+  color: #9eeaff;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(104, 216, 255, 0.2), transparent 62%),
+    rgba(8, 11, 16, 0.92);
+  border-color: rgba(126, 218, 255, 0.46);
+}
+
 .equipment-slots.is-compact .equipment-slot {
   height: 27px;
   font-size: 12px;
 }
 
 .shop-panel {
+  --shop-accent: #e9ba63;
   position: absolute;
   z-index: 18;
   right: 18px;
@@ -418,6 +447,14 @@ button {
   cursor: default;
 }
 
+.shop-panel[data-vendor="veilglass_reliquary"] {
+  --shop-accent: #bfa2ff;
+  background:
+    linear-gradient(135deg, rgba(157, 119, 239, 0.09), transparent 24%),
+    linear-gradient(180deg, rgba(13, 14, 25, 0.97), rgba(6, 8, 15, 0.94));
+  border-color: rgba(170, 150, 221, 0.3);
+}
+
 .shop-panel::before {
   position: absolute;
   top: 0;
@@ -425,8 +462,8 @@ button {
   left: 10px;
   height: 1px;
   content: "";
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  box-shadow: 0 0 9px rgba(233, 186, 99, 0.58);
+  background: linear-gradient(90deg, transparent, var(--shop-accent), transparent);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--shop-accent) 58%, transparent);
 }
 
 .shop-header {
@@ -439,6 +476,10 @@ button {
 .shop-header .eyebrow {
   margin-bottom: 4px;
   color: #ba9c67;
+}
+
+.shop-panel[data-vendor="veilglass_reliquary"] .shop-header .eyebrow {
+  color: #bfa2ff;
 }
 
 .shop-header strong,
@@ -478,7 +519,7 @@ button {
 
 .shop-header button:hover,
 .shop-header button:focus-visible {
-  outline: 1px solid rgba(233, 186, 99, 0.5);
+  outline: 1px solid color-mix(in srgb, var(--shop-accent) 50%, transparent);
   color: #efe6cf;
 }
 
@@ -510,10 +551,16 @@ button {
   border: 1px solid rgba(154, 163, 163, 0.14);
 }
 
+.shop-panel[data-vendor="veilglass_reliquary"] .shop-item {
+  background:
+    linear-gradient(100deg, rgba(157, 119, 239, 0.075), transparent 43%),
+    rgba(4, 6, 11, 0.76);
+}
+
 .shop-item:hover:not(:disabled),
 .shop-item:focus-visible:not(:disabled) {
   outline: none;
-  border-color: rgba(233, 186, 99, 0.68);
+  border-color: color-mix(in srgb, var(--shop-accent) 68%, transparent);
   filter: brightness(1.12);
 }
 
@@ -538,6 +585,10 @@ button {
   font-weight: 950;
 }
 
+.shop-panel[data-vendor="veilglass_reliquary"] .shop-item-key {
+  border-color: rgba(191, 162, 255, 0.46);
+}
+
 .shop-item-icon {
   grid-row: 1 / span 3;
   display: grid;
@@ -558,6 +609,18 @@ button {
   border-color: rgba(104, 216, 255, 0.22);
 }
 
+.shop-item[data-item="runebound_focus"] .shop-item-icon {
+  color: #d2baff;
+  background: rgba(182, 118, 255, 0.08);
+  border-color: rgba(190, 153, 255, 0.3);
+}
+
+.shop-item[data-item="quickening_sigil"] .shop-item-icon {
+  color: #9eeaff;
+  background: rgba(104, 216, 255, 0.08);
+  border-color: rgba(126, 218, 255, 0.28);
+}
+
 .shop-item-name,
 .shop-item-effect,
 .shop-item-description {
@@ -575,7 +638,7 @@ button {
 }
 
 .shop-item-effect {
-  color: #e9ba63;
+  color: var(--shop-accent);
   font-size: 7px;
   font-weight: 950;
   letter-spacing: 0.06em;
@@ -615,6 +678,12 @@ button {
   color: #f6ecd2;
   border-color: rgba(233, 186, 99, 0.48);
   box-shadow: 0 0 11px rgba(233, 186, 99, 0.14);
+}
+
+.interaction-prompt.is-shop[data-vendor="veilglass_reliquary"] {
+  color: #eee8ff;
+  border-color: rgba(191, 162, 255, 0.56);
+  box-shadow: 0 0 11px rgba(157, 119, 239, 0.2);
 }
 
 @keyframes purchased-stat {

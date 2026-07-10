@@ -2,6 +2,17 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.8` — two roads to power
+
+**Status:** implemented and locally verified on 2026-07-10; companion site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Convert the northeast Citadel shell into the Veilglass Reliquary, visually distinct from the warm northwest Forge and locally accessible only inside its seven-unit radius.
+- Offer exactly two additional 24-gold wares: Runebound Focus (`+15%` Skill Power) and Quickening Sigil (`+15%` Cooldown Speed).
+- Make North's equal-cost left/right retreat a build choice: Forge for Basic Damage or movement, Reliquary for ability magnitude or frequency. East naturally favors the Reliquary and West the Forge; do not claim equal South-lane coverage.
+- Generalize the single compact `B` panel to the nearest in-range vendor without adding tabs, a global selector, a catalog grid, or pausing multiplayer.
+- Preserve creation-time power for projectiles, delayed attacks, and summons; preserve remaining cooldown progress when Recovery changes; keep all stock, range, price, equipment, capacity, and effects authoritative.
+- Reject a strategically interesting location if real play makes solo defense impractical. The first southeast pass breached North; after an over-permissive northeast replay was rejected, the corrected normal rendered route controlled the real outbound danger band and returned with North `260 → 253` and the Nexus untouched. A `100`-seed normal-timing sweep completed every route without a down or Nexus damage.
+
 ## `0.1.7` — the First Forge
 
 **Status:** implemented and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured host.
@@ -26,7 +37,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proves the first physical vendor, local access cost, choice, purchase, duplicate-ready capacity, and visible stat payoff; it deliberately does not claim multi-shop route strategy yet. Future checkpoints must begin with rendered play and add one deeper layer at a time—another distinct location, replacement, salvage, build tags, or one earned evolution—only when that layer is the highest-leverage weakness.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proves two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time—replacement, salvage, build tags, duplicate depth, or one earned evolution—only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 

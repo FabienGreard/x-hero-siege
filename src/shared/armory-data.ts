@@ -10,6 +10,8 @@ export interface ItemDefinition {
   price: number;
   basicDamagePercent: number;
   moveSpeedPercent: number;
+  abilityPowerPercent: number;
+  cooldownRecoveryPercent: number;
 }
 
 export interface VendorDefinition {
@@ -29,6 +31,8 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     price: 24,
     basicDamagePercent: 0.2,
     moveSpeedPercent: 0,
+    abilityPowerPercent: 0,
+    cooldownRecoveryPercent: 0,
   },
   fleetstep_greaves: {
     id: "fleetstep_greaves",
@@ -38,6 +42,30 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     price: 24,
     basicDamagePercent: 0,
     moveSpeedPercent: 0.1,
+    abilityPowerPercent: 0,
+    cooldownRecoveryPercent: 0,
+  },
+  runebound_focus: {
+    id: "runebound_focus",
+    name: "Runebound Focus",
+    description: "A caged star that sharpens every invocation.",
+    effectLabel: "+15% Skill Power",
+    price: 24,
+    basicDamagePercent: 0,
+    moveSpeedPercent: 0,
+    abilityPowerPercent: 0.15,
+    cooldownRecoveryPercent: 0,
+  },
+  quickening_sigil: {
+    id: "quickening_sigil",
+    name: "Quickening Sigil",
+    description: "A sliver of time held under glass.",
+    effectLabel: "+15% Cooldown Speed",
+    price: 24,
+    basicDamagePercent: 0,
+    moveSpeedPercent: 0,
+    abilityPowerPercent: 0,
+    cooldownRecoveryPercent: 0.15,
   },
 };
 
@@ -48,6 +76,13 @@ export const VENDOR_DEFINITIONS: Record<VendorId, VendorDefinition> = {
     position: { x: -20, z: -14.5 },
     interactionRadius: 7,
     itemIds: ["tempered_edge", "fleetstep_greaves"],
+  },
+  veilglass_reliquary: {
+    id: "veilglass_reliquary",
+    name: "Veilglass Reliquary",
+    position: { x: 20, z: -14.5 },
+    interactionRadius: 7,
+    itemIds: ["runebound_focus", "quickening_sigil"],
   },
 };
 

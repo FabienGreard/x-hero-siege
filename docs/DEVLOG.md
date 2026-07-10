@@ -2,6 +2,18 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — Two roads, not one menu
+
+The First Forge made gold useful, but it did not yet make the Citadel strategic. Every build visited the same northwest counter. Adding more cards to that counter would have created catalog breadth without asking the player to read the city.
+
+`0.1.8` gives the Forge a counterpart. The Veilglass Reliquary is a cold, vertical shrine with a masked curator, glass displays, and an ability-focused inventory. The Forge still asks whether basics or movement matter more; the Reliquary asks whether the next cast should be stronger or arrive sooner. Both use the same six unrestricted sockets and the same personal 24-gold economy.
+
+The important design work was spatial. The first Reliquary stood southeast, diagonally opposite the Forge. On paper that served more co-op lanes. In a normal Warden run, however, the shop trip took long enough for an otherwise healthy North gate to fall. The building moved northeast instead. North now receives an equal-cost left/right build choice, East and West naturally favor different vendors, and South remains honestly underserved rather than gaining a remote menu.
+
+The first northeast replay still left the gate one hit from failure. It passed the shallow test of “not breached,” but failed the real question: would a competent solo defender choose this route? That proof was rejected and replayed against every inbound threat, not only demons already inside the wall.
+
+The accepted normal rendered run shows the intended answer. After pushing the outbound danger band, the Warden reached the Reliquary, bought, and returned in 9.53 seconds; North moved only from 260 to 253 and the Nexus stayed untouched. Across 100 deterministic normal-timing rolls, every route returned with the Nexus intact and the hero standing. The tension now comes from reading pressure and making a window, not gambling the entire gate on a menu trip.
+
 ## 2026-07-10 — A reason to retreat
 
 `0.1.6` made gold fair and power readable, but it also made the next absence obvious: the wallet went up and nothing in the city cared. A shop button would have made gold functional, yet it would have ignored Siegeheart's strongest spatial idea—the Citadel is a place worth defending.
@@ -40,6 +52,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.8`: turned one shop into a real local route and build choice without adding a global catalog.
 - `0.1.7`: made the first physical Forge turn personal gold into visible run-only power.
 - `0.1.6`: made hero power inspectable and personal gold cooperative before shops.
 - `0.1.5`: turned exact-point enemy queues into readable horde contact.

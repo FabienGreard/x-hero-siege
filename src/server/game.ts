@@ -578,7 +578,7 @@ export class GameWorld {
     const player = this.players.get(playerId);
     if (!player) return this.failure("PLAYER_UNKNOWN", "Player is not connected.");
     if (!player.heroId || (this.phase !== "defense" && this.phase !== "breach" && this.phase !== "push")) {
-      return this.failure("RUN_INACTIVE", "The forge only trades during an active siege.");
+      return this.failure("RUN_INACTIVE", "Citadel vendors only trade during an active siege.");
     }
     if (player.downedFor > 0) return this.failure("PLAYER_DOWNED", "A downed hero cannot trade.");
     if (!isVendorId(vendorId)) return this.failure("VENDOR_UNKNOWN", "That vendor does not exist.");
@@ -596,8 +596,16 @@ export class GameWorld {
     const slotIndex = player.equipment.indexOf(null);
     if (slotIndex < 0) return this.failure("EQUIPMENT_FULL", "All six equipment slots are full.");
 
+    const previousRecovery = this.heroStats(player).cooldownRecovery;
     player.goldUnits -= priceUnits;
     player.equipment[slotIndex] = itemId;
+    const nextRecovery = this.heroStats(player).cooldownRecovery;
+    if (nextRecovery !== previousRecovery) {
+      const progressScale = previousRecovery / nextRecovery;
+      for (const slot of ["ability1", "ability2", "ability3", "ultimate"] as const) {
+        player.cooldowns[slot] *= progressScale;
+      }
+    }
     this.emit("item_purchased", `${player.name} equipped ${item.name} at ${vendor.name}.`, {
       playerId,
       vendorId,

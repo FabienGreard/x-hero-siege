@@ -82,12 +82,15 @@ const statCooldownRecovery = requiredElement<HTMLElement>("stat-cooldown-recover
 const equipmentCount = requiredElement<HTMLElement>("equipment-count");
 const heroEquipmentSlots = requiredElement<HTMLDivElement>("hero-equipment-slots");
 const shopPanel = requiredElement<HTMLElement>("shop-panel");
+const shopDistrict = requiredElement<HTMLElement>("shop-district");
 const shopTitle = requiredElement<HTMLElement>("shop-title");
+const shopTagline = requiredElement<HTMLElement>("shop-tagline");
 const shopClose = requiredElement<HTMLButtonElement>("shop-close");
 const shopGold = requiredElement<HTMLElement>("shop-gold");
 const shopEquipmentCount = requiredElement<HTMLElement>("shop-equipment-count");
 const shopEquipmentSlots = requiredElement<HTMLDivElement>("shop-equipment-slots");
 const shopItems = requiredElement<HTMLDivElement>("shop-items");
+const shopAnnouncement = requiredElement<HTMLElement>("shop-announcement");
 const teamList = requiredElement<HTMLDivElement>("team-list");
 const phaseLabel = requiredElement<HTMLSpanElement>("phase-label");
 const waveLabel = requiredElement<HTMLSpanElement>("wave-label");
@@ -206,6 +209,7 @@ let victoryVisualStartedAt: number | null = null;
 let heroStatsOpen = false;
 let shopOpen = false;
 let heroStatsOpenBeforeShop = false;
+let activeVendorId: VendorId | null = null;
 const keys = new Set<string>();
 const pointer = new THREE.Vector2(0, 0);
 const aimWorld = new THREE.Vector3(0, 0, -10);
@@ -221,11 +225,22 @@ const LANE_LABELS: Record<LaneId, string> = {
   west: "West",
 };
 
-const FORGE_ID: VendorId = "ironbound_forge";
 const SHOP_CLOSE_DISTANCE_PADDING = 3;
 const ITEM_SYMBOLS: Record<ItemId, string> = {
   tempered_edge: "†",
   fleetstep_greaves: "»",
+  runebound_focus: "◆",
+  quickening_sigil: "◎",
+};
+const VENDOR_PRESENTATION: Record<VendorId, { district: string; tagline: string }> = {
+  ironbound_forge: {
+    district: "NORTHWEST CITADEL",
+    tagline: "MARTIAL GOODS · THE SIEGE CONTINUES",
+  },
+  veilglass_reliquary: {
+    district: "NORTHEAST CITADEL",
+    tagline: "ARCANE RELICS · THE SIEGE CONTINUES",
+  },
 };
 const shopItemButtons = new Map<ItemId, HTMLButtonElement>();
 
@@ -407,12 +422,19 @@ function distanceBetween(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.z - b.z);
 }
 
-function currentForge(state: GameSnapshot | null = snapshot): GameSnapshot["vendors"][number] | undefined {
-  return state?.vendors.find((vendor) => vendor.id === FORGE_ID);
+function vendorSnapshot(vendorId: VendorId | null, state: GameSnapshot | null = snapshot): GameSnapshot["vendors"][number] | undefined {
+  return vendorId ? state?.vendors.find((vendor) => vendor.id === vendorId) : undefined;
 }
 
 function currentPlayer(state: GameSnapshot | null = snapshot): PlayerSnapshot | undefined {
   return state?.players.find((player) => player.id === localPlayerId);
+}
+
+function nearestInRangeVendor(state: GameSnapshot, self: PlayerSnapshot | undefined): GameSnapshot["vendors"][number] | undefined {
+  if (!self?.heroId || self.downed || !isHeroStatsPhase(state.phase)) return undefined;
+  return state.vendors
+    .filter((vendor) => distanceBetween(self.position, vendor.position) <= vendor.interactionRadius)
+    .sort((left, right) => distanceBetween(self.position, left.position) - distanceBetween(self.position, right.position))[0];
 }
 
 function renderEquipmentSlots(container: HTMLDivElement, equipment: PlayerSnapshot["equipment"]): void {
@@ -447,10 +469,10 @@ function updateEquipmentReadouts(self: PlayerSnapshot): void {
   renderEquipmentSlots(shopEquipmentSlots, self.equipment);
 }
 
-function renderShopCatalog(): void {
+function renderShopCatalog(vendorId: VendorId): void {
   shopItems.replaceChildren();
   shopItemButtons.clear();
-  const vendor = VENDOR_DEFINITIONS[FORGE_ID];
+  const vendor = VENDOR_DEFINITIONS[vendorId];
   vendor.itemIds.forEach((itemId, index) => {
     const item = ITEM_DEFINITIONS[itemId];
     const button = document.createElement("button");
@@ -470,8 +492,19 @@ function renderShopCatalog(): void {
   });
 }
 
+function updateShopPresentation(vendorId: VendorId, name: string): void {
+  const presentation = VENDOR_PRESENTATION[vendorId];
+  shopPanel.dataset.vendor = vendorId;
+  shopDistrict.textContent = presentation.district;
+  shopTitle.textContent = name;
+  shopTagline.textContent = presentation.tagline;
+  shopClose.setAttribute("aria-label", `Close ${name}`);
+  renderShopCatalog(vendorId);
+}
+
 function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void {
   const slotsFull = self.equipment.every((itemId) => itemId !== null);
+  const vendorName = vendorSnapshot(activeVendorId)?.name ?? "vendor";
   for (const [itemId, button] of shopItemButtons) {
     const item = ITEM_DEFINITIONS[itemId];
     const affordable = self.gold >= item.price;
@@ -490,13 +523,13 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     }
     button.setAttribute(
       "aria-label",
-      `${item.name}, ${item.effectLabel}, ${item.price} gold. ${!withinPurchaseRange ? "Move closer to the forge." : slotsFull ? "All equipment slots are full." : affordable ? "Buy and equip." : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`}`,
+      `${item.name}, ${item.effectLabel}, ${item.price} gold. ${!withinPurchaseRange ? `Move closer to ${vendorName}.` : slotsFull ? "All equipment slots are full." : affordable ? "Buy and equip." : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`}`,
     );
   }
 }
 
-function canOpenForge(state: GameSnapshot, self: PlayerSnapshot | undefined): boolean {
-  const vendor = currentForge(state);
+function canOpenVendor(state: GameSnapshot, self: PlayerSnapshot | undefined, vendorId: VendorId | null): boolean {
+  const vendor = vendorSnapshot(vendorId, state);
   return Boolean(
     vendor &&
     self?.heroId &&
@@ -506,19 +539,31 @@ function canOpenForge(state: GameSnapshot, self: PlayerSnapshot | undefined): bo
   );
 }
 
-function setShopOpen(open: boolean): void {
+function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): void {
   const state = snapshot;
   const self = currentPlayer(state);
-  const nextOpen = Boolean(open && state && canOpenForge(state, self));
-  if (nextOpen === shopOpen) return;
+  const targetVendorId = open && state
+    ? requestedVendorId ?? nearestInRangeVendor(state, self)?.id ?? null
+    : null;
+  const nextOpen = Boolean(open && state && targetVendorId && canOpenVendor(state, self, targetVendorId));
+  if (nextOpen && shopOpen && activeVendorId === targetVendorId) return;
+  if (!nextOpen && !shopOpen) return;
   if (nextOpen) {
-    heroStatsOpenBeforeShop = heroStatsOpen;
+    if (!shopOpen) heroStatsOpenBeforeShop = heroStatsOpen;
     shopOpen = true;
+    activeVendorId = targetVendorId;
+    const vendor = vendorSnapshot(activeVendorId, state);
+    if (activeVendorId && vendor) {
+      updateShopPresentation(activeVendorId, vendor.name);
+      shopAnnouncement.textContent = `${vendor.name} opened. ${vendor.itemIds.map((itemId) => ITEM_DEFINITIONS[itemId].name).join(" and ")} available.`;
+    }
     setHeroStatsOpen(true);
     interactionPrompt.classList.add("is-hidden");
   } else {
     const restoreStats = heroStatsOpenBeforeShop;
     shopOpen = false;
+    activeVendorId = null;
+    shopAnnouncement.textContent = "Shop closed.";
     setHeroStatsOpen(restoreStats);
   }
   shopPanel.classList.toggle("is-hidden", !shopOpen);
@@ -528,10 +573,10 @@ function setShopOpen(open: boolean): void {
 
 function buyShopItem(itemId: ItemId): void {
   const self = currentPlayer();
-  if (!shopOpen || !self) return;
-  const vendor = currentForge();
+  if (!shopOpen || !self || !activeVendorId) return;
+  const vendor = vendorSnapshot(activeVendorId);
   if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
-    toast("Move closer to the forge.", "warning");
+    toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
     return;
   }
   const item = ITEM_DEFINITIONS[itemId];
@@ -544,34 +589,51 @@ function buyShopItem(itemId: ItemId): void {
     return;
   }
   audio.unlock();
-  send({ type: "buy_item", vendorId: FORGE_ID, itemId });
+  send({ type: "buy_item", vendorId: activeVendorId, itemId });
 }
 
 function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): void {
-  const vendor = currentForge(state);
-  if (!self || !vendor) {
+  if (!self) {
     if (shopOpen) setShopOpen(false);
     interactionPrompt.classList.add("is-hidden");
     return;
   }
 
   updateEquipmentReadouts(self);
-  shopTitle.textContent = vendor.name;
-  const distance = distanceBetween(self.position, vendor.position);
-  const shopPhase = isHeroStatsPhase(state.phase);
-  if (shopOpen && (self.downed || !shopPhase || distance > vendor.interactionRadius + SHOP_CLOSE_DISTANCE_PADDING)) {
-    setShopOpen(false);
+  const openedVendor = vendorSnapshot(activeVendorId, state);
+  if (shopOpen) {
+    if (!openedVendor || self.downed || !isHeroStatsPhase(state.phase) || distanceBetween(self.position, openedVendor.position) > openedVendor.interactionRadius + SHOP_CLOSE_DISTANCE_PADDING) {
+      setShopOpen(false);
+    }
   }
 
-  const inRange = !self.downed && shopPhase && distance <= vendor.interactionRadius;
-  interactionPrompt.classList.toggle("is-hidden", !inRange || shopOpen);
-  interactionPrompt.classList.toggle("is-shop", inRange && !shopOpen);
-  if (inRange && !shopOpen) interactionPrompt.innerHTML = `<kbd>B</kbd> BROWSE · ${vendor.name.toUpperCase()}`;
-  if (shopOpen) updateShopCards(self, distance <= vendor.interactionRadius);
+  const nearbyVendor = nearestInRangeVendor(state, self);
+  interactionPrompt.classList.toggle("is-hidden", !nearbyVendor || shopOpen);
+  interactionPrompt.classList.toggle("is-shop", Boolean(nearbyVendor && !shopOpen));
+  if (nearbyVendor && !shopOpen) {
+    if (interactionPrompt.dataset.vendor !== nearbyVendor.id) {
+      interactionPrompt.dataset.vendor = nearbyVendor.id;
+      interactionPrompt.innerHTML = `<kbd>B</kbd> BROWSE · ${nearbyVendor.name.toUpperCase()}`;
+    }
+  } else {
+    delete interactionPrompt.dataset.vendor;
+  }
+  const activeVendor = vendorSnapshot(activeVendorId, state);
+  if (shopOpen && activeVendor) {
+    updateShopCards(self, distanceBetween(self.position, activeVendor.position) <= activeVendor.interactionRadius);
+  }
 }
 
 function pulsePurchasedStat(itemId: ItemId | undefined): void {
-  const value = itemId === "tempered_edge" ? statBasicDamage : itemId === "fleetstep_greaves" ? statMoveSpeed : null;
+  const value = itemId === "tempered_edge"
+    ? statBasicDamage
+    : itemId === "fleetstep_greaves"
+      ? statMoveSpeed
+      : itemId === "runebound_focus"
+        ? statAbilityPower
+        : itemId === "quickening_sigil"
+          ? statCooldownRecovery
+          : null;
   const stat = value?.closest<HTMLElement>(".hero-stat");
   if (!stat) return;
   stat.classList.remove("is-purchased");
@@ -721,7 +783,7 @@ function handleEvent(event: GameEvent): void {
     audio.play("loot");
   } else if (event.kind === "item_purchased" && event.playerId === localPlayerId) {
     const self = currentPlayer();
-    const position = event.position ?? self?.position ?? VENDOR_DEFINITIONS[FORGE_ID].position;
+    const position = event.position ?? self?.position ?? (event.vendorId ? VENDOR_DEFINITIONS[event.vendorId].position : WORLD_LAYOUT.nexus);
     toast(event.text, "loot");
     audio.play("loot");
     spawnBurst(position, 0xf1c56f, 13, 1.15);
@@ -1295,17 +1357,37 @@ function updateMinimap(state: GameSnapshot): void {
   }
   for (const vendor of state.vendors) {
     const [x, y] = toMap(vendor.position);
-    context.fillStyle = "#e9ba63";
-    context.strokeStyle = "#2a1d0d";
-    context.lineWidth = 1;
-    context.beginPath();
-    context.moveTo(x, y - 4);
-    context.lineTo(x + 4, y);
-    context.lineTo(x, y + 4);
-    context.lineTo(x - 4, y);
-    context.closePath();
-    context.fill();
-    context.stroke();
+    if (vendor.id === "ironbound_forge") {
+      context.fillStyle = "#e9ba63";
+      context.strokeStyle = "#2a1d0d";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(x, y - 4);
+      context.lineTo(x + 4, y);
+      context.lineTo(x, y + 4);
+      context.lineTo(x - 4, y);
+      context.closePath();
+      context.fill();
+      context.stroke();
+    } else {
+      context.fillStyle = "#171424";
+      context.strokeStyle = "#bfa2ff";
+      context.lineWidth = 1.25;
+      context.beginPath();
+      context.moveTo(x, y - 5);
+      context.lineTo(x + 1.4, y - 1.4);
+      context.lineTo(x + 5, y);
+      context.lineTo(x + 1.4, y + 1.4);
+      context.lineTo(x, y + 5);
+      context.lineTo(x - 1.4, y + 1.4);
+      context.lineTo(x - 5, y);
+      context.lineTo(x - 1.4, y - 1.4);
+      context.closePath();
+      context.fill();
+      context.stroke();
+      context.fillStyle = "#9eeaff";
+      context.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+    }
   }
   context.fillStyle = state.nexus.hp / state.nexus.maxHp < 0.3 ? "#ff555e" : "#5bdcff";
   context.beginPath(); context.arc(centerX, centerY, 4, 0, Math.PI * 2); context.fill();
@@ -1340,7 +1422,7 @@ function updateMinimap(state: GameSnapshot): void {
     const yOffset = lane === "north" ? 7 : lane === "south" ? -7 : 0;
     context.fillText(LANE_LABELS[lane].toUpperCase(), x + xOffset, y + yOffset);
   }
-  minimap.setAttribute("aria-label", `Battlefield minimap: ${state.activeLanes.map((lane) => LANE_LABELS[lane]).join(", ") || "no"} lanes open; Ironbound Forge marked in gold`);
+  minimap.setAttribute("aria-label", `Battlefield minimap: ${state.activeLanes.map((lane) => LANE_LABELS[lane]).join(", ") || "no"} lanes open; ${state.vendors.map((vendor) => vendor.name).join(" and ")} marked as local shops`);
 }
 
 function showEnd(state: GameSnapshot, self: PlayerSnapshot | undefined): void {
@@ -1424,7 +1506,9 @@ window.addEventListener("keydown", (event) => {
       : event.code === "Digit2" || event.code === "Numpad2"
         ? 1
         : -1;
-    const itemId = itemIndex >= 0 ? VENDOR_DEFINITIONS[FORGE_ID].itemIds[itemIndex] : undefined;
+    const itemId = itemIndex >= 0 && activeVendorId
+      ? VENDOR_DEFINITIONS[activeVendorId].itemIds[itemIndex]
+      : undefined;
     if (itemId) {
       event.preventDefault();
       buyShopItem(itemId);
@@ -1655,7 +1739,6 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-renderShopCatalog();
 renderHeroCards();
 resize();
 connect();

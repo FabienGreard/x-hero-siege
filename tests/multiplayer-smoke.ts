@@ -82,6 +82,11 @@ try {
     assert.equal(snapshot.phase, "defense");
     assert.equal(snapshot.gates.length, 4);
     assert.deepEqual(snapshot.activeLanes, ["north", "east", "south", "west"]);
+    assert.deepEqual(snapshot.vendors.map((vendor) => vendor.id), ["ironbound_forge", "veilglass_reliquary"]);
+    assert.deepEqual(snapshot.vendors.map((vendor) => vendor.itemIds), [
+      ["tempered_edge", "fleetstep_greaves"],
+      ["runebound_focus", "quickening_sigil"],
+    ]);
     assert.deepEqual(new Set(snapshot.players.map((player) => player.heroId)), new Set(heroes));
     for (const player of snapshot.players) {
       assert.equal(player.skillPoints, 1);
@@ -109,6 +114,7 @@ try {
     phase: synchronized[0]!.phase,
     heroes,
     activeLanes: synchronized[0]!.activeLanes,
+    vendors: synchronized[0]!.vendors.map((vendor) => vendor.id),
     tickSpread: Math.max(...synchronized.map((snapshot) => snapshot.tick)) - Math.min(...synchronized.map((snapshot) => snapshot.tick)),
   }));
 } finally {

@@ -2,6 +2,26 @@
 
 All notable project changes are recorded here.
 
+## [0.1.8] - 2026-07-10
+
+### Added
+
+- Turned the northeast Citadel shell into the physical Veilglass Reliquary with a tall shrine silhouette, arched facade, masked curator, glass displays, cold shop sigil, and a distinct minimap marker.
+- Added two curated 24-gold wares: Runebound Focus for additive-from-base Skill Power and Quickening Sigil for additive-from-base Cooldown Speed.
+- Routed the new Skill Power path through the existing authoritative creation-time sampling so projectiles, Falling Stars, and Wraiths never change damage after they are created.
+- Added a `100`-seed, normal-timing solo route gate that requires real earned gold, a controlled outbound danger band, a local purchase, and a defensible return to North.
+
+### Changed
+
+- Generalized local trading from one hard-coded Forge to the nearest in-range vendor, with one shared non-pausing panel that changes district, catalog, theme, shortcuts, range checks, and accessibility copy.
+- Preserved remaining `Q`/`E`/`R`/`F` cooldown progress when Quickening Sigil is equipped; basic cadence and action timing remain unchanged.
+- Moved the proposed Reliquary from southeast to northeast after normal-speed route play proved the diagonal trip breached North. After rejecting a second replay with only a one-hit gate margin, the verified rendered route controlled outbound pressure and returned in `9.53s` with North `260 → 253` and the Nexus untouched; `100/100` seeded normal-timing routes returned without a down or Nexus damage.
+
+### Preserved
+
+- The Ironbound Forge, both established Forge effects and prices, exactly six unrestricted duplicate-ready run-only slots, personal co-op-safe gold, baseline hero balance, controls, phase flow, art language, and procedural audio character.
+- No global catalog, pause, inventory grid, typed slot, scarce stock, selling, salvage, rarity, recipe, evolution, persistence, or permanent power was introduced.
+
 ## [0.1.7] - 2026-07-10
 
 ### Added
