@@ -3,6 +3,7 @@ import {
   ARMORY_WARE_PRICE,
   ITEM_ATTUNEMENT_THRESHOLD,
   VENDOR_DEFINITIONS,
+  deriveAttunementProgress,
   dominantEquipmentStack,
   effectiveStackCopies,
   equipmentCopyCount,
@@ -92,6 +93,63 @@ function expectNumbers(actual: number[], expected: number[]): void {
 }
 
 describe("canonical four-copy item attunement", () => {
+  test("every armory surface derives the same commitment progress from zero through six copies", () => {
+    expect(Array.from({ length: 7 }, (_, count) => deriveAttunementProgress(count))).toEqual([
+      {
+        copyCount: 0,
+        effectiveCount: 0,
+        state: "unowned",
+        visualLabel: null,
+        accessibleDescription: "Attunes at 4 matching copies; the fourth copy contributes twice its normal effect.",
+      },
+      {
+        copyCount: 1,
+        effectiveCount: 1,
+        state: "building",
+        visualLabel: "ATTUNEMENT 1/4",
+        accessibleDescription: "Attunement 1 of 4. At four matching copies, the fourth copy contributes twice its normal effect.",
+      },
+      {
+        copyCount: 2,
+        effectiveCount: 2,
+        state: "building",
+        visualLabel: "ATTUNEMENT 2/4",
+        accessibleDescription: "Attunement 2 of 4. At four matching copies, the fourth copy contributes twice its normal effect.",
+      },
+      {
+        copyCount: 3,
+        effectiveCount: 3,
+        state: "next",
+        visualLabel: "NEXT ATTUNES",
+        accessibleDescription: "Attunement 3 of 4. The next matching copy Attunes this stack and contributes twice its normal effect.",
+      },
+      {
+        copyCount: 4,
+        effectiveCount: 5,
+        state: "attuned",
+        visualLabel: "ATTUNED",
+        accessibleDescription: "Attuned: the fourth copy contributes twice its normal effect, so 4 equipped copies count as 5 copies.",
+      },
+      {
+        copyCount: 5,
+        effectiveCount: 6,
+        state: "attuned",
+        visualLabel: "ATTUNED",
+        accessibleDescription: "Attuned: the fourth copy contributes twice its normal effect, so 5 equipped copies count as 6 copies.",
+      },
+      {
+        copyCount: 6,
+        effectiveCount: 7,
+        state: "attuned",
+        visualLabel: "ATTUNED",
+        accessibleDescription: "Attuned: the fourth copy contributes twice its normal effect, so 6 equipped copies count as 7 copies.",
+      },
+    ]);
+    expect(deriveAttunementProgress(Number.NaN)).toEqual(deriveAttunementProgress(0));
+    expect(deriveAttunementProgress(2.9)).toEqual(deriveAttunementProgress(2));
+    expect(deriveAttunementProgress(-1)).toEqual(deriveAttunementProgress(0));
+  });
+
   test("every hero and ware uses raw copies through three and exactly one bonus copy from four through six", () => {
     expect(ITEM_ATTUNEMENT_THRESHOLD).toBe(4);
     expect(Array.from({ length: 7 }, (_, count) => effectiveStackCopies(count))).toEqual([0, 1, 2, 3, 5, 6, 7]);

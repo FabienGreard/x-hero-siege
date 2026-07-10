@@ -498,13 +498,14 @@ button {
 
 .equipment-stack-copy {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
   padding: 3px 5px;
 }
 
 .equipment-stack-copy strong,
-.equipment-stack-copy small {
+.equipment-stack-copy small,
+.equipment-stack-copy > em {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -545,6 +546,18 @@ button {
   text-transform: uppercase;
 }
 
+.equipment-stack-copy > em {
+  color: #b69a62;
+  font-size: 5px;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+}
+
+.equipment-stack.will-attune .equipment-stack-copy > em {
+  color: #f0ca72;
+}
+
 .equipment-stack[data-item="fleetstep_greaves"],
 .equipment-stack[data-item="quickening_sigil"] {
   border-color: rgba(104, 216, 255, 0.2);
@@ -577,10 +590,9 @@ button {
   text-shadow: 0 0 6px rgba(233, 186, 99, 0.38);
 }
 
-.equipment-stack-copy strong b em {
-  font-size: 5px;
-  font-style: normal;
-  letter-spacing: 0.045em;
+.equipment-stack.is-attuned .equipment-stack-copy > em {
+  color: #ffe3a0;
+  text-shadow: 0 0 6px rgba(233, 186, 99, 0.28);
 }
 
 .equipment-slot {
@@ -1065,6 +1077,11 @@ button.equipment-slot {
   color: #f0ca72;
   background: rgba(233, 186, 99, 0.07);
   border-color: rgba(233, 186, 99, 0.28);
+}
+
+.shop-item-owned.is-building {
+  font-size: 5px;
+  letter-spacing: 0.045em;
 }
 
 .shop-item-owned.will-attune {

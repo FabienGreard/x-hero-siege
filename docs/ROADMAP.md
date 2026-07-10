@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.21` — Read the Commitment
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending.
+
+- Correct the early-commitment weakness exposed by shipped `0.1.20`: a normal Warden wearing one Edge and one Focus could read every exact champion consequence, yet both duplicate stacks still appeared as isolated `×1` bonuses until the shop suddenly announced the threshold at three copies.
+- Add restrained `ATTUNEMENT 1/4` and `ATTUNEMENT 2/4` labels to each owned stack in Hero Stats and the matching local shop card. Preserve `NEXT ATTUNES` at three, `ATTUNED` from four onward, and no progress label at zero.
+- Derive all states from one canonical armory helper and explain accessibly that the fourth matching copy contributes twice its ordinary effect.
+- Keep the checkpoint presentational: no new panel, hover dependency, projection, animation, item, threshold, or power change.
+- Prove all four wares from zero through six copies, mixed `1/1`, `2/2`, and `3/3` builds, Attunement gain and loss through reforge, both shops beside complete Hero Stats and Action Impact at native `1280×720`, accessibility, clean diagnostics, production build, authoritative suite, normal economy and route gates, and four-client convergence.
+
+**Next-cycle nomination:** replay shipped `0.1.21` at normal timing and choose the next highest-leverage shop, item, or champion-stat weakness from actual use. Do not turn readable commitment into another threshold, catalog expansion, or prescribed build path.
+
 ## `0.1.20` — Read Every Strike
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.

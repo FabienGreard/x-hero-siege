@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — Commitment should read before it pays off
+
+`0.1.20` completed the champion-stat sentence. In the next normal Warden run, one Edge and one Focus resolved into exact primary and cast consequences while the siege continued. The build still hid a quieter strategic sentence: each stack said only `×1` and its current percentage, then waited until three matching copies to announce that the next one Attuned. The payoff was legible; the road toward it was not.
+
+`0.1.21` lets commitment begin with the first copy. Hero Stats and the matching local shop card now say `ATTUNEMENT 1/4`, then `ATTUNEMENT 2/4`, before the established `NEXT ATTUNES` and `ATTUNED` states take over. A mixed build reads as breadth immediately, while repeated investment starts to read as an intentional route rather than four unrelated purchases.
+
+Nothing new happens at those early counts. One shared armory helper names the same four-copy rule both surfaces already obey, and accessibility explains why the fourth matters. No item gained power, no threshold moved, and no build path became mandatory; the existing choice simply stays visible from its beginning to its payoff.
+
 ## 2026-07-11 — A basic stat should name the strike it changes
 
 `0.1.19` made the arcane half of a build concrete. In the next normal Warden run, one Focus reconciled `Skill Power 115%` into a rank-three Rupturing Arc at `124.2` damage every `8s`, and the compact panel stayed readable while the wave continued. The same panel still said only `Basic Damage 30` and `Attack Rate 1.92`; the action bar separately said `Iron Cleave`. Tempered Edge could change the arithmetic, but the current build never joined that arithmetic to the champion's named primary.

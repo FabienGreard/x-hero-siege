@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## [0.1.21] - 2026-07-11
+
+### Added
+
+- Added canonical Attunement progress to every owned ware stack: first and second matching copies now read `ATTUNEMENT 1/4` and `ATTUNEMENT 2/4`, while the established third-copy `NEXT ATTUNES` and fourth-copy `ATTUNED` states remain intact.
+- Added the same progress to grouped Hero Stats equipment rows and both physical shops' owned-count badges, so commitment reads consistently before and after travel.
+- Added accessible threshold explanations and canonical coverage from zero through six raw copies, including the fourth-copy double contribution and effective post-Attunement counts.
+
+### Changed
+
+- Derive every Armory progress label from one shared canonical helper instead of reconstructing the threshold separately in Hero Stats and shop cards.
+- Keep zero-owned cards clean and give early progress a quieter treatment than `NEXT ATTUNES` and `ATTUNED`.
+
+### Preserved
+
+- The four-copy Attunement threshold, every ware effect and price, effective-copy arithmetic, six unrestricted slots, replacement outcomes, both physical shops, routes, economy, balance, controls, art, audio, and server authority.
+- No item, stat, proc, threshold, bonus, vendor, slot type, rarity, currency, progression screen, animation, or balance change was added.
+
 ## [0.1.20] - 2026-07-11
 
 ### Added

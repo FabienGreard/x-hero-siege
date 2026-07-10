@@ -32,6 +32,16 @@ export interface EquipmentStackSummary {
   totalEffectLabel: string;
 }
 
+export type AttunementProgressState = "unowned" | "building" | "next" | "attuned";
+
+export interface AttunementProgress {
+  copyCount: number;
+  effectiveCount: number;
+  state: AttunementProgressState;
+  visualLabel: string | null;
+  accessibleDescription: string;
+}
+
 export interface DominantEquipmentStack {
   itemId: ItemId;
   count: number;
@@ -124,6 +134,46 @@ export function effectiveStackCopies(count: number): number {
 
 export function isStackAttuned(count: number): boolean {
   return normalizedStackCount(count) >= ITEM_ATTUNEMENT_THRESHOLD;
+}
+
+/** One canonical read of the existing four-copy commitment for every armory surface. */
+export function deriveAttunementProgress(count: number): AttunementProgress {
+  const copyCount = normalizedStackCount(count);
+  const effectiveCount = effectiveStackCopies(copyCount);
+  if (copyCount === 0) {
+    return {
+      copyCount,
+      effectiveCount,
+      state: "unowned",
+      visualLabel: null,
+      accessibleDescription: `Attunes at ${ITEM_ATTUNEMENT_THRESHOLD} matching copies; the fourth copy contributes twice its normal effect.`,
+    };
+  }
+  if (copyCount < ITEM_ATTUNEMENT_THRESHOLD - 1) {
+    return {
+      copyCount,
+      effectiveCount,
+      state: "building",
+      visualLabel: `ATTUNEMENT ${copyCount}/${ITEM_ATTUNEMENT_THRESHOLD}`,
+      accessibleDescription: `Attunement ${copyCount} of ${ITEM_ATTUNEMENT_THRESHOLD}. At four matching copies, the fourth copy contributes twice its normal effect.`,
+    };
+  }
+  if (copyCount === ITEM_ATTUNEMENT_THRESHOLD - 1) {
+    return {
+      copyCount,
+      effectiveCount,
+      state: "next",
+      visualLabel: "NEXT ATTUNES",
+      accessibleDescription: `Attunement ${copyCount} of ${ITEM_ATTUNEMENT_THRESHOLD}. The next matching copy Attunes this stack and contributes twice its normal effect.`,
+    };
+  }
+  return {
+    copyCount,
+    effectiveCount,
+    state: "attuned",
+    visualLabel: "ATTUNED",
+    accessibleDescription: `Attuned: the fourth copy contributes twice its normal effect, so ${copyCount} equipped copies count as ${effectiveCount} copies.`,
+  };
 }
 
 export function equipmentCopyCount(

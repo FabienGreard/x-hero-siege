@@ -7,9 +7,9 @@ import {
 } from "../shared/game-data";
 import {
   EQUIPMENT_SLOT_COUNT,
-  ITEM_ATTUNEMENT_THRESHOLD,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
+  deriveAttunementProgress,
   dominantEquipmentStack,
   effectiveStackCopies,
   equipmentCopyCount,
@@ -723,27 +723,29 @@ function renderEquipmentSummary(equipment: PlayerSnapshot["equipment"]): void {
   heroEquipmentSummary.setAttribute(
     "aria-label",
     stacks
-      .map(({ itemId, count, attuned, effectiveCount, totalEffectLabel }) => {
+      .map(({ itemId, count, totalEffectLabel }) => {
         const copyLabel = `${count} equipped ${count === 1 ? "copy" : "copies"}`;
-        const attunementLabel = attuned
-          ? `, Attuned, counting as ${effectiveCount} copies because the fourth copy contributes twice its normal effect`
-          : "";
-        return `${ITEM_DEFINITIONS[itemId].name}, ${copyLabel}${attunementLabel}, ${totalEffectLabel}`;
+        const progress = deriveAttunementProgress(count);
+        return `${ITEM_DEFINITIONS[itemId].name}, ${copyLabel}, ${progress.accessibleDescription} ${totalEffectLabel}`;
       })
       .join("; "),
   );
   for (const { itemId, count, attuned, totalEffectLabel } of stacks) {
     const item = ITEM_DEFINITIONS[itemId];
+    const progress = deriveAttunementProgress(count);
     const stack = document.createElement("div");
     stack.className = "equipment-stack";
     stack.dataset.item = itemId;
+    stack.dataset.attunement = progress.state;
     stack.classList.toggle("is-attuned", attuned);
+    stack.classList.toggle("will-attune", progress.state === "next");
     stack.setAttribute("role", "listitem");
     stack.innerHTML = `
       <span class="equipment-stack-icon" aria-hidden="true">${ITEM_SYMBOLS[itemId]}</span>
       <span class="equipment-stack-copy">
-        <strong><span>${item.name}</span><b>×${count}${attuned ? " <em>· ATTUNED</em>" : ""}</b></strong>
+        <strong><span>${item.name}</span><b>×${count}</b></strong>
         <small>${totalEffectLabel}</small>
+        <em>${progress.visualLabel}</em>
       </span>`;
     heroEquipmentSummary.append(stack);
   }
@@ -982,7 +984,6 @@ function confirmReplacement(): void {
 function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void {
   const slotsFull = equipmentIsFull(self.equipment);
   const vendorName = vendorSnapshot(activeVendorId)?.name ?? "vendor";
-  const equipmentStacks = summarizeEquipment(self.equipment);
   for (const [itemId, button] of shopItemButtons) {
     const item = ITEM_DEFINITIONS[itemId];
     const affordable = self.gold >= item.price;
@@ -992,10 +993,9 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending && !purchasePending;
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
     const owned = equipmentCopyCount(self.equipment, itemId);
-    const equipmentStack = equipmentStacks.find((stack) => stack.itemId === itemId);
-    const attuned = equipmentStack?.attuned ?? isStackAttuned(owned);
-    const nextCopyAttunes = owned === ITEM_ATTUNEMENT_THRESHOLD - 1;
-    const effectiveCount = equipmentStack?.effectiveCount ?? owned;
+    const attunementProgress = deriveAttunementProgress(owned);
+    const attuned = attunementProgress.state === "attuned";
+    const nextCopyAttunes = attunementProgress.state === "next";
     const ownedLabel = button.querySelector<HTMLElement>("[data-shop-owned]");
     const purchasePreview = slotsFull
       ? null
@@ -1016,12 +1016,12 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     if (previewValue) previewValue.textContent = purchasePreview?.resultText ?? "—";
     if (previewAttunement) previewAttunement.hidden = !purchasePreview?.attunes;
     if (ownedLabel) {
-      ownedLabel.textContent = attuned
-        ? `${owned} OWNED · ATTUNED`
-        : nextCopyAttunes
-          ? `${owned} OWNED · NEXT ATTUNES`
-          : `${owned} OWNED`;
+      ownedLabel.textContent = attunementProgress.visualLabel
+        ? `${owned} OWNED · ${attunementProgress.visualLabel}`
+        : `${owned} OWNED`;
+      ownedLabel.dataset.attunement = attunementProgress.state;
       ownedLabel.classList.toggle("has-items", owned > 0);
+      ownedLabel.classList.toggle("is-building", attunementProgress.state === "building");
       ownedLabel.classList.toggle("will-attune", nextCopyAttunes);
       ownedLabel.classList.toggle("is-attuned", attuned);
     }
@@ -1060,11 +1060,7 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
                   ? "BUY & EQUIP"
                   : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
     if (status) status.textContent = statusLabel;
-    const attunementDescription = attuned
-      ? ` This stack is Attuned: its fourth copy contributes twice its normal effect, so ${owned} equipped copies count as ${effectiveCount} copies.`
-      : nextCopyAttunes
-        ? " The next copy Attunes this stack; its fourth copy will contribute twice its normal effect."
-        : "";
+    const attunementDescription = ` ${attunementProgress.accessibleDescription}`;
     const previewDescription = purchasePreview
       ? ` Next Hero Stat result: ${purchasePreview.accessibleResult}`
       : "";
