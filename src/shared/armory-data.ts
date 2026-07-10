@@ -128,6 +128,23 @@ export function summarizeEquipment(equipment: EquipmentSlots): EquipmentStackSum
   }));
 }
 
+export function dominantEquipmentItem(equipment: EquipmentSlots): ItemId | null {
+  let dominant: ItemId | null = null;
+  let dominantCount = 0;
+  for (const itemId of equipment) {
+    if (!itemId) continue;
+    let count = 0;
+    for (const equippedItemId of equipment) {
+      if (equippedItemId === itemId) count += 1;
+    }
+    if (count > dominantCount) {
+      dominant = itemId;
+      dominantCount = count;
+    }
+  }
+  return dominant;
+}
+
 export function isItemId(value: unknown): value is ItemId {
   return typeof value === "string" && Object.hasOwn(ITEM_DEFINITIONS, value);
 }

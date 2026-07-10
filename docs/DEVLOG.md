@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — Power should live on the hero
+
+`0.1.11` made a six-slot build understandable, but only while reading a panel. Closing Hero Stats returned the same battlefield silhouette whether the Warden carried no equipment or had committed the entire run to one kind of power. The numbers had identity; the hero did not wear it.
+
+`0.1.12` gives every equipped hero one restrained build signature. Edge investment appears as warm blade ticks, Greaves as low cyan chevrons, Focus as violet diamonds, and Quickening as a pale broken sigil. The ware with the most occupied sockets leads; if two are tied, the first equipped one preserves the build's history and wins the silhouette.
+
+This is deliberately not a set bonus, proc, rarity, or new source of power. The signature reads the same authoritative six slots the game already owns, changes when a real replacement changes their leader, and stays behind the hero and combat telegraphs. A committed build is now visible in motion without opening another surface.
+
 ## 2026-07-10 — A build should read like a decision
 
 `0.1.10` gave each purchase time and weight, but a completed build still collapsed into six tiny socket symbols. The symbols showed that a slot was occupied; they did not tell the player whether the hero had committed to two Edges, two Focuses, or how much those duplicates contributed in total.
@@ -78,6 +86,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.12`: made authoritative socket investment visible on every equipped battlefield hero.
 - `0.1.11`: made six-slot build identity and duplicate totals readable at a glance.
 - `0.1.10`: made each ware and later reshape require a distinct, earned combat window.
 - `0.1.9`: kept both local shops useful at six slots through one explicit full-price replacement decision.

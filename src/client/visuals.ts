@@ -4,6 +4,7 @@ import type {
   EffectKind,
   EnemyKind,
   HeroId,
+  ItemId,
   LaneId,
   PickupKind,
   ProjectileKind,
@@ -165,6 +166,76 @@ function glowTexture(color: string): THREE.CanvasTexture {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 32, 32);
   });
+}
+
+const BUILD_SIGNATURE_COLORS: Record<ItemId, string> = {
+  tempered_edge: "#f0c56a",
+  fleetstep_greaves: "#91e8ff",
+  runebound_focus: "#c6a4ff",
+  quickening_sigil: "#d7f5ff",
+};
+
+function buildSignatureTexture(itemId: ItemId): THREE.CanvasTexture {
+  return makeCanvasTexture(`build-signature-${itemId}`, 64, 80, (ctx) => {
+    const color = BUILD_SIGNATURE_COLORS[itemId];
+    const pixel = (x: number, y: number, width: number, height: number) => {
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.18;
+      ctx.fillRect(x - 1, y - 1, width + 2, height + 2);
+      ctx.globalAlpha = 0.9;
+      ctx.fillRect(x, y, width, height);
+    };
+
+    if (itemId === "tempered_edge") {
+      for (let step = 0; step < 5; step += 1) {
+        pixel(5 + step * 2, 18 + step * 3, 3, 5);
+        pixel(56 - step * 2, 18 + step * 3, 3, 5);
+        pixel(7 + step * 2, 44 + step * 3, 3, 4);
+        pixel(54 - step * 2, 44 + step * 3, 3, 4);
+      }
+    } else if (itemId === "fleetstep_greaves") {
+      for (const centerX of [15, 49]) {
+        for (const offsetY of [48, 59]) {
+          pixel(centerX - 7, offsetY, 4, 3);
+          pixel(centerX - 3, offsetY + 3, 4, 3);
+          pixel(centerX + 1, offsetY + 6, 4, 3);
+          pixel(centerX + 5, offsetY + 3, 4, 3);
+        }
+      }
+    } else if (itemId === "runebound_focus") {
+      const diamond = (centerX: number, centerY: number) => {
+        pixel(centerX - 1, centerY - 6, 3, 3);
+        pixel(centerX - 4, centerY - 3, 9, 3);
+        pixel(centerX - 7, centerY, 15, 3);
+        pixel(centerX - 4, centerY + 3, 9, 3);
+        pixel(centerX - 1, centerY + 6, 3, 3);
+      };
+      diamond(9, 28);
+      diamond(55, 28);
+      diamond(32, 10);
+    } else {
+      for (const [x, y, width, height] of [
+        [19, 13, 9, 3], [36, 13, 9, 3],
+        [19, 65, 9, 3], [36, 65, 9, 3],
+        [5, 28, 3, 9], [5, 44, 3, 9],
+        [56, 28, 3, 9], [56, 44, 3, 9],
+        [10, 19, 5, 3], [49, 19, 5, 3],
+        [10, 59, 5, 3], [49, 59, 5, 3],
+      ] as const) pixel(x, y, width, height);
+    }
+    ctx.globalAlpha = 1;
+  });
+}
+
+function createBuildSignature(): THREE.Sprite {
+  const signature = new THREE.Sprite(new THREE.SpriteMaterial({
+    transparent: true,
+    depthWrite: false,
+    opacity: 0.76,
+  }));
+  signature.renderOrder = 10;
+  signature.visible = false;
+  return signature;
 }
 
 function drawHero(ctx: CanvasRenderingContext2D, heroId: HeroId): void {
@@ -355,6 +426,8 @@ export interface EntityVisual extends THREE.Group {
     shadow: THREE.Sprite;
     facingIndicator: THREE.Group;
     attackTelegraph: THREE.Group;
+    buildSignature: THREE.Sprite | null;
+    buildSignatureItemId: ItemId | null;
     flashUntil: number;
     baseScale: number;
     isLocal: boolean;
@@ -462,8 +535,11 @@ export function createEntityVisual(
 
   const facingIndicator = createFacingIndicator(kind === "hero", scale);
   const attackTelegraph = createAttackTelegraph(kind, scale);
+  const buildSignature = kind === "hero" ? createBuildSignature() : null;
 
-  group.add(shadow, facingIndicator, attackTelegraph, silhouette, sprite);
+  group.add(shadow, facingIndicator, attackTelegraph);
+  if (buildSignature) group.add(buildSignature);
+  group.add(silhouette, sprite);
   group.userData = {
     entityKind: kind,
     sprite,
@@ -471,11 +547,24 @@ export function createEntityVisual(
     shadow,
     facingIndicator,
     attackTelegraph,
+    buildSignature,
+    buildSignatureItemId: null,
     flashUntil: 0,
     baseScale: scale,
     isLocal: false,
   };
   return group;
+}
+
+export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | null): void {
+  const signature = visual.userData.buildSignature;
+  if (!signature || visual.userData.buildSignatureItemId === itemId) return;
+  visual.userData.buildSignatureItemId = itemId;
+  signature.visible = itemId !== null;
+  if (!itemId) return;
+  const material = signature.material as THREE.SpriteMaterial;
+  material.map = buildSignatureTexture(itemId);
+  material.needsUpdate = true;
 }
 
 export function setEntityFlash(visual: EntityVisual, now: number, color = 0xffffff): void {
@@ -495,6 +584,7 @@ export function updateEntityVisual(
   const silhouette = visual.userData.silhouette;
   const indicator = visual.userData.facingIndicator;
   const telegraph = visual.userData.attackTelegraph;
+  const buildSignature = visual.userData.buildSignature;
   const baseScale = visual.userData.baseScale;
   const hero = visual.userData.entityKind === "hero";
   if (now >= visual.userData.flashUntil) (sprite.material as THREE.SpriteMaterial).color.setHex(0xffffff);
@@ -561,6 +651,13 @@ export function updateEntityVisual(
   silhouette.scale.set(scaleX * 1.09, scaleY * 1.085, 1);
   silhouette.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.025);
   silhouette.material.rotation = lean;
+  if (buildSignature?.visible) {
+    buildSignature.scale.set(scaleX * 1.34, scaleY * 1.2, 1);
+    buildSignature.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.012);
+    const signatureMaterial = buildSignature.material as THREE.SpriteMaterial;
+    signatureMaterial.rotation = lean;
+    signatureMaterial.opacity = visual.userData.isLocal ? 0.76 : 0.56;
+  }
 
   const showEnemyWarning = !hero && action?.kind === "enemy_attack" && isWindup;
   telegraph.visible = showEnemyWarning;

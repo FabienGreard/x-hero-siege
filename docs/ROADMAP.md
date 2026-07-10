@@ -2,6 +2,19 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.12` — Wear the Build
+
+**Status:** implemented and locally verified on 2026-07-10; companion site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Correct the visual weakness exposed by shipped `0.1.11`: panels explained a build, but the battlefield hero looked identical with zero equipment and a committed six-slot loadout.
+- Give every equipped hero one restrained, shape-coded corona for the ware with the greatest socket investment; ties resolve to the ware occupying the lowest slot.
+- Keep all four identities readable without relying on color alone: Edge blades, Greaves chevrons, Focus diamonds, and a broken Quickening sigil.
+- Attach the signature to the existing hero pose behind the silhouette, show allies at reduced intensity, and show nothing for empty equipment.
+- Keep the checkpoint presentational and derive it from the authoritative ordered equipment snapshot without changing item power, build rules, combat, economy, or shop behavior.
+- Prove empty, tied, majority-changing replacement, all four item variants, action-pose attachment, 1280×720 telegraph hierarchy, typecheck, authoritative tests, production build, real four-client convergence, and clean rendered diagnostics.
+
+**Next-cycle nomination:** replay shipped `0.1.12` at normal timing and choose the next highest-leverage player-visible shop, item, or Hero Stats weakness. Prefer a deeper decision or payoff over catalog breadth.
+
 ## `0.1.11` — Read the Build
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
@@ -76,7 +89,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows; `0.1.11` makes each completed build and duplicate investment legible without changing its rules. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows; `0.1.11` makes each completed build and duplicate investment legible without changing its rules; `0.1.12` lets that investment visibly live on the battlefield without adding power. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 

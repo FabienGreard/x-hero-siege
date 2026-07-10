@@ -9,6 +9,7 @@ import {
   EQUIPMENT_SLOT_COUNT,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
+  dominantEquipmentItem,
   summarizeEquipment,
 } from "../shared/armory-data";
 import type {
@@ -43,6 +44,7 @@ import {
   createProjectileVisual,
   createWraithVisual,
   setEntityFlash,
+  setEntityBuildSignature,
   updateEffectVisual,
   updateEntityVisual,
   updateHealthBar,
@@ -1231,6 +1233,7 @@ function syncPlayers(players: PlayerSnapshot[]): void {
     tracked.facing = player.aim;
     tracked.action = player.action;
     tracked.visual.userData.isLocal = player.id === localPlayerId;
+    setEntityBuildSignature(tracked.visual, dominantEquipmentItem(player.equipment));
     const oldHp = previousHp.get(`p-${player.id}`);
     if (oldHp !== undefined && player.hp < oldHp) damageFeedback(tracked, oldHp - player.hp, player.position, true);
     previousHp.set(`p-${player.id}`, player.hp);

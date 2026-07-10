@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { createEmptyEquipment, summarizeEquipment } from "../src/shared/armory-data";
+import {
+  createEmptyEquipment,
+  dominantEquipmentItem,
+  summarizeEquipment,
+} from "../src/shared/armory-data";
 import type { EquipmentSlots } from "../src/shared/protocol";
 
 describe("equipment build summaries", () => {
@@ -56,5 +60,33 @@ describe("equipment build summaries", () => {
       "+90% Skill Power",
       "+90% Cooldown Speed",
     ]);
+  });
+
+  test("dominant build identity uses copy count and first-slot tie-breaking", () => {
+    expect(dominantEquipmentItem(createEmptyEquipment())).toBeNull();
+    expect(dominantEquipmentItem([
+      "tempered_edge",
+      "runebound_focus",
+      "tempered_edge",
+      "fleetstep_greaves",
+      null,
+      null,
+    ])).toBe("tempered_edge");
+    expect(dominantEquipmentItem([
+      "runebound_focus",
+      "tempered_edge",
+      "runebound_focus",
+      "fleetstep_greaves",
+      "quickening_sigil",
+      "tempered_edge",
+    ])).toBe("runebound_focus");
+    expect(dominantEquipmentItem([
+      "tempered_edge",
+      "tempered_edge",
+      "runebound_focus",
+      "fleetstep_greaves",
+      "quickening_sigil",
+      "tempered_edge",
+    ])).toBe("tempered_edge");
   });
 });

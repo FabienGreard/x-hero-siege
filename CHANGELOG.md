@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.12] - 2026-07-10
+
+### Added
+
+- Added a battlefield build signature that lets every equipped hero visibly carry the identity of their dominant ware during live play.
+- Added four color-and-shape-coded coronas: warm blade ticks for Tempered Edge, lower cyan chevrons for Fleetstep Greaves, violet diamonds for Runebound Focus, and a pale broken sigil for Quickening Sigil.
+- Added a canonical dominant-item helper and focused coverage for empty equipment, clear majorities, and ties resolved by the first occupied socket.
+
+### Changed
+
+- Derive each hero's signature directly from the authoritative ordered equipment snapshot: the most copies win, and the tied ware appearing in the lowest slot wins.
+- Keep the signature attached to the hero's existing pose and silhouette, with reduced intensity on allies and cached textures for all four variants.
+
+### Preserved
+
+- The four established item effects, Hero Stats, both physical shops, universal `30`-gold price, exactly six unrestricted duplicate-ready run-only slots, replacement rules, and personal co-op-safe ownership.
+- Combat, economy, routes, hero baselines, controls, art and audio character, telegraph priority, and phase flow.
+- No proc, set bonus, rarity, item rank, evolution, stat change, ware, currency, persistence, or permanent power was added.
+
 ## [0.1.11] - 2026-07-10
 
 ### Added
