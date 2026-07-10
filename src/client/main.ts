@@ -53,6 +53,10 @@ import {
   projectOrdinaryPurchasePreview,
 } from "./shop-preview";
 import {
+  deriveLocalShopReadiness,
+  type LocalShopReadiness,
+} from "./shop-readiness";
+import {
   BUILD_SIGNATURE_COLORS,
   HERO_PRESENTATION,
   createArena,
@@ -150,6 +154,8 @@ const heroHealthValue = requiredElement<HTMLSpanElement>("hero-health-value");
 const basicAttackName = requiredElement<HTMLSpanElement>("basic-attack-name");
 const abilityBar = requiredElement<HTMLDivElement>("ability-bar");
 const goldValue = requiredElement<HTMLElement>("gold-value");
+const goldLabel = requiredElement<HTMLElement>("gold-label");
+const goldReadout = requiredElement<HTMLElement>("gold-readout");
 const killsValue = requiredElement<HTMLElement>("kills-value");
 const minimap = requiredElement<HTMLCanvasElement>("minimap");
 const threatPanel = requiredMatch(minimap.closest<HTMLElement>(".threat-panel"), ".threat-panel");
@@ -1678,7 +1684,12 @@ function updateHud(state: GameSnapshot, self: PlayerSnapshot | undefined): void 
   nexusValue.textContent = `${Math.ceil(nexusRatio * 100)}%`;
   updateThreats(state);
   updateTeam(state.players);
-  updateMinimap(state);
+  const shopReadiness = deriveLocalShopReadiness(state, self);
+  updateMinimap(state, shopReadiness);
+  goldReadout.classList.toggle("is-spendable", shopReadiness.ready);
+  goldReadout.classList.toggle("is-reforge-ready", shopReadiness.mode === "reforge");
+  goldReadout.setAttribute("aria-label", shopReadiness.ariaLabel);
+  goldLabel.textContent = shopReadiness.label;
 
   if (state.riftHeart.active && state.riftHeart.maxHp > 0) {
     bossHud.classList.remove("is-hidden");
@@ -1839,7 +1850,7 @@ function levelAbility(slot: AbilitySlot): void {
   audio.play("loot");
 }
 
-function updateMinimap(state: GameSnapshot): void {
+function updateMinimap(state: GameSnapshot, shopReadiness: LocalShopReadiness): void {
   const context = minimap.getContext("2d");
   if (!context) return;
   const width = minimap.width;
@@ -1891,8 +1902,18 @@ function updateMinimap(state: GameSnapshot): void {
       context.beginPath(); context.moveTo(x + 3, y - 3); context.lineTo(x - 3, y + 3); context.stroke();
     }
   }
+  const readyVendors = new Set(shopReadiness.vendorIds);
   for (const vendor of state.vendors) {
     const [x, y] = toMap(vendor.position);
+    if (readyVendors.has(vendor.id)) {
+      context.strokeStyle = vendor.id === "ironbound_forge"
+        ? "rgba(244, 204, 118, 0.9)"
+        : "rgba(208, 183, 255, 0.9)";
+      context.lineWidth = 1.5;
+      context.beginPath();
+      context.arc(x, y, 8, 0, Math.PI * 2);
+      context.stroke();
+    }
     if (vendor.id === "ironbound_forge") {
       context.fillStyle = "#e9ba63";
       context.strokeStyle = "#2a1d0d";
@@ -1958,7 +1979,10 @@ function updateMinimap(state: GameSnapshot): void {
     const yOffset = lane === "north" ? 7 : lane === "south" ? -7 : 0;
     context.fillText(LANE_LABELS[lane].toUpperCase(), x + xOffset, y + yOffset);
   }
-  minimap.setAttribute("aria-label", `Battlefield minimap: ${state.activeLanes.map((lane) => LANE_LABELS[lane]).join(", ") || "no"} lanes open; ${state.vendors.map((vendor) => vendor.name).join(" and ")} marked as local shops`);
+  const fundedShops = shopReadiness.ready
+    ? `; ${shopReadiness.mode === "reforge" ? "reforge" : "ware"} funded at ${state.vendors.filter((vendor) => readyVendors.has(vendor.id)).map((vendor) => vendor.name).join(" and ")}`
+    : "";
+  minimap.setAttribute("aria-label", `Battlefield minimap: ${state.activeLanes.map((lane) => LANE_LABELS[lane]).join(", ") || "no"} lanes open; ${state.vendors.map((vendor) => vendor.name).join(" and ")} marked as local shops${fundedShops}`);
 }
 
 function showEnd(state: GameSnapshot, self: PlayerSnapshot | undefined): void {

@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — Gold should say when it becomes a route choice
+
+`0.1.16` made the decision inside each shop exact. Normal play then exposed the missing link outside those walls. The Warden could hold 87 gold—enough for two more wares—while the combat HUD showed only `87` and two tiny static symbols near the Nexus. Nothing said that the wallet had crossed from scorekeeping into a new choice between the warm Forge and cool Reliquary.
+
+`0.1.17` gives the existing surfaces one restrained answer. The gold tile changes to `WARE READY`, or `REFORGE READY` when all six sockets are occupied, and wakes once before settling. Both existing shop shapes receive a thin funded outline on the minimap. Neither is favored: martial west and arcane east remain the player's strategic decision, and the horde still decides whether this is actually a safe moment to leave.
+
+The cue reads the local authoritative hero, current stock, and real prices. It disappears while downed, outside the active siege, or after spending below affordability; it stays when enough gold remains. There is no remote panel, item recommendation, arrow, new sound, or new economy rule. Gold simply admits when it can do something, then points back to the two places where the player must still go.
+
 ## 2026-07-10 — The next copy should answer one exact question
 
 Attunement made a fourth copy meaningful, but ordinary shopping still asked the player to translate a generic percentage into champion-specific power. A Warden carrying three Tempered Edges could read `+20% Basic Damage` and `NEXT ATTUNES`; only after spending did the live panel reveal that the real step was `48 → 60`. Curiously, the later full-build reforge already gave a better answer than the first six purchases.
@@ -120,6 +128,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.17`: made funded personal gold and both physical Armory routes readable from combat.
 - `0.1.16`: made every ordinary local purchase reveal its exact next champion-stat result before spending.
 - `0.1.15`: made the authoritative Attunement crossing arrive once and resonate on the battlefield.
 - `0.1.14`: made the fourth matching ware a visible commitment between broad and specialist builds.

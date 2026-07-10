@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.17] - 2026-07-10
+
+### Added
+
+- Added a personal local-Armory readiness state derived from the authoritative hero snapshot, active living state, current vendor stock, and each stocked ware's canonical price.
+- Added `WARE READY` to the existing gold tile when an open-slot purchase is funded and `REFORGE READY` when the same wallet can reshape a full six-slot build.
+- Added thin, equally weighted funded outlines around the existing shape-distinct Forge and Reliquary minimap marks, plus exact travel-to-trade accessibility copy on the gold and minimap surfaces.
+- Added threshold coverage for below-price, exact-price, retained affordability, full-build reforge, vendor-specific stock, inactive, downed, unclaimed, and disconnected states.
+
+### Changed
+
+- Give the gold tile one short restrained wake-up only when readiness becomes actionable, then hold a quiet persistent funded treatment until the state clears.
+- Clear every readiness cue immediately after spending below all stocked prices, while downed, or outside defense, breach, and push; a wallet that remains affordable truthfully remains ready.
+
+### Preserved
+
+- Proximity-only `B` browsing and trading, both physical routes, both distinct inventories, all prices, rewards, wares, stats, six-slot and reforge rules, combat, controls, art, audio, and server authority.
+- No remote catalog, remote purchase, path arrow, route recommendation, safe-window claim, vendor, item, currency, economy change, or automation was added.
+
 ## [0.1.16] - 2026-07-10
 
 ### Added

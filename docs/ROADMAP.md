@@ -2,6 +2,19 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.17` — Read the Retreat
+
+**Status:** implemented and locally verified on 2026-07-10; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Correct the route-awareness weakness exposed by shipped `0.1.16`: the local shops now answer every purchase exactly once reached, but away from them an actionable wallet remained a plain number and both strategic destinations stayed tiny static minimap marks.
+- Derive readiness per local player from active, living authoritative state and the actual prices of each vendor's current stock; never infer it from global party state or hard-code a universal price.
+- Change the compact gold label to `WARE READY` when any socket is open and `REFORGE READY` at `6/6`. Give the tile one short non-central wake-up when the state appears, then keep a restrained funded treatment.
+- Outline every currently affordable local vendor's existing minimap shape equally. Keep the Forge warm and the Reliquary cool; do not select the nearest, recommend an inventory, draw a path, or imply that the retreat is safe.
+- Clear the cue below every stocked price, while downed, or outside active trade phases. If a purchase leaves enough gold for another local trade, keep the cue truthful.
+- Prove `29.99 → 30`, `60 → 30`, `30 → 0`, open and full builds, down/revive, remote `B`, both vendors under real threat density, accessibility, native 1280×720 fit, normal route continuity, typecheck, production build, authoritative suite, and four-client convergence.
+
+**Next-cycle nomination:** replay shipped `0.1.17` under normal timing and choose the highest-leverage remaining shop, item, or champion-stat weakness from actual use. Do not turn funded awareness into navigation automation or use controller-limited purchasing as evidence for economy tuning.
+
 ## `0.1.16` — Know the Next Copy
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
@@ -138,7 +151,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows; `0.1.11` makes each completed build and duplicate investment legible without changing its rules; `0.1.12` lets that investment visibly live on the battlefield without adding power; `0.1.13` makes the exact champion-specific result of an irreversible reforge knowable before spending; `0.1.14` makes four matching wares a real commitment by doubling only the fourth copy's ordinary scalar once; `0.1.15` makes that commitment arrive once and remain visible in the battlefield without changing its power; `0.1.16` makes every ordinary purchase as champion-specific and knowable as the established reforge without slowing the first six choices. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows; `0.1.11` makes each completed build and duplicate investment legible without changing its rules; `0.1.12` lets that investment visibly live on the battlefield without adding power; `0.1.13` makes the exact champion-specific result of an irreversible reforge knowable before spending; `0.1.14` makes four matching wares a real commitment by doubling only the fourth copy's ordinary scalar once; `0.1.15` makes that commitment arrive once and remain visible in the battlefield without changing its power; `0.1.16` makes every ordinary purchase as champion-specific and knowable as the established reforge without slowing the first six choices; `0.1.17` makes actionable personal gold and its two physical destinations readable from combat without choosing the retreat for the player. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 
