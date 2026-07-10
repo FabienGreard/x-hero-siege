@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.8` — two roads to power
 
-**Status:** implemented and locally verified on 2026-07-10; companion site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Convert the northeast Citadel shell into the Veilglass Reliquary, visually distinct from the warm northwest Forge and locally accessible only inside its seven-unit radius.
 - Offer exactly two additional 24-gold wares: Runebound Focus (`+15%` Skill Power) and Quickening Sigil (`+15%` Cooldown Speed).
