@@ -22,9 +22,9 @@ describe("equipment build summaries", () => {
     ];
 
     expect(summarizeEquipment(equipment)).toEqual([
-      { itemId: "runebound_focus", count: 3, totalEffectLabel: "+45% Skill Power" },
-      { itemId: "tempered_edge", count: 2, totalEffectLabel: "+40% Basic Damage" },
-      { itemId: "quickening_sigil", count: 1, totalEffectLabel: "+15% Cooldown Speed" },
+      { itemId: "runebound_focus", count: 3, effectiveCount: 3, attuned: false, totalEffectLabel: "+45% Skill Power" },
+      { itemId: "tempered_edge", count: 2, effectiveCount: 2, attuned: false, totalEffectLabel: "+40% Basic Damage" },
+      { itemId: "quickening_sigil", count: 1, effectiveCount: 1, attuned: false, totalEffectLabel: "+15% Cooldown Speed" },
     ]);
   });
 
@@ -55,10 +55,10 @@ describe("equipment build summaries", () => {
     ];
 
     expect(builds.map((build) => summarizeEquipment(build)[0]?.totalEffectLabel)).toEqual([
-      "+120% Basic Damage",
-      "+60% Move Speed",
-      "+90% Skill Power",
-      "+90% Cooldown Speed",
+      "+140% Basic Damage",
+      "+70% Move Speed",
+      "+105% Skill Power",
+      "+105% Cooldown Speed",
     ]);
   });
 

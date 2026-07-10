@@ -102,8 +102,8 @@ describe("authoritative Veilglass Reliquary", () => {
       const sigil = deriveHeroStats(heroId, 1, ["quickening_sigil"]);
       expect(focus).toEqual({ ...baseline, abilityPower: 1.15 });
       expect(sigil).toEqual({ ...baseline, cooldownRecovery: 1.15 });
-      expect(deriveHeroStats(heroId, 1, sixFocuses).abilityPower).toBeCloseTo(1.9);
-      expect(deriveHeroStats(heroId, 1, sixSigils).cooldownRecovery).toBeCloseTo(1.9);
+      expect(deriveHeroStats(heroId, 1, sixFocuses).abilityPower).toBeCloseTo(2.05);
+      expect(deriveHeroStats(heroId, 1, sixSigils).cooldownRecovery).toBeCloseTo(2.05);
       expect(deriveHeroStats(heroId, 1, mixed)).toEqual({
         ...baseline,
         abilityPower: 1.45,
@@ -254,14 +254,14 @@ describe("authoritative Veilglass Reliquary", () => {
     ];
     let player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(sixFocuses);
-    expect(player.stats.abilityPower).toBeCloseTo(1.9);
+    expect(player.stats.abilityPower).toBeCloseTo(2.05);
     expect(player.gold).toBe(ARMORY_WARE_PRICE);
 
     placeAt(game, "ironbound_forge");
     expect(buy(game, "ironbound_forge", "tempered_edge").code).toBe("EQUIPMENT_FULL");
     player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(sixFocuses);
-    expect(player.stats.abilityPower).toBeCloseTo(1.9);
+    expect(player.stats.abilityPower).toBeCloseTo(2.05);
     expect(player.stats.basicDamage).toBe(30);
     expect(player.gold).toBe(ARMORY_WARE_PRICE);
   });

@@ -1,10 +1,32 @@
 import assert from "node:assert/strict";
-import { ARMORY_WARE_PRICE, VENDOR_DEFINITIONS } from "../src/shared/armory-data";
+import {
+  ARMORY_WARE_PRICE,
+  VENDOR_DEFINITIONS,
+  dominantEquipmentStack,
+} from "../src/shared/armory-data";
 import { createGameServer } from "../src/server/index";
 import { goldToUnits } from "../src/server/economy";
-import type { EquipmentSlots, GameSnapshot, HeroId, ServerMessage } from "../src/shared/protocol";
+import type {
+  EquipmentSlots,
+  GameSnapshot,
+  HeroId,
+  HeroStatsSnapshot,
+  ServerMessage,
+} from "../src/shared/protocol";
 
 type Predicate = (message: ServerMessage) => boolean;
+
+function assertHeroStats(
+  actual: HeroStatsSnapshot,
+  expected: HeroStatsSnapshot,
+): void {
+  for (const key of Object.keys(expected) as Array<keyof HeroStatsSnapshot>) {
+    assert.ok(
+      Math.abs(actual[key] - expected[key]) < 1e-9,
+      `${key}: expected ${expected[key]}, received ${actual[key]}`,
+    );
+  }
+}
 
 class Peer {
   readonly messages: ServerMessage[] = [];
@@ -110,28 +132,28 @@ try {
   });
   assert.equal(windingUp.players.find((player) => player.id === peers[0]!.playerId)!.action?.phase, "windup");
 
-  const sixFocuses: EquipmentSlots = [
+  const forgeThresholdBuild: EquipmentSlots = [
+    "tempered_edge",
+    "tempered_edge",
+    "tempered_edge",
     "runebound_focus",
-    "runebound_focus",
-    "runebound_focus",
-    "runebound_focus",
-    "runebound_focus",
-    "runebound_focus",
+    "fleetstep_greaves",
+    "quickening_sigil",
   ];
-  const sixEdges: EquipmentSlots = [
+  const reliquaryThresholdBuild: EquipmentSlots = [
+    "runebound_focus",
+    "runebound_focus",
+    "runebound_focus",
+    "runebound_focus",
     "tempered_edge",
-    "tempered_edge",
-    "tempered_edge",
-    "tempered_edge",
-    "tempered_edge",
-    "tempered_edge",
+    "fleetstep_greaves",
   ];
   const forgeBuyer = instance.game.players.get(peers[0]!.playerId)!;
   const reliquaryBuyer = instance.game.players.get(peers[1]!.playerId)!;
-  forgeBuyer.equipment = [...sixFocuses] as EquipmentSlots;
+  forgeBuyer.equipment = [...forgeThresholdBuild] as EquipmentSlots;
   forgeBuyer.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
   forgeBuyer.position = { ...VENDOR_DEFINITIONS.ironbound_forge.position };
-  reliquaryBuyer.equipment = [...sixEdges] as EquipmentSlots;
+  reliquaryBuyer.equipment = [...reliquaryThresholdBuild] as EquipmentSlots;
   reliquaryBuyer.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
   reliquaryBuyer.position = { ...VENDOR_DEFINITIONS.veilglass_reliquary.position };
 
@@ -139,23 +161,23 @@ try {
     type: "replace_item",
     vendorId: "ironbound_forge",
     itemId: "tempered_edge",
-    slotIndex: 2,
+    slotIndex: 3,
     expectedItemId: "runebound_focus",
   });
   peers[1]!.send({
     type: "replace_item",
     vendorId: "veilglass_reliquary",
-    itemId: "runebound_focus",
-    slotIndex: 4,
-    expectedItemId: "tempered_edge",
+    itemId: "quickening_sigil",
+    slotIndex: 3,
+    expectedItemId: "runebound_focus",
   });
 
   const replacements = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) => {
     const forge = snapshot.players.find((player) => player.id === peers[0]!.playerId);
     const reliquary = snapshot.players.find((player) => player.id === peers[1]!.playerId);
-    return forge?.equipment[2] === "tempered_edge" &&
+    return forge?.equipment[3] === "tempered_edge" &&
       forge.gold === 0 &&
-      reliquary?.equipment[4] === "runebound_focus" &&
+      reliquary?.equipment[3] === "quickening_sigil" &&
       reliquary.gold === 0;
   })));
   const authoritativePlayers = replacements[0]!.players.map((player) => ({
@@ -172,8 +194,50 @@ try {
       stats: player.stats,
     })), authoritativePlayers);
   }
-  assert.equal(authoritativePlayers.find((player) => player.id === peers[0]!.playerId)!.equipment[2], "tempered_edge");
-  assert.equal(authoritativePlayers.find((player) => player.id === peers[1]!.playerId)!.equipment[4], "runebound_focus");
+  const authoritativeForgeBuyer = authoritativePlayers.find((player) => player.id === peers[0]!.playerId)!;
+  const authoritativeReliquaryBuyer = authoritativePlayers.find((player) => player.id === peers[1]!.playerId)!;
+  assert.deepEqual(authoritativeForgeBuyer.equipment, [
+    "tempered_edge",
+    "tempered_edge",
+    "tempered_edge",
+    "tempered_edge",
+    "fleetstep_greaves",
+    "quickening_sigil",
+  ]);
+  assertHeroStats(authoritativeForgeBuyer.stats, {
+    maxHp: 190,
+    moveSpeed: 11.55,
+    basicDamage: 60,
+    basicAttackInterval: 0.52,
+    abilityPower: 1,
+    cooldownRecovery: 1.15,
+  });
+  assert.deepEqual(dominantEquipmentStack(authoritativeForgeBuyer.equipment), {
+    itemId: "tempered_edge",
+    count: 4,
+    attuned: true,
+  });
+  assert.deepEqual(authoritativeReliquaryBuyer.equipment, [
+    "runebound_focus",
+    "runebound_focus",
+    "runebound_focus",
+    "quickening_sigil",
+    "tempered_edge",
+    "fleetstep_greaves",
+  ]);
+  assertHeroStats(authoritativeReliquaryBuyer.stats, {
+    maxHp: 125,
+    moveSpeed: 13.75,
+    basicDamage: 22.8,
+    basicAttackInterval: 0.28,
+    abilityPower: 1.45,
+    cooldownRecovery: 1.15,
+  });
+  assert.deepEqual(dominantEquipmentStack(authoritativeReliquaryBuyer.equipment), {
+    itemId: "runebound_focus",
+    count: 3,
+    attuned: false,
+  });
   for (const peer of peers.slice(2)) {
     const untouched = authoritativePlayers.find((player) => player.id === peer.playerId)!;
     assert.equal(untouched.gold, 0);
@@ -190,8 +254,8 @@ try {
     tickSpread: Math.max(...synchronized.map((snapshot) => snapshot.tick)) - Math.min(...synchronized.map((snapshot) => snapshot.tick)),
     replacements: {
       convergedClients: replacements.length,
-      forgeSlot: 3,
-      reliquarySlot: 5,
+      forgeAttunedCopies: 4,
+      reliquaryAttunedCopies: 0,
     },
   }));
 } finally {

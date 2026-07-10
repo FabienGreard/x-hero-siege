@@ -127,7 +127,7 @@ describe("authoritative full-build item replacement", () => {
     ]);
     expect(player.equipment).toHaveLength(6);
     expect(player.stats.basicDamage).toBeCloseTo(36);
-    expect(player.stats.abilityPower).toBeCloseTo(1.75);
+    expect(player.stats.abilityPower).toBeCloseTo(1.9);
 
     const events = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
     expect(events).toHaveLength(1);
@@ -476,8 +476,8 @@ describe("authoritative full-build item replacement", () => {
     expect(reliquaryBuyer.equipment[4]).toBe("runebound_focus");
     expect(reliquaryBuyer.equipment.filter((itemId) => itemId === "tempered_edge")).toHaveLength(5);
     expect(forgeBuyer.stats.basicDamage).toBeCloseTo(36);
-    expect(forgeBuyer.stats.abilityPower).toBeCloseTo(1.75);
-    expect(reliquaryBuyer.stats.basicDamage).toBeCloseTo(38);
+    expect(forgeBuyer.stats.abilityPower).toBeCloseTo(1.9);
+    expect(reliquaryBuyer.stats.basicDamage).toBeCloseTo(41.8);
     expect(reliquaryBuyer.stats.abilityPower).toBeCloseTo(1.15);
     const events = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
     expect(events).toHaveLength(2);

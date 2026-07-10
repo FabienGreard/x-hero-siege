@@ -471,6 +471,22 @@ button {
   border-color: rgba(190, 153, 255, 0.2);
 }
 
+.equipment-stack.is-attuned {
+  border-color: rgba(255, 220, 135, 0.5);
+  box-shadow: inset 0 0 12px rgba(233, 186, 99, 0.08), 0 0 8px rgba(233, 186, 99, 0.08);
+}
+
+.equipment-stack.is-attuned .equipment-stack-copy strong b {
+  color: #ffe3a0;
+  text-shadow: 0 0 6px rgba(233, 186, 99, 0.38);
+}
+
+.equipment-stack-copy strong b em {
+  font-size: 5px;
+  font-style: normal;
+  letter-spacing: 0.045em;
+}
+
 .equipment-slot {
   position: relative;
   display: grid;
@@ -949,6 +965,21 @@ button.equipment-slot {
   color: #f0ca72;
   background: rgba(233, 186, 99, 0.07);
   border-color: rgba(233, 186, 99, 0.28);
+}
+
+.shop-item-owned.will-attune {
+  color: #ffe8aa;
+  background: rgba(233, 186, 99, 0.1);
+  border-color: rgba(233, 186, 99, 0.44);
+  font-size: 4.5px;
+  letter-spacing: 0.045em;
+}
+
+.shop-item-owned.is-attuned {
+  color: #fff0bd;
+  background: rgba(233, 186, 99, 0.14);
+  border-color: rgba(255, 222, 143, 0.55);
+  box-shadow: 0 0 7px rgba(233, 186, 99, 0.13);
 }
 
 .shop-item-description {

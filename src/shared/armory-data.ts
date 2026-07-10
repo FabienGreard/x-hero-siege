@@ -2,6 +2,7 @@ import type { EquipmentSlotIndex, EquipmentSlots, ItemId, VendorId, Vec2 } from 
 
 export const EQUIPMENT_SLOT_COUNT = 6;
 export const ARMORY_WARE_PRICE = 30;
+export const ITEM_ATTUNEMENT_THRESHOLD = 4;
 
 export interface ItemDefinition {
   id: ItemId;
@@ -26,7 +27,15 @@ export interface VendorDefinition {
 export interface EquipmentStackSummary {
   itemId: ItemId;
   count: number;
+  effectiveCount: number;
+  attuned: boolean;
   totalEffectLabel: string;
+}
+
+export interface DominantEquipmentStack {
+  itemId: ItemId;
+  count: number;
+  attuned: boolean;
 }
 
 export interface EquipmentChangeProjection {
@@ -103,6 +112,31 @@ export function createEmptyEquipment(): EquipmentSlots {
   return [null, null, null, null, null, null];
 }
 
+function normalizedStackCount(count: number): number {
+  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+}
+
+/** The fourth matching ware attunes once and contributes one bonus copy. */
+export function effectiveStackCopies(count: number): number {
+  const copies = normalizedStackCount(count);
+  return copies + (copies >= ITEM_ATTUNEMENT_THRESHOLD ? 1 : 0);
+}
+
+export function isStackAttuned(count: number): boolean {
+  return normalizedStackCount(count) >= ITEM_ATTUNEMENT_THRESHOLD;
+}
+
+export function equipmentCopyCount(
+  equipment: ReadonlyArray<ItemId | null>,
+  itemId: ItemId,
+): number {
+  let count = 0;
+  for (const equippedItemId of equipment) {
+    if (equippedItemId === itemId) count += 1;
+  }
+  return count;
+}
+
 /** Mirrors the six-slot mutation rule without spending or changing authoritative state. */
 export function projectEquipmentChange(
   equipment: EquipmentSlots,
@@ -125,7 +159,7 @@ function formatPercent(value: number): string {
   return Number.isInteger(percent) ? String(percent) : String(Number(percent.toFixed(1)));
 }
 
-function totalEffectLabel(itemId: ItemId, count: number): string {
+function totalEffectLabel(itemId: ItemId, effectiveCount: number): string {
   const item = ITEM_DEFINITIONS[itemId];
   const effects = [
     [item.basicDamagePercent, "Basic Damage"],
@@ -135,7 +169,7 @@ function totalEffectLabel(itemId: ItemId, count: number): string {
   ] as const;
   return effects
     .filter(([value]) => value !== 0)
-    .map(([value, label]) => `+${formatPercent(value * count)}% ${label}`)
+    .map(([value, label]) => `+${formatPercent(value * effectiveCount)}% ${label}`)
     .join(" · ");
 }
 
@@ -144,28 +178,32 @@ export function summarizeEquipment(equipment: EquipmentSlots): EquipmentStackSum
   for (const itemId of equipment) {
     if (itemId) counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
   }
-  return [...counts].map(([itemId, count]) => ({
-    itemId,
-    count,
-    totalEffectLabel: totalEffectLabel(itemId, count),
-  }));
+  return [...counts].map(([itemId, count]) => {
+    const effectiveCount = effectiveStackCopies(count);
+    return {
+      itemId,
+      count,
+      effectiveCount,
+      attuned: isStackAttuned(count),
+      totalEffectLabel: totalEffectLabel(itemId, effectiveCount),
+    };
+  });
 }
 
-export function dominantEquipmentItem(equipment: EquipmentSlots): ItemId | null {
-  let dominant: ItemId | null = null;
-  let dominantCount = 0;
+export function dominantEquipmentStack(equipment: EquipmentSlots): DominantEquipmentStack | null {
+  let dominant: DominantEquipmentStack | null = null;
   for (const itemId of equipment) {
     if (!itemId) continue;
-    let count = 0;
-    for (const equippedItemId of equipment) {
-      if (equippedItemId === itemId) count += 1;
-    }
-    if (count > dominantCount) {
-      dominant = itemId;
-      dominantCount = count;
+    const count = equipmentCopyCount(equipment, itemId);
+    if (!dominant || count > dominant.count) {
+      dominant = { itemId, count, attuned: isStackAttuned(count) };
     }
   }
   return dominant;
+}
+
+export function dominantEquipmentItem(equipment: EquipmentSlots): ItemId | null {
+  return dominantEquipmentStack(equipment)?.itemId ?? null;
 }
 
 export function isItemId(value: unknown): value is ItemId {

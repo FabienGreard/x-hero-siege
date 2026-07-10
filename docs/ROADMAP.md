@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.14` — Attune the Fourth
+
+**Status:** implemented and locally verified on 2026-07-10; companion site deployment verification pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Correct the mechanical weakness exposed by shipped `0.1.13`: unrestricted duplicates were readable and visible, but copies one through six remained the same linear scalar choice, so a `3/3` build and a `4/2` build lacked a memorable strategic distinction.
+- Attune a stack at four raw matching wares. The fourth copy contributes its normal listed scalar twice exactly once; fifth and sixth copies add one normal increment each.
+- Announce the threshold at `×3`, expose raw and effective totals in Hero Stats, preview Attunement gain or loss before a full-build reforge, and modestly intensify the established dominant signature without adding another icon language.
+- Keep all four wares, prices, physical shops, routes, unrestricted sockets, personal ownership, and authoritative stat derivation intact. Six slots mathematically allow at most one Attuned stack.
+- Prove every hero and ware across raw counts `0–6`, all `4,096` ordered full builds, real effect paths, cooldown and creation-time invariants, replacement gain/loss, co-op isolation, four-client convergence, normal balance, maximum movement, and 1280×720 combat readability.
+
+**Next-cycle nomination:** replay shipped `0.1.14` at normal timing and select the highest-leverage player-visible weakness from the real run. Judge whether Attunement's battlefield embodiment now trails its mechanical payoff before considering any additional item depth; do not pre-commit or broaden the catalog.
+
 ## `0.1.13` — Know the Reforge
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
@@ -101,7 +113,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows; `0.1.11` makes each completed build and duplicate investment legible without changing its rules; `0.1.12` lets that investment visibly live on the battlefield without adding power; `0.1.13` makes the exact champion-specific result of an irreversible reforge knowable before spending. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows; `0.1.11` makes each completed build and duplicate investment legible without changing its rules; `0.1.12` lets that investment visibly live on the battlefield without adding power; `0.1.13` makes the exact champion-specific result of an irreversible reforge knowable before spending; `0.1.14` makes four matching wares a real commitment by doubling only the fourth copy's ordinary scalar once. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 

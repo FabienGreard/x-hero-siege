@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.14] - 2026-07-10
+
+### Added
+
+- Added one duplicate-depth threshold to all four established wares: at four raw copies, the stack Attunes and the fourth copy contributes twice its ordinary listed scalar once; fifth and sixth copies resume normal increments.
+- Added truthful `NEXT ATTUNES` and `ATTUNED` shop states, effective stack totals in Hero Stats, exact Attunement gain/loss in reforge previews, and a restrained intensification of the existing dominant battlefield signature.
+- Added exhaustive threshold coverage across every hero and ware, every ordered six-slot build, ordinary purchases, full-build replacements, active cooldowns, creation-time ability power, real basic impact, movement, revival, reset, and co-op isolation.
+
+### Changed
+
+- Derive all item-scaled Hero Stats from canonical raw stack counts and the single effective-copy rule: copies `0–3` count normally, while raw copies `4–6` count as `5–7` effective copies.
+- Make the fourth-copy decision legible before spending: a `×3` shop card announces the threshold, and a replacement preview names both the Attuned stack transition and resulting Attuned signature.
+
+### Preserved
+
+- The four established wares and listed per-copy effects, universal `30`-gold price, two distinct physical shops, exactly six unrestricted duplicate-ready run-only slots, full-price replacement, personal co-op-safe ownership, and server authority.
+- Champion baselines, copies one through three, fifth- and sixth-copy increments, economy pacing, vendor routes, controls, art and audio language, telegraph hierarchy, encounter timing, and phase flow.
+- No new ware, proc, set bonus, typed slot, rarity, currency, refund, salvage, inventory, persistence, permanent power, or parallel progression system was added.
+
 ## [0.1.13] - 2026-07-10
 
 ### Added

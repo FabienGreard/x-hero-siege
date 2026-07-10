@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — The fourth copy should feel like commitment
+
+`0.1.13` made every reforge knowable, but it also made the remaining sameness easy to see. Six unrestricted sockets allowed any distribution, yet copies one through six were identical increments. A `3/3` build and a `4/2` build changed arithmetic without creating a moment where the player had clearly committed to one answer.
+
+`0.1.14` gives that moment to the fourth matching ware. The first three copies stay exactly as learned. The fourth contributes its ordinary effect twice once, then the fifth and sixth return to ordinary increments. In six slots, only one stack can reach that threshold, so the player can choose breadth or specialize without typed sockets, set recipes, or a second progression screen.
+
+The shops teach the rule before gold leaves the wallet, Hero Stats reconciles raw copies with effective power, and a reforge names both gaining and losing Attunement. The battlefield keeps the same four signature shapes and colors; an Attuned signature simply carries a little more presence. One existing decision now has a peak instead of a catalog growing sideways.
+
 ## 2026-07-10 — Know what thirty gold buys
 
 `0.1.12` made a committed build visible on the hero, but its most consequential shop decision was still partly blind. The reforge confirmation could say that Focus left and Edge entered; it did not say that this Warden would move from two Focuses to one, two Edges to three, Basic Damage `42 → 48`, Skill Power `130% → 115%`, and a violet signature to a warm one. Spending a fresh combat window's gold still required arithmetic and knowledge of a hidden tie-break.
@@ -94,6 +102,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.14`: made the fourth matching ware a visible commitment between broad and specialist builds.
 - `0.1.13`: made every irreversible reforge's exact champion result knowable before spending.
 - `0.1.12`: made authoritative socket investment visible on every equipped battlefield hero.
 - `0.1.11`: made six-slot build identity and duplicate totals readable at a glance.

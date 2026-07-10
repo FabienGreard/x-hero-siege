@@ -428,6 +428,7 @@ export interface EntityVisual extends THREE.Group {
     attackTelegraph: THREE.Group;
     buildSignature: THREE.Sprite | null;
     buildSignatureItemId: ItemId | null;
+    buildSignatureAttuned: boolean;
     flashUntil: number;
     baseScale: number;
     isLocal: boolean;
@@ -549,6 +550,7 @@ export function createEntityVisual(
     attackTelegraph,
     buildSignature,
     buildSignatureItemId: null,
+    buildSignatureAttuned: false,
     flashUntil: 0,
     baseScale: scale,
     isLocal: false,
@@ -556,12 +558,18 @@ export function createEntityVisual(
   return group;
 }
 
-export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | null): void {
+export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | null, attuned = false): void {
   const signature = visual.userData.buildSignature;
-  if (!signature || visual.userData.buildSignatureItemId === itemId) return;
+  const nextAttuned = Boolean(itemId && attuned);
+  if (
+    !signature ||
+    (visual.userData.buildSignatureItemId === itemId && visual.userData.buildSignatureAttuned === nextAttuned)
+  ) return;
+  const itemChanged = visual.userData.buildSignatureItemId !== itemId;
   visual.userData.buildSignatureItemId = itemId;
+  visual.userData.buildSignatureAttuned = nextAttuned;
   signature.visible = itemId !== null;
-  if (!itemId) return;
+  if (!itemId || !itemChanged) return;
   const material = signature.material as THREE.SpriteMaterial;
   material.map = buildSignatureTexture(itemId);
   material.needsUpdate = true;
@@ -652,11 +660,14 @@ export function updateEntityVisual(
   silhouette.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.025);
   silhouette.material.rotation = lean;
   if (buildSignature?.visible) {
-    buildSignature.scale.set(scaleX * 1.34, scaleY * 1.2, 1);
+    const attuned = visual.userData.buildSignatureAttuned;
+    buildSignature.scale.set(scaleX * (attuned ? 1.43 : 1.34), scaleY * (attuned ? 1.27 : 1.2), 1);
     buildSignature.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.012);
     const signatureMaterial = buildSignature.material as THREE.SpriteMaterial;
     signatureMaterial.rotation = lean;
-    signatureMaterial.opacity = visual.userData.isLocal ? 0.76 : 0.56;
+    signatureMaterial.opacity = visual.userData.isLocal
+      ? attuned ? 0.84 : 0.76
+      : attuned ? 0.62 : 0.56;
   }
 
   const showEnemyWarning = !hero && action?.kind === "enemy_attack" && isWindup;

@@ -1,4 +1,7 @@
-import { ITEM_DEFINITIONS } from "./armory-data";
+import {
+  effectiveStackCopies,
+  ITEM_DEFINITIONS,
+} from "./armory-data";
 import { HERO_DEFINITIONS } from "./game-data";
 import type { HeroId, HeroStatsSnapshot, ItemId } from "./protocol";
 
@@ -23,18 +26,25 @@ export function deriveHeroStats(
 
   const definition = HERO_DEFINITIONS[heroId];
   const completedLevels = Math.max(0, Math.floor(level) - 1);
-  let basicDamagePercent = 0;
-  let moveSpeedPercent = 0;
-  let abilityPowerPercent = 0;
-  let cooldownRecoveryPercent = 0;
+  let edgeCount = 0;
+  let greavesCount = 0;
+  let focusCount = 0;
+  let sigilCount = 0;
   for (const itemId of equipment) {
     if (!itemId) continue;
-    const item = ITEM_DEFINITIONS[itemId];
-    basicDamagePercent += item.basicDamagePercent;
-    moveSpeedPercent += item.moveSpeedPercent;
-    abilityPowerPercent += item.abilityPowerPercent;
-    cooldownRecoveryPercent += item.cooldownRecoveryPercent;
+    if (itemId === "tempered_edge") edgeCount += 1;
+    else if (itemId === "fleetstep_greaves") greavesCount += 1;
+    else if (itemId === "runebound_focus") focusCount += 1;
+    else sigilCount += 1;
   }
+  const basicDamagePercent =
+    effectiveStackCopies(edgeCount) * ITEM_DEFINITIONS.tempered_edge.basicDamagePercent;
+  const moveSpeedPercent =
+    effectiveStackCopies(greavesCount) * ITEM_DEFINITIONS.fleetstep_greaves.moveSpeedPercent;
+  const abilityPowerPercent =
+    effectiveStackCopies(focusCount) * ITEM_DEFINITIONS.runebound_focus.abilityPowerPercent;
+  const cooldownRecoveryPercent =
+    effectiveStackCopies(sigilCount) * ITEM_DEFINITIONS.quickening_sigil.cooldownRecoveryPercent;
   return {
     maxHp: definition.maxHp + completedLevels * HERO_LEVEL_MAX_HP_GAIN,
     moveSpeed: definition.speed * (1 + moveSpeedPercent),

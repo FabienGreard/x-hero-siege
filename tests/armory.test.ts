@@ -287,14 +287,14 @@ describe("authoritative Ironbound Forge", () => {
     ];
     let player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(sixEdges);
-    expect(player.stats.basicDamage).toBeCloseTo(66);
+    expect(player.stats.basicDamage).toBeCloseTo(72);
     expect(player.gold).toBe(ARMORY_WARE_PRICE);
 
     expect(buy(game, "fleetstep_greaves").code).toBe("EQUIPMENT_FULL");
     player = game.getSnapshot().players[0]!;
     expect(player.gold).toBe(ARMORY_WARE_PRICE);
     expect(player.equipment).toEqual(sixEdges);
-    expect(player.stats.basicDamage).toBeCloseTo(66);
+    expect(player.stats.basicDamage).toBeCloseTo(72);
   });
 
   test("one hero's purchase never changes an ally's wallet, equipment, or stats", () => {

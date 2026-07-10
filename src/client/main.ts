@@ -7,9 +7,12 @@ import {
 } from "../shared/game-data";
 import {
   EQUIPMENT_SLOT_COUNT,
+  ITEM_ATTUNEMENT_THRESHOLD,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
-  dominantEquipmentItem,
+  dominantEquipmentStack,
+  equipmentCopyCount,
+  isStackAttuned,
   projectEquipmentChange,
   summarizeEquipment,
 } from "../shared/armory-data";
@@ -465,14 +468,6 @@ function formatReforgeStat(key: (typeof REFORGE_STAT_FIELDS)[number]["key"], val
   return formatHeroStat(value, 1);
 }
 
-function equipmentCopyCount(equipment: PlayerSnapshot["equipment"], itemId: ItemId): number {
-  let count = 0;
-  for (const equippedItemId of equipment) {
-    if (equippedItemId === itemId) count += 1;
-  }
-  return count;
-}
-
 function replacementStackPreview(
   current: PlayerSnapshot["equipment"],
   projected: PlayerSnapshot["equipment"],
@@ -480,7 +475,11 @@ function replacementStackPreview(
   incomingItemId: ItemId,
 ): string {
   return [outgoingItemId, incomingItemId]
-    .map((itemId) => `${REFORGE_ITEM_NAMES[itemId]} ×${equipmentCopyCount(current, itemId)} → ×${equipmentCopyCount(projected, itemId)}`)
+    .map((itemId) => {
+      const currentAttuned = isStackAttuned(equipmentCopyCount(current, itemId));
+      const projectedAttuned = isStackAttuned(equipmentCopyCount(projected, itemId));
+      return `${REFORGE_ITEM_NAMES[itemId]} ×${equipmentCopyCount(current, itemId)}${currentAttuned ? " ATTUNED" : ""} → ×${equipmentCopyCount(projected, itemId)}${projectedAttuned ? " ATTUNED" : ""}`;
+    })
     .join(" · ");
 }
 
@@ -495,11 +494,16 @@ function replacementSignaturePreview(
   current: PlayerSnapshot["equipment"],
   projected: PlayerSnapshot["equipment"],
 ): string {
-  const currentItemId = dominantEquipmentItem(current);
-  const projectedItemId = dominantEquipmentItem(projected);
-  const currentName = currentItemId ? REFORGE_ITEM_NAMES[currentItemId] : "None";
-  const projectedName = projectedItemId ? REFORGE_ITEM_NAMES[projectedItemId] : "None";
-  return currentItemId === projectedItemId ? `${currentName} · unchanged` : `${currentName} → ${projectedName}`;
+  const currentStack = dominantEquipmentStack(current);
+  const projectedStack = dominantEquipmentStack(projected);
+  const currentName = currentStack
+    ? `${REFORGE_ITEM_NAMES[currentStack.itemId]}${currentStack.attuned ? " Attuned" : ""}`
+    : "None";
+  const projectedName = projectedStack
+    ? `${REFORGE_ITEM_NAMES[projectedStack.itemId]}${projectedStack.attuned ? " Attuned" : ""}`
+    : "None";
+  const unchanged = currentStack?.itemId === projectedStack?.itemId && currentStack?.attuned === projectedStack?.attuned;
+  return unchanged ? `${currentName} · unchanged` : `${currentName} → ${projectedName}`;
 }
 
 function updateHeroStats(self: PlayerSnapshot): void {
@@ -599,19 +603,26 @@ function renderEquipmentSummary(equipment: PlayerSnapshot["equipment"]): void {
   heroEquipmentSummary.setAttribute(
     "aria-label",
     stacks
-      .map(({ itemId, count, totalEffectLabel }) => `${ITEM_DEFINITIONS[itemId].name}, ${count} ${count === 1 ? "copy" : "copies"}, ${totalEffectLabel}`)
+      .map(({ itemId, count, attuned, effectiveCount, totalEffectLabel }) => {
+        const copyLabel = `${count} equipped ${count === 1 ? "copy" : "copies"}`;
+        const attunementLabel = attuned
+          ? `, Attuned, counting as ${effectiveCount} copies because the fourth copy contributes twice its normal effect`
+          : "";
+        return `${ITEM_DEFINITIONS[itemId].name}, ${copyLabel}${attunementLabel}, ${totalEffectLabel}`;
+      })
       .join("; "),
   );
-  for (const { itemId, count, totalEffectLabel } of stacks) {
+  for (const { itemId, count, attuned, totalEffectLabel } of stacks) {
     const item = ITEM_DEFINITIONS[itemId];
     const stack = document.createElement("div");
     stack.className = "equipment-stack";
     stack.dataset.item = itemId;
+    stack.classList.toggle("is-attuned", attuned);
     stack.setAttribute("role", "listitem");
     stack.innerHTML = `
       <span class="equipment-stack-icon" aria-hidden="true">${ITEM_SYMBOLS[itemId]}</span>
       <span class="equipment-stack-copy">
-        <strong><span>${item.name}</span><b>×${count}</b></strong>
+        <strong><span>${item.name}</span><b>×${count}${attuned ? " <em>· ATTUNED</em>" : ""}</b></strong>
         <small>${totalEffectLabel}</small>
       </span>`;
     heroEquipmentSummary.append(stack);
@@ -850,17 +861,28 @@ function confirmReplacement(): void {
 function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void {
   const slotsFull = equipmentIsFull(self.equipment);
   const vendorName = vendorSnapshot(activeVendorId)?.name ?? "vendor";
+  const equipmentStacks = summarizeEquipment(self.equipment);
   for (const [itemId, button] of shopItemButtons) {
     const item = ITEM_DEFINITIONS[itemId];
     const affordable = self.gold >= item.price;
     const selected = replacementItemId === itemId;
     const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending;
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
-    const owned = self.equipment.filter((equippedItemId) => equippedItemId === itemId).length;
+    const owned = equipmentCopyCount(self.equipment, itemId);
+    const equipmentStack = equipmentStacks.find((stack) => stack.itemId === itemId);
+    const attuned = equipmentStack?.attuned ?? isStackAttuned(owned);
+    const nextCopyAttunes = owned === ITEM_ATTUNEMENT_THRESHOLD - 1;
+    const effectiveCount = equipmentStack?.effectiveCount ?? owned;
     const ownedLabel = button.querySelector<HTMLElement>("[data-shop-owned]");
     if (ownedLabel) {
-      ownedLabel.textContent = `${owned} OWNED`;
+      ownedLabel.textContent = attuned
+        ? `${owned} OWNED · ATTUNED`
+        : nextCopyAttunes
+          ? `${owned} OWNED · NEXT ATTUNES`
+          : `${owned} OWNED`;
       ownedLabel.classList.toggle("has-items", owned > 0);
+      ownedLabel.classList.toggle("will-attune", nextCopyAttunes);
+      ownedLabel.classList.toggle("is-attuned", attuned);
     }
     button.disabled = !canBuy;
     button.classList.toggle("can-buy", canBuy);
@@ -882,7 +904,11 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     }
     button.setAttribute(
       "aria-label",
-      `${item.name}, ${item.effectLabel}, ${item.price} gold. You own ${owned} ${owned === 1 ? "copy" : "copies"}. ${!withinPurchaseRange
+      `${item.name}, ${item.effectLabel}, ${item.price} gold. You own ${owned} ${owned === 1 ? "copy" : "copies"}.${attuned
+        ? ` This stack is Attuned: its fourth copy contributes twice its normal effect, so ${owned} equipped copies count as ${effectiveCount} copies.`
+        : nextCopyAttunes
+          ? " The next copy Attunes this stack; its fourth copy will contribute twice its normal effect."
+          : ""} ${!withinPurchaseRange
         ? `Move closer to ${vendorName}.`
         : replacementRequestPending && selected
           ? "Replacement request pending."
@@ -1329,7 +1355,8 @@ function syncPlayers(players: PlayerSnapshot[]): void {
     tracked.facing = player.aim;
     tracked.action = player.action;
     tracked.visual.userData.isLocal = player.id === localPlayerId;
-    setEntityBuildSignature(tracked.visual, dominantEquipmentItem(player.equipment));
+    const dominantStack = dominantEquipmentStack(player.equipment);
+    setEntityBuildSignature(tracked.visual, dominantStack?.itemId ?? null, dominantStack?.attuned ?? false);
     const oldHp = previousHp.get(`p-${player.id}`);
     if (oldHp !== undefined && player.hp < oldHp) damageFeedback(tracked, oldHp - player.hp, player.position, true);
     previousHp.set(`p-${player.id}`, player.hp);
