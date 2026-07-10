@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.14` — Attune the Fourth
 
-**Status:** implemented and locally verified on 2026-07-10; companion site deployment verification pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the mechanical weakness exposed by shipped `0.1.13`: unrestricted duplicates were readable and visible, but copies one through six remained the same linear scalar choice, so a `3/3` build and a `4/2` build lacked a memorable strategic distinction.
 - Attune a stack at four raw matching wares. The fourth copy contributes its normal listed scalar twice exactly once; fifth and sixth copies add one normal increment each.
