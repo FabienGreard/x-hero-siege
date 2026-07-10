@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { VENDOR_DEFINITIONS } from "../src/shared/armory-data";
 import { createGameServer } from "../src/server/index";
-import type { GameSnapshot, HeroId, ServerMessage } from "../src/shared/protocol";
+import { goldToUnits } from "../src/server/economy";
+import type { EquipmentSlots, GameSnapshot, HeroId, ServerMessage } from "../src/shared/protocol";
 
 type Predicate = (message: ServerMessage) => boolean;
 
@@ -108,6 +110,76 @@ try {
   });
   assert.equal(windingUp.players.find((player) => player.id === peers[0]!.playerId)!.action?.phase, "windup");
 
+  const sixFocuses: EquipmentSlots = [
+    "runebound_focus",
+    "runebound_focus",
+    "runebound_focus",
+    "runebound_focus",
+    "runebound_focus",
+    "runebound_focus",
+  ];
+  const sixEdges: EquipmentSlots = [
+    "tempered_edge",
+    "tempered_edge",
+    "tempered_edge",
+    "tempered_edge",
+    "tempered_edge",
+    "tempered_edge",
+  ];
+  const forgeBuyer = instance.game.players.get(peers[0]!.playerId)!;
+  const reliquaryBuyer = instance.game.players.get(peers[1]!.playerId)!;
+  forgeBuyer.equipment = [...sixFocuses] as EquipmentSlots;
+  forgeBuyer.goldUnits = goldToUnits(24);
+  forgeBuyer.position = { ...VENDOR_DEFINITIONS.ironbound_forge.position };
+  reliquaryBuyer.equipment = [...sixEdges] as EquipmentSlots;
+  reliquaryBuyer.goldUnits = goldToUnits(24);
+  reliquaryBuyer.position = { ...VENDOR_DEFINITIONS.veilglass_reliquary.position };
+
+  peers[0]!.send({
+    type: "replace_item",
+    vendorId: "ironbound_forge",
+    itemId: "tempered_edge",
+    slotIndex: 2,
+    expectedItemId: "runebound_focus",
+  });
+  peers[1]!.send({
+    type: "replace_item",
+    vendorId: "veilglass_reliquary",
+    itemId: "runebound_focus",
+    slotIndex: 4,
+    expectedItemId: "tempered_edge",
+  });
+
+  const replacements = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) => {
+    const forge = snapshot.players.find((player) => player.id === peers[0]!.playerId);
+    const reliquary = snapshot.players.find((player) => player.id === peers[1]!.playerId);
+    return forge?.equipment[2] === "tempered_edge" &&
+      forge.gold === 0 &&
+      reliquary?.equipment[4] === "runebound_focus" &&
+      reliquary.gold === 0;
+  })));
+  const authoritativePlayers = replacements[0]!.players.map((player) => ({
+    id: player.id,
+    gold: player.gold,
+    equipment: player.equipment,
+    stats: player.stats,
+  }));
+  for (const snapshot of replacements) {
+    assert.deepEqual(snapshot.players.map((player) => ({
+      id: player.id,
+      gold: player.gold,
+      equipment: player.equipment,
+      stats: player.stats,
+    })), authoritativePlayers);
+  }
+  assert.equal(authoritativePlayers.find((player) => player.id === peers[0]!.playerId)!.equipment[2], "tempered_edge");
+  assert.equal(authoritativePlayers.find((player) => player.id === peers[1]!.playerId)!.equipment[4], "runebound_focus");
+  for (const peer of peers.slice(2)) {
+    const untouched = authoritativePlayers.find((player) => player.id === peer.playerId)!;
+    assert.equal(untouched.gold, 0);
+    assert.deepEqual(untouched.equipment, [null, null, null, null, null, null]);
+  }
+
   console.log(JSON.stringify({
     ok: true,
     clients: peers.length,
@@ -116,6 +188,11 @@ try {
     activeLanes: synchronized[0]!.activeLanes,
     vendors: synchronized[0]!.vendors.map((vendor) => vendor.id),
     tickSpread: Math.max(...synchronized.map((snapshot) => snapshot.tick)) - Math.min(...synchronized.map((snapshot) => snapshot.tick)),
+    replacements: {
+      convergedClients: replacements.length,
+      forgeSlot: 3,
+      reliquarySlot: 5,
+    },
   }));
 } finally {
   for (const peer of peers) peer.socket.close();

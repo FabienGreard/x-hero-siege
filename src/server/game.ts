@@ -5,6 +5,7 @@ import {
   isItemId,
   isVendorId,
 } from "../shared/armory-data";
+import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
   DEBUG_TIMINGS,
   DEFAULT_TIMINGS,
@@ -24,6 +25,7 @@ import type {
   EffectSnapshot,
   EnemyKind,
   EnemySnapshot,
+  EquipmentSlotIndex,
   EquipmentSlots,
   GameEvent,
   GamePhase,
@@ -364,6 +366,7 @@ export class GameWorld {
       case "cast": return isAbilitySlot(message.slot) ? this.cast(playerId, message.slot) : this.failure("INVALID_ABILITY", "Unknown ability.");
       case "level_ability": return isAbilitySlot(message.slot) ? this.levelAbility(playerId, message.slot) : this.failure("INVALID_ABILITY", "Unknown ability.");
       case "buy_item": return this.buyItem(playerId, message.vendorId, message.itemId);
+      case "replace_item": return this.replaceItem(playerId, message.vendorId, message.itemId, message.slotIndex, message.expectedItemId);
       case "input": return this.setInput(playerId, message.seq, message.move, message.aim, message.attacking);
       case "ping": return { ok: true, pong: { sentAt: message.sentAt, serverTime: Date.now() } };
     }
@@ -575,6 +578,26 @@ export class GameWorld {
   }
 
   private buyItem(playerId: string, vendorId: VendorId, itemId: ItemId): GameActionResult {
+    return this.purchaseItem(playerId, vendorId, itemId, null);
+  }
+
+  private replaceItem(
+    playerId: string,
+    vendorId: VendorId,
+    itemId: ItemId,
+    slotIndex: EquipmentSlotIndex,
+    expectedItemId: ItemId,
+  ): GameActionResult {
+    return this.purchaseItem(playerId, vendorId, itemId, slotIndex, expectedItemId);
+  }
+
+  private purchaseItem(
+    playerId: string,
+    vendorId: VendorId,
+    itemId: ItemId,
+    replacementSlotIndex: EquipmentSlotIndex | null,
+    expectedItemId: ItemId | null = null,
+  ): GameActionResult {
     const player = this.players.get(playerId);
     if (!player) return this.failure("PLAYER_UNKNOWN", "Player is not connected.");
     if (!player.heroId || (this.phase !== "defense" && this.phase !== "breach" && this.phase !== "push")) {
@@ -590,26 +613,63 @@ export class GameWorld {
       return this.failure("OUT_OF_RANGE", `Move closer to ${vendor.name} to trade.`);
     }
 
+    let slotIndex: EquipmentSlotIndex | null = replacementSlotIndex;
+    let replacedItemId: ItemId | null = null;
+    if (replacementSlotIndex !== null) {
+      if (!isEquipmentSlotIndex(replacementSlotIndex)) {
+        return this.failure("INVALID_EQUIPMENT_SLOT", "Choose one of the six equipment slots.");
+      }
+      if (player.equipment.some((equippedItemId) => equippedItemId === null)) {
+        return this.failure("REPLACEMENT_NOT_REQUIRED", "Fill all six equipment slots before replacing an item.");
+      }
+      if (!isItemId(expectedItemId)) {
+        return this.failure("ITEM_UNKNOWN", "The expected equipment item does not exist.");
+      }
+      replacedItemId = player.equipment[replacementSlotIndex];
+      if (!replacedItemId) {
+        return this.failure("REPLACEMENT_NOT_REQUIRED", "Choose an occupied equipment slot to replace.");
+      }
+      if (replacedItemId !== expectedItemId) {
+        return this.failure("EQUIPMENT_CHANGED", "That equipment slot changed before the replacement was confirmed.");
+      }
+      if (replacedItemId === itemId) {
+        return this.failure("SAME_ITEM", `${ITEM_DEFINITIONS[itemId].name} already occupies that slot.`);
+      }
+    }
+
     const item = ITEM_DEFINITIONS[itemId];
     const priceUnits = goldToUnits(item.price);
     if (player.goldUnits < priceUnits) return this.failure("INSUFFICIENT_GOLD", `${item.name} costs ${item.price} gold.`);
-    const slotIndex = player.equipment.indexOf(null);
-    if (slotIndex < 0) return this.failure("EQUIPMENT_FULL", "All six equipment slots are full.");
+    if (slotIndex === null) {
+      const emptySlotIndex = player.equipment.indexOf(null);
+      if (!isEquipmentSlotIndex(emptySlotIndex)) return this.failure("EQUIPMENT_FULL", "All six equipment slots are full.");
+      slotIndex = emptySlotIndex;
+    }
 
     const previousRecovery = this.heroStats(player).cooldownRecovery;
-    player.goldUnits -= priceUnits;
-    player.equipment[slotIndex] = itemId;
-    const nextRecovery = this.heroStats(player).cooldownRecovery;
+    const nextEquipment = [...player.equipment] as EquipmentSlots;
+    nextEquipment[slotIndex] = itemId;
+    const nextRecovery = deriveHeroStats(player.heroId, player.level, nextEquipment).cooldownRecovery;
+    const nextCooldowns = { ...player.cooldowns };
     if (nextRecovery !== previousRecovery) {
       const progressScale = previousRecovery / nextRecovery;
       for (const slot of ["ability1", "ability2", "ability3", "ultimate"] as const) {
-        player.cooldowns[slot] *= progressScale;
+        nextCooldowns[slot] *= progressScale;
       }
     }
-    this.emit("item_purchased", `${player.name} equipped ${item.name} at ${vendor.name}.`, {
+    player.goldUnits -= priceUnits;
+    player.equipment = nextEquipment;
+    player.cooldowns = nextCooldowns;
+
+    const eventText = replacedItemId
+      ? `${player.name} replaced ${ITEM_DEFINITIONS[replacedItemId].name} with ${item.name} at ${vendor.name}.`
+      : `${player.name} equipped ${item.name} at ${vendor.name}.`;
+    this.emit("item_purchased", eventText, {
       playerId,
       vendorId,
       itemId,
+      slotIndex,
+      ...(replacedItemId ? { replacedItemId } : {}),
       position: vendor.position,
     });
     return { ok: true };

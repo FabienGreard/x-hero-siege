@@ -2,6 +2,19 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.9` — Reshape the Six
+
+**Status:** implemented and locally verified on 2026-07-10; companion site release verification pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Keep both physical shops strategically relevant after all six unrestricted sockets are occupied: select one ware from the local vendor, select one occupied socket, inspect the outgoing and incoming effects, and explicitly confirm.
+- Charge the same full 24-gold price, consume the old item without a refund, and leave the build at exactly `6/6`; reject a same-item no-op without spending.
+- Preserve the pre-full rule: every purchase still auto-equips into the first empty socket, and unrestricted duplicates remain legal.
+- Keep replacement authoritative for phase, living state, vendor, stock, range, full-loadout eligibility, funds, slot identity, price deduction, equipment, and derived Hero Stats. Bind confirmation to the expected outgoing item so stale or repeated input cannot alter a different socket.
+- Reflow existing ability cooldown progress when Quickening Sigil enters or leaves a build, preserve creation-time damage for existing projectiles, delayed attacks, and summons, and keep every player's wallet and equipment isolated in co-op.
+- Prove the compact non-pausing flow with mouse and keyboard at 1280×720, including cancellation, same-item rejection, real stat changes, six-slot continuity, authoritative tests, production build, and four real WebSocket clients.
+
+**Next-cycle nomination:** replay the full `0.1.9` shop loop under normal siege pressure and judge whether the four established wares still produce meaningful endgame tradeoffs. Select the next bounded depth checkpoint only from that rendered weakness; do not pre-commit to more catalog or systems.
+
 ## `0.1.8` — two roads to power
 
 **Status:** implemented and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
@@ -37,7 +50,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proves two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time—replacement, salvage, build tags, duplicate depth, or one earned evolution—only when that layer is the highest-leverage weakness.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 

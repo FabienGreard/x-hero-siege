@@ -29,7 +29,9 @@ Useful read-only diagnostics:
 - `F`: ultimate
 - `C`: toggle the non-pausing Hero Stats panel
 - `B`: browse or close a physical shop while in authoritative range
-- `1` / `2`: buy and auto-equip the matching visible ware
+- `1` / `2`: buy and auto-equip the matching visible ware; at `6/6`, select the incoming ware
+- `1`–`6`: after selecting a replacement ware, choose the occupied socket to replace
+- `Enter`: confirm the reviewed replacement; `Escape` backs out one replacement step without spending
 - Click the gold `+` on an ability slot: spend a skill point directly from the action bar
 - `Ctrl` + `Q`, `E`, `R`, or `F`: matching keyboard upgrade shortcut
 
@@ -44,9 +46,10 @@ Useful read-only diagnostics:
 7. Visit the northwest Ironbound Forge. Confirm its warm landmark, minimap marker, proximity prompt, and travel cost are readable; open it with `B`, buy by mouse or `1`/`2`, and verify Basic Damage or Move Speed changes in Hero Stats while enemies continue acting.
 8. Re-establish the lane, create a second safe window, and visit the northeast Veilglass Reliquary. Confirm its cool shrine and marker cannot be confused with the Forge; buy one ware and verify Skill Power changes real ability output or Cooldown Speed shortens `Q`/`E`/`R`/`F` recovery without changing LMB cadence.
 9. Leave each vendor's range and confirm the panel closes. Press `B` remotely, then enter the other vendor's range and reopen it; only that physical shop's two wares should appear.
-10. Respond to the forced gate breach. Confirm pressure clearly shifts toward protecting the Nexus and that a fallen gate does not itself end the run.
-11. Defeat the siege threat, follow the opened counterattack route as a group, and destroy the Rift source.
-12. Confirm the victory payoff is unambiguous and the run ends cleanly.
+10. Fill all six sockets, then reshape the build at one physical shop. Select a local ware by mouse or `1`/`2`, select an occupied socket by mouse or `1`–`6`, review the exact outgoing and incoming effects, and confirm explicitly. Verify gold falls by 24, the old item is discarded, the chosen stat changes, and the build remains `6/6`. Back out once with `Escape`, then try a same-item replacement and confirm neither path spends gold.
+11. Respond to the forced gate breach. Confirm pressure clearly shifts toward protecting the Nexus and that a fallen gate does not itself end the run.
+12. Defeat the siege threat, follow the opened counterattack route as a group, and destroy the Rift source.
+13. Confirm the victory payoff is unambiguous and the run ends cleanly.
 
 Repeat once while allowing enemies to reach and destroy the Nexus. Confirm defeat occurs because Nexus health reaches zero, not merely because a gate falls.
 
@@ -92,6 +95,16 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - One change that would most improve the next playtest.
 
 After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.9`, 2026-07-10
+
+- Began by replaying the pushed `0.1.8` rendered build at normal timing. At `64.4975s`, the Warden had naturally earned a full mixed `6/6` loadout with North at `223`, the Nexus at `800`, `111` gold, and `85` kills. A seventh valid local purchase was rejected with `EQUIPMENT_FULL`. Both shop cards then remained blocked despite enough gold and more than two minutes of defense remaining, making full equipment a terminal state instead of a continuing build decision.
+- Kept the six-slot promise and deepened that exact dead end. Before `6/6`, a purchase still auto-equips into the first empty unrestricted socket. At `6/6`, selecting a local ware now highlights eligible occupied sockets, selecting a socket reveals the exact old-to-new stat comparison, and a separate button or `Enter` confirms the 24-gold replacement. The old item is discarded without a refund and the loadout remains full.
+- Replayed the new flow at 1280×720 in a protected rendered room using the exact loadout and wallet earned in the normal run. With the mouse, replacing Quickening Sigil with Tempered Edge changed gold `111 → 87`, Basic Damage `42 → 48`, and Cooldown Speed `115% → 100%`. With the keyboard, replacing Runebound Focus with Fleetstep Greaves changed gold `87 → 63`, Move Speed `11.6 → 12.6`, and Skill Power `130% → 115%`. Both trades remained `6/6`.
+- `Escape` returned safely from the confirmation step without spending. A double-tap of `1` could not turn ware selection into an accidental destructive trade, and a same-item socket remained ineligible without deducting gold. The confirmation panel occupied `top 288.906`, `bottom 608`, and `height 319.094` inside the 1280×720 document with no overflow; browser warning and error logs were empty.
+- The server owns phase, living state, vendor, stock, range, full-loadout eligibility, funds, slot, price deduction, equipment, and derived stats. Each request includes the expected outgoing item, so a stale or repeated confirmation is rejected before spending. Quickening Sigil reflows remaining active-ability cooldown progress in either direction, while existing Splitbolts, Falling Stars, and Wraiths preserve their creation-time damage. Replacement remains personal under co-op.
+- Typecheck, 66 tests with 997 assertions, the real four-client WebSocket smoke test, and the production build passed. The protected verification harness remained in Wave `2` with North at `260` and the Nexus at `800`. Playable-game deployment remains pending a configured Bun/WebSocket host.
+- Saved evidence: [the pre-change blocked full-loadout panel](playtest/reforge-before.jpg) and [the new explicit replacement confirmation](playtest/reforge-after.jpg). Both are protected visual-QA captures, not normal-route evidence. The before frame was left unattended long enough to show a gate-fallen banner; the normal-run health and timing proof is recorded separately above.
 
 ## Recorded verification — `0.1.8`, 2026-07-10
 

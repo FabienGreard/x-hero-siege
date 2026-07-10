@@ -88,10 +88,22 @@
           </header>
           <div class="shop-loadout">
             <div class="equipment-heading">
-              <span class="eyebrow">YOUR LOADOUT</span>
+              <span id="shop-loadout-label" class="eyebrow">YOUR LOADOUT</span>
               <span class="shop-loadout-meta"><b id="shop-gold">0 GOLD</b><span id="shop-equipment-count">0 / 6</span></span>
             </div>
             <div id="shop-equipment-slots" class="equipment-slots is-compact" aria-label="Current equipment"></div>
+            <div id="shop-replace-guide" class="shop-replace-guide is-hidden" aria-hidden="true">
+              <strong id="shop-replace-item">CHOOSE A SLOT</strong>
+              <small><kbd>1–6</kbd> SLOT <span aria-hidden="true">·</span> <kbd>ESC</kbd> CANCEL</small>
+            </div>
+            <div id="shop-replace-confirm" class="shop-replace-confirm is-hidden" aria-hidden="true">
+              <div id="shop-replace-preview" class="shop-replace-preview">OUT — → IN —</div>
+              <div id="shop-replace-terms" class="shop-replace-terms">24 GOLD <span aria-hidden="true">·</span> OLD ITEM DISCARDED</div>
+              <div class="shop-replace-actions">
+                <button id="shop-replace-submit" type="button">BUY &amp; REPLACE <kbd>ENTER</kbd></button>
+                <button id="shop-replace-cancel" type="button"><kbd>ESC</kbd> BACK</button>
+              </div>
+            </div>
           </div>
           <div id="shop-items" class="shop-items" aria-label="Items for sale"></div>
         </aside>

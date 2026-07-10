@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — Six choices, not six locks
+
+The six unrestricted sockets gave the Armory a clear shape, but normal play exposed a bad ending to that shape. The Warden filled all six slots in just over a minute, still had 111 gold and a healthy defense, then found both physical shops permanently disabled. A complete build had stopped being a build decision.
+
+`0.1.9` keeps the limit and removes the dead end. At a full loadout, the Forge or Reliquary now offers only its own local wares. The player chooses the incoming item, chooses the occupied socket to give up, sees the exact old and new effects, and confirms the trade. It costs the normal 24 gold, discards the old item without a refund, and leaves all six sockets occupied. There is no backpack, sale value, salvage currency, or new catalog behind it.
+
+The confirmation step matters because combat keeps moving. A second press of `1` must not silently turn “select Tempered Edge” into “destroy socket one.” The client therefore separates browsing, socket choice, and confirmation, while the server checks the item that was actually expected in that socket before it spends anything. Cancelled, stale, repeated, and same-item choices are safe.
+
+The resulting decisions are visible in the same Hero Stats panel the game already trusts. Trading Quickening Sigil for Tempered Edge raised Basic Damage while giving up Cooldown Speed; trading Runebound Focus for Fleetstep Greaves raised Move Speed while giving up Skill Power. The shops have more depth without becoming menus, and a full build can change its answer when the siege changes its question.
+
 ## 2026-07-10 — Two roads, not one menu
 
 The First Forge made gold useful, but it did not yet make the Citadel strategic. Every build visited the same northwest counter. Adding more cards to that counter would have created catalog breadth without asking the player to read the city.
@@ -52,6 +62,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.9`: kept both local shops useful at six slots through one explicit full-price replacement decision.
 - `0.1.8`: turned one shop into a real local route and build choice without adding a global catalog.
 - `0.1.7`: made the first physical Forge turn personal gold into visible run-only power.
 - `0.1.6`: made hero power inspectable and personal gold cooperative before shops.

@@ -23,6 +23,7 @@ export type ItemId =
   | "runebound_focus"
   | "quickening_sigil";
 export type VendorId = "ironbound_forge" | "veilglass_reliquary";
+export type EquipmentSlotIndex = 0 | 1 | 2 | 3 | 4 | 5;
 export type EquipmentSlots = [
   ItemId | null,
   ItemId | null,
@@ -62,6 +63,13 @@ export type ClientMessage =
   | { type: "cast"; slot: AbilitySlot }
   | { type: "level_ability"; slot: AbilitySlot }
   | { type: "buy_item"; vendorId: VendorId; itemId: ItemId }
+  | {
+      type: "replace_item";
+      vendorId: VendorId;
+      itemId: ItemId;
+      slotIndex: EquipmentSlotIndex;
+      expectedItemId: ItemId;
+    }
   | { type: "ping"; sentAt: number };
 
 export interface LobbySnapshot {
@@ -261,6 +269,8 @@ export interface GameEvent {
   lane?: LaneId;
   vendorId?: VendorId;
   itemId?: ItemId;
+  slotIndex?: EquipmentSlotIndex;
+  replacedItemId?: ItemId;
 }
 
 export interface GameSnapshot {
@@ -304,6 +314,10 @@ export function isVec2(value: unknown): value is Vec2 {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<Vec2>;
   return Number.isFinite(candidate.x) && Number.isFinite(candidate.z);
+}
+
+export function isEquipmentSlotIndex(value: unknown): value is EquipmentSlotIndex {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value < 6;
 }
 
 export function parseClientMessage(raw: string): ClientMessage | null {
@@ -358,6 +372,19 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case "buy_item":
       return isVendorId(message.vendorId) && isItemId(message.itemId)
         ? { type: "buy_item", vendorId: message.vendorId, itemId: message.itemId }
+        : null;
+    case "replace_item":
+      return isVendorId(message.vendorId) &&
+        isItemId(message.itemId) &&
+        isItemId(message.expectedItemId) &&
+        isEquipmentSlotIndex(message.slotIndex)
+        ? {
+            type: "replace_item",
+            vendorId: message.vendorId,
+            itemId: message.itemId,
+            slotIndex: message.slotIndex,
+            expectedItemId: message.expectedItemId,
+          }
         : null;
     case "ping":
       return Number.isFinite(message.sentAt)

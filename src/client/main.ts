@@ -16,6 +16,7 @@ import type {
   ClientMessage,
   EffectSnapshot,
   EnemySnapshot,
+  EquipmentSlotIndex,
   GameEvent,
   GamePhase,
   GameSnapshot,
@@ -89,6 +90,14 @@ const shopClose = requiredElement<HTMLButtonElement>("shop-close");
 const shopGold = requiredElement<HTMLElement>("shop-gold");
 const shopEquipmentCount = requiredElement<HTMLElement>("shop-equipment-count");
 const shopEquipmentSlots = requiredElement<HTMLDivElement>("shop-equipment-slots");
+const shopLoadoutLabel = requiredElement<HTMLElement>("shop-loadout-label");
+const shopReplaceGuide = requiredElement<HTMLElement>("shop-replace-guide");
+const shopReplaceItem = requiredElement<HTMLElement>("shop-replace-item");
+const shopReplaceConfirm = requiredElement<HTMLElement>("shop-replace-confirm");
+const shopReplacePreview = requiredElement<HTMLElement>("shop-replace-preview");
+const shopReplaceTerms = requiredElement<HTMLElement>("shop-replace-terms");
+const shopReplaceSubmit = requiredElement<HTMLButtonElement>("shop-replace-submit");
+const shopReplaceCancel = requiredElement<HTMLButtonElement>("shop-replace-cancel");
 const shopItems = requiredElement<HTMLDivElement>("shop-items");
 const shopAnnouncement = requiredElement<HTMLElement>("shop-announcement");
 const teamList = requiredElement<HTMLDivElement>("team-list");
@@ -210,6 +219,10 @@ let heroStatsOpen = false;
 let shopOpen = false;
 let heroStatsOpenBeforeShop = false;
 let activeVendorId: VendorId | null = null;
+let replacementItemId: ItemId | null = null;
+let replacementSlotIndex: EquipmentSlotIndex | null = null;
+let replacementExpectedItemId: ItemId | null = null;
+let replacementRequestPending = false;
 const keys = new Set<string>();
 const pointer = new THREE.Vector2(0, 0);
 const aimWorld = new THREE.Vector3(0, 0, -10);
@@ -361,6 +374,23 @@ function connect(): void {
     } else if (message.type === "event") {
       handleEvent(message.event);
     } else if (message.type === "error") {
+      const replacementError = new Set([
+        "EQUIPMENT_CHANGED",
+        "REPLACEMENT_NOT_REQUIRED",
+        "INVALID_EQUIPMENT_SLOT",
+        "SAME_ITEM",
+        "ITEM_NOT_STOCKED",
+        "INSUFFICIENT_GOLD",
+        "OUT_OF_RANGE",
+        "PLAYER_DOWNED",
+        "RUN_INACTIVE",
+      ]).has(message.code);
+      if (replacementRequestPending && replacementError) {
+        replacementRequestPending = false;
+        if (message.code === "EQUIPMENT_CHANGED") clearReplacementSlot();
+        else refreshReplacementState();
+        shopAnnouncement.textContent = `${message.message} No gold was spent.`;
+      }
       toast(message.message, "warning");
       lobbyNote.textContent = message.message;
     }
@@ -437,22 +467,49 @@ function nearestInRangeVendor(state: GameSnapshot, self: PlayerSnapshot | undefi
     .sort((left, right) => distanceBetween(self.position, left.position) - distanceBetween(self.position, right.position))[0];
 }
 
-function renderEquipmentSlots(container: HTMLDivElement, equipment: PlayerSnapshot["equipment"]): void {
-  const key = equipment.map((itemId) => itemId ?? "empty").join("|");
+function equipmentIsFull(equipment: PlayerSnapshot["equipment"]): boolean {
+  return equipment.every((itemId) => itemId !== null);
+}
+
+function renderEquipmentSlots(
+  container: HTMLDivElement,
+  equipment: PlayerSnapshot["equipment"],
+  incomingItemId: ItemId | null = null,
+  selectedSlotIndex: EquipmentSlotIndex | null = null,
+): void {
+  const key = `${equipment.map((itemId) => itemId ?? "empty").join("|")}|${incomingItemId ?? "read-only"}|${selectedSlotIndex ?? "none"}|${replacementRequestPending ? "pending" : "ready"}`;
   if (container.dataset.equipment === key) return;
   container.dataset.equipment = key;
   container.replaceChildren();
   for (let index = 0; index < EQUIPMENT_SLOT_COUNT; index += 1) {
     const itemId = equipment[index] ?? null;
-    const slot = document.createElement("span");
+    const interactive = Boolean(incomingItemId);
+    const slot = interactive ? document.createElement("button") : document.createElement("span");
     slot.className = `equipment-slot${itemId ? " has-item" : ""}`;
     slot.dataset.slot = String(index + 1);
+    if (interactive && slot instanceof HTMLButtonElement) {
+      slot.type = "button";
+      const unchanged = itemId === incomingItemId;
+      slot.classList.add("is-replace-target");
+      slot.classList.toggle("is-unchanged", unchanged);
+      slot.classList.toggle("is-selected", index === selectedSlotIndex);
+      slot.disabled = !itemId || unchanged || replacementRequestPending;
+      slot.addEventListener("click", () => selectReplacementSlot(index as EquipmentSlotIndex));
+    }
     if (itemId) {
       const item = ITEM_DEFINITIONS[itemId];
       slot.dataset.item = itemId;
       slot.textContent = ITEM_SYMBOLS[itemId];
       slot.title = `${item.name}: ${item.effectLabel}`;
-      slot.setAttribute("aria-label", `Slot ${index + 1}: ${item.name}, ${item.effectLabel}`);
+      const incoming = incomingItemId ? ITEM_DEFINITIONS[incomingItemId] : null;
+      slot.setAttribute(
+        "aria-label",
+        incoming
+          ? itemId === incomingItemId
+            ? `Slot ${index + 1}: ${item.name}. Already equipped here; choose another slot.`
+            : `Slot ${index + 1}: replace ${item.name}, ${item.effectLabel}, with ${incoming.name}, ${incoming.effectLabel}, for ${incoming.price} gold.`
+          : `Slot ${index + 1}: ${item.name}, ${item.effectLabel}`,
+      );
     } else {
       slot.setAttribute("aria-label", `Slot ${index + 1}: empty`);
     }
@@ -466,7 +523,7 @@ function updateEquipmentReadouts(self: PlayerSnapshot): void {
   shopEquipmentCount.textContent = `${used} / ${EQUIPMENT_SLOT_COUNT}`;
   shopGold.textContent = `${Math.floor(self.gold)} GOLD`;
   renderEquipmentSlots(heroEquipmentSlots, self.equipment);
-  renderEquipmentSlots(shopEquipmentSlots, self.equipment);
+  renderEquipmentSlots(shopEquipmentSlots, self.equipment, replacementItemId, replacementSlotIndex);
 }
 
 function renderShopCatalog(vendorId: VendorId): void {
@@ -502,28 +559,201 @@ function updateShopPresentation(vendorId: VendorId, name: string): void {
   renderShopCatalog(vendorId);
 }
 
+function refreshReplacementState(self: PlayerSnapshot | undefined = currentPlayer()): void {
+  const selectedItem = replacementItemId ? ITEM_DEFINITIONS[replacementItemId] : null;
+  const selectedOutgoingId = replacementSlotIndex !== null ? self?.equipment[replacementSlotIndex] ?? null : null;
+  const selectedOutgoing = selectedOutgoingId ? ITEM_DEFINITIONS[selectedOutgoingId] : null;
+  const confirming = Boolean(selectedItem && selectedOutgoing && replacementExpectedItemId === selectedOutgoingId);
+  shopPanel.classList.toggle("is-replacing", Boolean(selectedItem));
+  shopPanel.classList.toggle("is-confirming", confirming);
+  shopLoadoutLabel.textContent = confirming ? "CONFIRM THE REFORGE" : selectedItem ? "CHOOSE A SLOT TO DISCARD" : "YOUR LOADOUT";
+  shopReplaceGuide.classList.toggle("is-hidden", !selectedItem || confirming);
+  shopReplaceGuide.setAttribute("aria-hidden", String(!selectedItem || confirming));
+  shopReplaceConfirm.classList.toggle("is-hidden", !confirming);
+  shopReplaceConfirm.setAttribute("aria-hidden", String(!confirming));
+  if (selectedItem) {
+    shopReplaceItem.textContent = replacementRequestPending
+      ? `REFORGING ${selectedItem.name.toUpperCase()}…`
+      : `${ITEM_SYMBOLS[selectedItem.id]} ${selectedItem.name.toUpperCase()} · ${selectedItem.price} GOLD`;
+  }
+  if (confirming && selectedItem && selectedOutgoing) {
+    shopReplacePreview.textContent = `OUT ${selectedOutgoing.name} ${selectedOutgoing.effectLabel} → IN ${selectedItem.name} ${selectedItem.effectLabel}`;
+    shopReplaceTerms.textContent = `${selectedItem.price} GOLD · OLD ITEM DISCARDED`;
+  }
+  shopReplaceSubmit.disabled = !confirming || replacementRequestPending;
+  shopReplaceSubmit.innerHTML = replacementRequestPending ? "REFORGING…" : "BUY &amp; REPLACE <kbd>ENTER</kbd>";
+  if (self) {
+    renderEquipmentSlots(shopEquipmentSlots, self.equipment, replacementItemId, replacementSlotIndex);
+    if (shopOpen) updateShopCards(self);
+  }
+}
+
+function clearReplacementSelection(announce = false): void {
+  if (!replacementItemId && replacementSlotIndex === null && !replacementRequestPending) return;
+  replacementItemId = null;
+  replacementSlotIndex = null;
+  replacementExpectedItemId = null;
+  replacementRequestPending = false;
+  refreshReplacementState();
+  if (announce) shopAnnouncement.textContent = "Replacement cancelled. Choose a ware or close the shop.";
+}
+
+function clearReplacementSlot(announce = false): void {
+  if (replacementSlotIndex === null && !replacementExpectedItemId) return;
+  replacementSlotIndex = null;
+  replacementExpectedItemId = null;
+  refreshReplacementState();
+  if (announce && replacementItemId) {
+    const item = ITEM_DEFINITIONS[replacementItemId];
+    shopAnnouncement.textContent = `${item.name} remains selected. Choose equipment slot 1 through 6, or press Escape again to cancel.`;
+    shopItemButtons.get(replacementItemId)?.focus();
+  }
+}
+
+function selectReplacementItem(itemId: ItemId): void {
+  if (replacementRequestPending) return;
+  if (replacementItemId === itemId) {
+    clearReplacementSelection(true);
+    return;
+  }
+  replacementItemId = itemId;
+  replacementSlotIndex = null;
+  replacementExpectedItemId = null;
+  const item = ITEM_DEFINITIONS[itemId];
+  refreshReplacementState();
+  shopAnnouncement.textContent = `${item.name} selected for ${item.price} gold. Choose equipment slot 1 through 6 to replace, or press Escape to cancel.`;
+}
+
+function selectReplacementSlot(slotIndex: EquipmentSlotIndex): void {
+  const self = currentPlayer();
+  if (!shopOpen || !self || !activeVendorId || !replacementItemId || replacementRequestPending) return;
+  const vendor = vendorSnapshot(activeVendorId);
+  const incoming = ITEM_DEFINITIONS[replacementItemId];
+  const outgoingItemId = self.equipment[slotIndex];
+  if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
+    toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
+    return;
+  }
+  if (!equipmentIsFull(self.equipment)) {
+    clearReplacementSelection();
+    toast("Fill the open equipment slot before replacing an item.", "warning");
+    return;
+  }
+  if (!outgoingItemId) {
+    toast(`Slot ${slotIndex + 1} is empty.`, "warning");
+    return;
+  }
+  if (outgoingItemId === replacementItemId) {
+    toast(`${incoming.name} is already in slot ${slotIndex + 1}.`, "warning");
+    return;
+  }
+  if (self.gold < incoming.price) {
+    toast(`Need ${Math.max(1, Math.ceil(incoming.price - self.gold))} more gold.`, "warning");
+    return;
+  }
+  const outgoing = ITEM_DEFINITIONS[outgoingItemId];
+  replacementSlotIndex = slotIndex;
+  replacementExpectedItemId = outgoingItemId;
+  refreshReplacementState(self);
+  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Out ${outgoing.name}, ${outgoing.effectLabel}; in ${incoming.name}, ${incoming.effectLabel}; ${incoming.price} gold; old item discarded. Press Enter or choose Buy and Replace to confirm, or Escape to go back.`;
+  requestAnimationFrame(() => shopReplaceSubmit.focus());
+}
+
+function confirmReplacement(): void {
+  const self = currentPlayer();
+  if (
+    !shopOpen ||
+    !self ||
+    !activeVendorId ||
+    !replacementItemId ||
+    replacementSlotIndex === null ||
+    !replacementExpectedItemId ||
+    replacementRequestPending
+  ) return;
+  const vendor = vendorSnapshot(activeVendorId);
+  const incoming = ITEM_DEFINITIONS[replacementItemId];
+  if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
+    clearReplacementSelection();
+    toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
+    return;
+  }
+  if (!equipmentIsFull(self.equipment)) {
+    clearReplacementSelection();
+    toast("Fill the open equipment slot before replacing an item.", "warning");
+    return;
+  }
+  const currentOutgoingItemId = self.equipment[replacementSlotIndex];
+  if (currentOutgoingItemId !== replacementExpectedItemId) {
+    clearReplacementSlot();
+    toast("That equipment slot changed. Choose it again.", "warning");
+    shopAnnouncement.textContent = "Equipment changed before confirmation. No gold was spent; choose a slot again.";
+    return;
+  }
+  if (currentOutgoingItemId === replacementItemId) {
+    clearReplacementSlot();
+    toast(`${incoming.name} is already in that slot.`, "warning");
+    return;
+  }
+  if (self.gold < incoming.price) {
+    toast(`Need ${Math.max(1, Math.ceil(incoming.price - self.gold))} more gold.`, "warning");
+    return;
+  }
+  const outgoing = ITEM_DEFINITIONS[currentOutgoingItemId];
+  replacementRequestPending = true;
+  refreshReplacementState(self);
+  shopAnnouncement.textContent = `Reforging slot ${replacementSlotIndex + 1}: ${outgoing.name} into ${incoming.name}.`;
+  audio.unlock();
+  send({
+    type: "replace_item",
+    vendorId: activeVendorId,
+    itemId: replacementItemId,
+    slotIndex: replacementSlotIndex,
+    expectedItemId: replacementExpectedItemId,
+  });
+}
+
 function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void {
-  const slotsFull = self.equipment.every((itemId) => itemId !== null);
+  const slotsFull = equipmentIsFull(self.equipment);
   const vendorName = vendorSnapshot(activeVendorId)?.name ?? "vendor";
   for (const [itemId, button] of shopItemButtons) {
     const item = ITEM_DEFINITIONS[itemId];
     const affordable = self.gold >= item.price;
-    const canBuy = !self.downed && withinPurchaseRange && !slotsFull && affordable;
+    const selected = replacementItemId === itemId;
+    const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending;
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
     button.disabled = !canBuy;
     button.classList.toggle("can-buy", canBuy);
+    button.classList.toggle("is-selected", selected);
     if (status) {
       status.textContent = !withinPurchaseRange
         ? "MOVE CLOSER"
-        : slotsFull
-        ? "SLOTS FULL"
-        : affordable
-          ? "BUY & EQUIP"
-          : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
+        : replacementRequestPending && selected
+          ? "REFORGING"
+          : slotsFull && selected && replacementSlotIndex !== null
+            ? "CONFIRM BELOW"
+            : slotsFull && selected
+              ? "SELECT SLOT"
+              : slotsFull
+                ? "REPLACE ITEM"
+                : affordable
+                  ? "BUY & EQUIP"
+                  : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
     }
     button.setAttribute(
       "aria-label",
-      `${item.name}, ${item.effectLabel}, ${item.price} gold. ${!withinPurchaseRange ? `Move closer to ${vendorName}.` : slotsFull ? "All equipment slots are full." : affordable ? "Buy and equip." : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`}`,
+      `${item.name}, ${item.effectLabel}, ${item.price} gold. ${!withinPurchaseRange
+        ? `Move closer to ${vendorName}.`
+        : replacementRequestPending && selected
+          ? "Replacement request pending."
+          : slotsFull && selected && replacementSlotIndex !== null
+            ? "Selected. Confirm the exact replacement below."
+            : slotsFull && selected
+              ? "Selected. Choose equipment slot 1 through 6 to replace."
+              : slotsFull && affordable
+                ? "Select this ware, then choose an occupied equipment slot to replace."
+                : affordable
+                  ? "Buy and equip."
+                  : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`}`,
     );
   }
 }
@@ -552,6 +782,10 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
     if (!shopOpen) heroStatsOpenBeforeShop = heroStatsOpen;
     shopOpen = true;
     activeVendorId = targetVendorId;
+    replacementItemId = null;
+    replacementSlotIndex = null;
+    replacementExpectedItemId = null;
+    replacementRequestPending = false;
     const vendor = vendorSnapshot(activeVendorId, state);
     if (activeVendorId && vendor) {
       updateShopPresentation(activeVendorId, vendor.name);
@@ -563,12 +797,16 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
     const restoreStats = heroStatsOpenBeforeShop;
     shopOpen = false;
     activeVendorId = null;
+    replacementItemId = null;
+    replacementSlotIndex = null;
+    replacementExpectedItemId = null;
+    replacementRequestPending = false;
     shopAnnouncement.textContent = "Shop closed.";
     setHeroStatsOpen(restoreStats);
   }
   shopPanel.classList.toggle("is-hidden", !shopOpen);
   shopPanel.setAttribute("aria-hidden", String(!shopOpen));
-  if (shopOpen && self) updateShopCards(self);
+  refreshReplacementState(self);
 }
 
 function buyShopItem(itemId: ItemId): void {
@@ -580,14 +818,15 @@ function buyShopItem(itemId: ItemId): void {
     return;
   }
   const item = ITEM_DEFINITIONS[itemId];
-  if (self.equipment.every((slot) => slot !== null)) {
-    toast("All six equipment slots are full.", "warning");
-    return;
-  }
   if (self.gold < item.price) {
     toast(`Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`, "warning");
     return;
   }
+  if (equipmentIsFull(self.equipment)) {
+    selectReplacementItem(itemId);
+    return;
+  }
+  clearReplacementSelection();
   audio.unlock();
   send({ type: "buy_item", vendorId: activeVendorId, itemId });
 }
@@ -599,6 +838,16 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
     return;
   }
 
+  if (replacementItemId && !equipmentIsFull(self.equipment)) clearReplacementSelection();
+  if (
+    replacementSlotIndex !== null &&
+    replacementExpectedItemId &&
+    self.equipment[replacementSlotIndex] !== replacementExpectedItemId &&
+    !replacementRequestPending
+  ) {
+    clearReplacementSlot();
+    shopAnnouncement.textContent = "Equipment changed. No gold was spent; choose a slot again.";
+  }
   updateEquipmentReadouts(self);
   const openedVendor = vendorSnapshot(activeVendorId, state);
   if (shopOpen) {
@@ -784,10 +1033,15 @@ function handleEvent(event: GameEvent): void {
   } else if (event.kind === "item_purchased" && event.playerId === localPlayerId) {
     const self = currentPlayer();
     const position = event.position ?? self?.position ?? (event.vendorId ? VENDOR_DEFINITIONS[event.vendorId].position : WORLD_LAYOUT.nexus);
+    if (event.replacedItemId) {
+      clearReplacementSelection();
+      shopAnnouncement.textContent = `${event.text} Build remains six of six.`;
+    }
     toast(event.text, "loot");
     audio.play("loot");
     spawnBurst(position, 0xf1c56f, 13, 1.15);
     pulsePurchasedStat(event.itemId);
+    if (event.replacedItemId) pulsePurchasedStat(event.replacedItemId);
   } else if (event.kind === "rift_exposed") {
     showBanner("THE BARRIER RISES", "COUNTERATTACK", "DESTROY THE RIFT HEART");
     audio.play("cast");
@@ -1489,6 +1743,8 @@ function cast(slot: AbilitySlot): void {
 
 heroStatsToggle.addEventListener("click", () => setHeroStatsOpen(!heroStatsOpen));
 shopClose.addEventListener("click", () => setShopOpen(false));
+shopReplaceSubmit.addEventListener("click", confirmReplacement);
+shopReplaceCancel.addEventListener("click", () => clearReplacementSlot(true));
 
 window.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement) return;
@@ -1501,11 +1757,28 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   if (shopOpen && unmodified && !event.repeat) {
-    const itemIndex = event.code === "Digit1" || event.code === "Numpad1"
-      ? 0
-      : event.code === "Digit2" || event.code === "Numpad2"
-        ? 1
-        : -1;
+    if (event.code === "Escape") {
+      event.preventDefault();
+      if (replacementRequestPending) {
+        shopAnnouncement.textContent = "The reforge is already being verified by the server.";
+      } else if (replacementSlotIndex !== null) {
+        clearReplacementSlot(true);
+      } else if (replacementItemId) {
+        clearReplacementSelection(true);
+      } else {
+        setShopOpen(false);
+      }
+      return;
+    }
+    const number = /^Digit[1-6]$/.test(event.code) || /^Numpad[1-6]$/.test(event.code)
+      ? Number(event.code.at(-1))
+      : 0;
+    if (replacementItemId && number >= 1 && number <= EQUIPMENT_SLOT_COUNT) {
+      event.preventDefault();
+      selectReplacementSlot((number - 1) as EquipmentSlotIndex);
+      return;
+    }
+    const itemIndex = number >= 1 && number <= 2 ? number - 1 : -1;
     const itemId = itemIndex >= 0 && activeVendorId
       ? VENDOR_DEFINITIONS[activeVendorId].itemIds[itemIndex]
       : undefined;
@@ -1520,11 +1793,6 @@ window.addEventListener("keydown", (event) => {
       event.preventDefault();
       setHeroStatsOpen(!heroStatsOpen);
     }
-    return;
-  }
-  if (event.code === "Escape" && shopOpen) {
-    event.preventDefault();
-    setShopOpen(false);
     return;
   }
   if (event.code === "Escape" && heroStatsOpen) {

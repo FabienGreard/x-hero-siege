@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.9] - 2026-07-10
+
+### Added
+
+- Added a full-build replacement flow to both physical shops: choose one local ware, choose one occupied socket, review the exact outgoing and incoming effects, then explicitly confirm the 24-gold trade.
+- Added mouse and keyboard support for the complete flow, including `1`/`2` ware selection, `1`–`6` socket selection, `Enter` confirmation, and `Escape` step-back without spending.
+- Added compare-and-swap protection through the expected outgoing item so stale or repeated confirmations cannot deduct gold or replace a different socket.
+
+### Changed
+
+- Kept the Forge and Reliquary useful after all six unrestricted slots are occupied: a confirmed trade discards the old item without a refund, equips the selected local ware, and leaves the build at `6/6`.
+- Reflowed active ability cooldown progress in both directions when Quickening Sigil enters or leaves a build, while preserving the creation-time damage of existing Splitbolts, Falling Stars, and Wraiths.
+- Kept replacement authoritative for phase, living state, vendor, stock, proximity, full-loadout eligibility, funds, slot identity, price deduction, equipment, and derived Hero Stats.
+
+### Preserved
+
+- Auto-equipping into the first empty slot, six unrestricted duplicate-ready run-only sockets, the four-item catalog, 24-gold prices, personal co-op-safe ownership, physical vendor routes, and the established combat controls.
+- No selling, refund, salvage, inventory grid, typed slot, rarity, recipe, evolution, persistent item, new stat, or new ware was introduced.
+
 ## [0.1.8] - 2026-07-10
 
 ### Added
