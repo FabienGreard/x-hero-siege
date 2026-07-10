@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.7` — the First Forge
 
-**Status:** implemented and locally verified on 2026-07-10; deployment verification pending a configured game host.
+**Status:** implemented and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured host.
 
 - Make the northwest Ironbound Forge a recognizable physical destination rather than a global menu or anonymous building.
 - Let a hero earn personal gold, retreat to the Forge, inspect two contrasting 24-gold wares, buy by mouse or `1`/`2`, auto-equip, and return to combat while the siege continues.

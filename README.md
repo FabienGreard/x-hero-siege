@@ -49,4 +49,4 @@ Runtime diagnostics are available at `/health` and `/debug/state`.
 - [Playtest script](docs/PLAYTEST.md)
 - [Changelog](CHANGELOG.md)
 - [Human-readable devlog](docs/DEVLOG.md)
-- [Companion website](site/index.html)
+- [Live companion website](https://fabiengreard.github.io/x-hero-siege/) and [source](site/index.html)

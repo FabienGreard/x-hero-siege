@@ -100,7 +100,7 @@ After verifying the slice, record the result and begin the next cycle from the n
 - Bought Tempered Edge with keyboard `1`: gold changed `48 → 24`, socket one filled, and authoritative Basic Damage changed `30 → 36`. Bought Fleetstep Greaves by mouse: gold changed `24 → 0`, socket two filled, and Move Speed changed `10.5 → 11.55` (`11.6` displayed).
 - Cast `Q` while the Forge panel was open. The Warden moved beyond the ten-unit close threshold, Vanguard Rush entered cooldown, and both trade and comparison panels closed automatically without swallowing the cast.
 - Authoritative tests prove a real earned 35-gold Gatebreaker reward buys a 24-gold ware; actual fixed-tick displacement changes `1.05 → 1.155`; a real Warden basic hit changes `30 → 36`; all four heroes derive both wares correctly; duplicates fill six unrestricted slots; the seventh purchase is atomic; equipment survives revival, isolates allies, and resets with the run.
-- Typecheck, 45 tests with 565 assertions, the real four-client WebSocket smoke test, production build, and browser warnings/errors all passed. Deployment remains pending a configured game host.
+- Typecheck, 45 tests with 565 assertions, the real four-client WebSocket smoke test, production build, and browser warnings/errors all passed. The companion site deployed and passed live rendered verification; playable game deployment remains pending a configured Bun/WebSocket host.
 - Saved evidence: [anonymous courtyard before](playtest/first-forge-before.jpg) and [equipped First Forge loop](playtest/first-forge-after.jpg).
 
 ## Recorded verification — `0.1.6`, 2026-07-10
