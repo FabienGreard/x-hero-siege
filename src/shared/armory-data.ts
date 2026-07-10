@@ -1,6 +1,7 @@
 import type { EquipmentSlots, ItemId, VendorId, Vec2 } from "./protocol";
 
 export const EQUIPMENT_SLOT_COUNT = 6;
+export const ARMORY_WARE_PRICE = 30;
 
 export interface ItemDefinition {
   id: ItemId;
@@ -28,7 +29,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     name: "Tempered Edge",
     description: "City steel honed against the horde.",
     effectLabel: "+20% Basic Damage",
-    price: 24,
+    price: ARMORY_WARE_PRICE,
     basicDamagePercent: 0.2,
     moveSpeedPercent: 0,
     abilityPowerPercent: 0,
@@ -39,7 +40,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     name: "Fleetstep Greaves",
     description: "Messenger gear made to outrun a breach.",
     effectLabel: "+10% Move Speed",
-    price: 24,
+    price: ARMORY_WARE_PRICE,
     basicDamagePercent: 0,
     moveSpeedPercent: 0.1,
     abilityPowerPercent: 0,
@@ -50,7 +51,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     name: "Runebound Focus",
     description: "A caged star that sharpens every invocation.",
     effectLabel: "+15% Skill Power",
-    price: 24,
+    price: ARMORY_WARE_PRICE,
     basicDamagePercent: 0,
     moveSpeedPercent: 0,
     abilityPowerPercent: 0.15,
@@ -61,7 +62,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     name: "Quickening Sigil",
     description: "A sliver of time held under glass.",
     effectLabel: "+15% Cooldown Speed",
-    price: 24,
+    price: ARMORY_WARE_PRICE,
     basicDamagePercent: 0,
     moveSpeedPercent: 0,
     abilityPowerPercent: 0,

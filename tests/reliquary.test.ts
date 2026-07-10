@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { ITEM_DEFINITIONS, VENDOR_DEFINITIONS } from "../src/shared/armory-data";
+import {
+  ARMORY_WARE_PRICE,
+  ITEM_DEFINITIONS,
+  VENDOR_DEFINITIONS,
+} from "../src/shared/armory-data";
 import { HERO_IDS } from "../src/shared/game-data";
 import { parseClientMessage, type EquipmentSlots, type ItemId, type VendorId } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
@@ -47,13 +51,13 @@ describe("authoritative Veilglass Reliquary", () => {
       itemIds: ["runebound_focus", "quickening_sigil"],
     });
     expect(ITEM_DEFINITIONS.runebound_focus).toMatchObject({
-      price: 24,
+      price: ARMORY_WARE_PRICE,
       description: "A caged star that sharpens every invocation.",
       effectLabel: "+15% Skill Power",
       abilityPowerPercent: 0.15,
     });
     expect(ITEM_DEFINITIONS.quickening_sigil).toMatchObject({
-      price: 24,
+      price: ARMORY_WARE_PRICE,
       description: "A sliver of time held under glass.",
       effectLabel: "+15% Cooldown Speed",
       cooldownRecoveryPercent: 0.15,
@@ -68,7 +72,7 @@ describe("authoritative Veilglass Reliquary", () => {
   test("each physical vendor rejects the other vendor's stock atomically", () => {
     const game = new GameWorld();
     readyHero(game, "warden");
-    fund(game, 48);
+    fund(game, 2 * ARMORY_WARE_PRICE);
 
     placeAt(game, "veilglass_reliquary");
     expect(buy(game, "veilglass_reliquary", "tempered_edge").code).toBe("ITEM_NOT_STOCKED");
@@ -76,7 +80,7 @@ describe("authoritative Veilglass Reliquary", () => {
     expect(buy(game, "ironbound_forge", "runebound_focus").code).toBe("ITEM_NOT_STOCKED");
 
     const player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(48);
+    expect(player.gold).toBe(2 * ARMORY_WARE_PRICE);
     expect(player.equipment.every((itemId) => itemId === null)).toBe(true);
   });
 
@@ -112,7 +116,7 @@ describe("authoritative Veilglass Reliquary", () => {
     const game = new GameWorld();
     readyHero(game, "warden");
     placeAt(game, "veilglass_reliquary");
-    fund(game, 48);
+    fund(game, 2 * ARMORY_WARE_PRICE);
     expect(game.levelAbility("p1", "ability2").ok).toBe(true);
     expect(game.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
 
@@ -151,7 +155,7 @@ describe("authoritative Veilglass Reliquary", () => {
     const game = new GameWorld();
     readyHero(game, "warden");
     placeAt(game, "veilglass_reliquary");
-    fund(game, 24);
+    fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
     expect(game.levelAbility("p1", "ability3").ok).toBe(true);
     expect(game.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
@@ -206,8 +210,8 @@ describe("authoritative Veilglass Reliquary", () => {
 
     game.players.get("p1")!.position = { ...forge.position };
     game.players.get("p2")!.position = { ...reliquary.position };
-    game.players.get("p1")!.goldUnits = goldToUnits(24);
-    game.players.get("p2")!.goldUnits = goldToUnits(24);
+    game.players.get("p1")!.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
+    game.players.get("p2")!.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
     expect(game.handleMessage("p1", {
       type: "buy_item",
       vendorId: "ironbound_forge",
@@ -236,7 +240,7 @@ describe("authoritative Veilglass Reliquary", () => {
     const game = new GameWorld();
     readyHero(game, "warden");
     placeAt(game, "veilglass_reliquary");
-    fund(game, 7 * 24);
+    fund(game, 7 * ARMORY_WARE_PRICE);
     for (let copy = 0; copy < 6; copy += 1) {
       expect(buy(game, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
     }
@@ -251,7 +255,7 @@ describe("authoritative Veilglass Reliquary", () => {
     let player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(sixFocuses);
     expect(player.stats.abilityPower).toBeCloseTo(1.9);
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
 
     placeAt(game, "ironbound_forge");
     expect(buy(game, "ironbound_forge", "tempered_edge").code).toBe("EQUIPMENT_FULL");
@@ -259,14 +263,14 @@ describe("authoritative Veilglass Reliquary", () => {
     expect(player.equipment).toEqual(sixFocuses);
     expect(player.stats.abilityPower).toBeCloseTo(1.9);
     expect(player.stats.basicDamage).toBe(30);
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
   });
 
   test("Falling Star snapshots Skill Power when the delayed strike is created", () => {
     const game = new GameWorld();
     readyHero(game, "ashcaller");
     placeAt(game, "veilglass_reliquary");
-    fund(game, 48);
+    fund(game, 2 * ARMORY_WARE_PRICE);
     expect(buy(game, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
     expect(game.levelAbility("p1", "ability3").ok).toBe(true);
     expect(game.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
@@ -289,7 +293,7 @@ describe("authoritative Veilglass Reliquary", () => {
     const game = new GameWorld();
     readyHero(game, "riftstalker");
     placeAt(game, "veilglass_reliquary");
-    fund(game, 48);
+    fund(game, 2 * ARMORY_WARE_PRICE);
     expect(buy(game, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
     expect(game.levelAbility("p1", "ability2").ok).toBe(true);
     expect(game.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
@@ -316,7 +320,7 @@ describe("authoritative Veilglass Reliquary", () => {
     const game = new GameWorld();
     readyHero(game, "gravebinder");
     placeAt(game, "veilglass_reliquary");
-    fund(game, 48);
+    fund(game, 2 * ARMORY_WARE_PRICE);
     expect(buy(game, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
     expect(game.levelAbility("p1", "ability3").ok).toBe(true);
     expect(game.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);

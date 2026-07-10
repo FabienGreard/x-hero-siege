@@ -2,6 +2,19 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.10` — Weight of Gold
+
+**Status:** implemented and locally verified on 2026-07-10; companion site deployment and playable game deployment pending.
+
+- Correct the purchasing-power weakness exposed by normal `0.1.9` play: an efficient route filled all six sockets by `51.63s`, retained `42` gold, and had accumulated `402` gold by `84.65s`, enough for ten additional full-price replacements.
+- Reduce repeatable imp, hound, and brute rewards to `1/1/3` gold while preserving the Gatebreaker's defining `35`-gold payoff and the Rift Guard's later `6` gold.
+- Charge one universal `30` gold for every ware and replacement so the first safe retreat earns one defining choice, six slots arrive near the siege midpoint, and each later reshape needs a fresh combat window.
+- Keep reward division, wallet ownership, prices, proximity, purchases, capacity, equipment, and effects authoritative and exact for one through four players.
+- Preserve both physical shops, their four existing effects, six unrestricted duplicate-ready run-only sockets, all combat and encounter tuning, controls, art, audio, and phase flow.
+- Prove normal solo pacing, the Reliquary route across `518` stratified and regression seeds, exact co-op conservation, real four-client convergence, production build, rendered shop presentation, and clean diagnostics.
+
+**Next-cycle nomination:** replay shipped `0.1.10` at normal timing and choose the next highest-leverage player-visible shop, item, or Hero Stats weakness. Deepen the established loop before adding catalog breadth or a parallel system.
+
 ## `0.1.9` — Reshape the Six
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
@@ -50,7 +63,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proved the first physical vendor and visible stat payoff; `0.1.8` proved two distinct local destinations, four curated wares, nearest-vendor interaction, and a real route/build choice without a global menu; `0.1.9` keeps those destinations useful at `6/6` through one explicit, full-price replacement decision; `0.1.10` makes those choices carry weight by pacing the first ware, full six-slot build, and later replacements across distinct combat windows. South remains intentionally underserved rather than receiving remote access. Future checkpoints must begin with rendered play and add one deeper layer at a time only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 

@@ -42,11 +42,11 @@ Useful read-only diagnostics:
 3. Move, aim independently, attack while repositioning, and use every learned ability once.
 4. Fight the opening wave and note whether common enemies die quickly with readable impact feedback.
 5. Spend each earned skill point from the action bar without pausing the fight. Confirm the `+` disappears, the rank pip fills, and clicking the learned slot still casts normally.
-6. Earn at least 48 gold, read the real outbound pressure, and create a safe retreat window rather than shopping while enemies are already striking the gate.
+6. Earn at least 30 gold, read the real outbound pressure, and create a safe retreat window rather than shopping while enemies are already striking the gate.
 7. Visit the northwest Ironbound Forge. Confirm its warm landmark, minimap marker, proximity prompt, and travel cost are readable; open it with `B`, buy by mouse or `1`/`2`, and verify Basic Damage or Move Speed changes in Hero Stats while enemies continue acting.
-8. Re-establish the lane, create a second safe window, and visit the northeast Veilglass Reliquary. Confirm its cool shrine and marker cannot be confused with the Forge; buy one ware and verify Skill Power changes real ability output or Cooldown Speed shortens `Q`/`E`/`R`/`F` recovery without changing LMB cadence.
+8. Re-establish the lane, earn another 30 gold, and create a second safe window before visiting the northeast Veilglass Reliquary. Confirm its cool shrine and marker cannot be confused with the Forge; buy one ware and verify Skill Power changes real ability output or Cooldown Speed shortens `Q`/`E`/`R`/`F` recovery without changing LMB cadence.
 9. Leave each vendor's range and confirm the panel closes. Press `B` remotely, then enter the other vendor's range and reopen it; only that physical shop's two wares should appear.
-10. Fill all six sockets, then reshape the build at one physical shop. Select a local ware by mouse or `1`/`2`, select an occupied socket by mouse or `1`–`6`, review the exact outgoing and incoming effects, and confirm explicitly. Verify gold falls by 24, the old item is discarded, the chosen stat changes, and the build remains `6/6`. Back out once with `Escape`, then try a same-item replacement and confirm neither path spends gold.
+10. Fill all six sockets, confirm the wallet cannot immediately fund another trade, then earn a fresh 30 gold and reshape the build at one physical shop. Select a local ware by mouse or `1`/`2`, select an occupied socket by mouse or `1`–`6`, review the exact outgoing and incoming effects, and confirm explicitly. Verify gold falls by 30, the old item is discarded, the chosen stat changes, and the build remains `6/6`. Back out once with `Escape`, then try a same-item replacement and confirm neither path spends gold.
 11. Respond to the forced gate breach. Confirm pressure clearly shifts toward protecting the Nexus and that a fallen gate does not itself end the run.
 12. Defeat the siege threat, follow the opened counterattack route as a group, and destroy the Rift source.
 13. Confirm the victory payoff is unambiguous and the run ends cleanly.
@@ -95,6 +95,17 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - One change that would most improve the next playtest.
 
 After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.10`, 2026-07-10
+
+- Began from pushed `0.1.9` and replayed its economy at normal timing. An efficient two-shop circuit completed a mixed `6/6` build at `51.63s` with `42` gold still banked. By `84.65s`, the run had accumulated `402` gold in total—enough for the six purchases plus ten replacements at the established `24`-gold price—so route and replacement choices had almost no economic weight.
+- Kept the shops, catalog, slots, effects, routes, combat, and encounter intact. Repeatable imp, hound, and brute rewards changed from `3/3/9` to `1/1/3`; the Gatebreaker remained `35`, the Rift Guard remained `6`, and every ware or replacement changed from `24` to `30`.
+- In the normal, unfrozen authoritative run, the first defining purchase landed at `31.54s`, three sockets were occupied at `85.72s`, the build reached `6/6` at `115.70s` with `0` gold, and the Heartfire Nexus remained `800/800`. After another combat window, replacing Quickening Sigil with Tempered Edge at `134.59s` changed gold `31 → 1`, Basic Damage `42 → 48`, and Cooldown Speed `115% → 100%`; the Warden returned to the fight at `139.24s` with the Nexus still `800/800`.
+- Frozen rendered reenactments verified the same authoritative UI states without standing siege pressure: the first purchase displayed the universal `30`-gold price, changed gold `38 → 8`, and changed Basic Damage `30 → 36`; the full-build and replacement preview remained compact at 1280×720. Browser warning and error logs were empty.
+- `518/518` stratified and regression shop routes afforded the first ware in `21.48–26.00s` and departed in `21.48–46.85s` (`24.35s` average, `30.82s` p95) with `30–69` gold. Every local purchase returned in `8.92–10.73s`; North retained `155–260` health (`218.78` average), the Nexus stayed at `800`, the Warden remained standing, and no route cost more than `7` net health.
+- Across `100` deterministic normal defenses, every wallet remained below five-ware purchasing power at `85s` and reached the `180` gold required for six wares between `105–120s`. Exact one-to-four-player tests conserve every `1`, `3`, `35`, and `6` payout without last-hit competition.
+- Typecheck, `69` tests with `1,545` assertions, the real four-client WebSocket economy and replacement convergence smoke test, and the production build passed. Playable-game deployment remains pending a configured Bun/WebSocket host.
+- Saved evidence: [first 30-gold purchase](playtest/weight-of-gold-first.jpg), [six-slot midpoint build](playtest/weight-of-gold-full.jpg), [replacement preview](playtest/weight-of-gold-replace-preview.jpg), and [the confirmed replacement](playtest/weight-of-gold-after.jpg). The frozen frames reenact exact states recorded in the normal unfrozen run; they are visual-QA evidence rather than substitutes for its telemetry.
 
 ## Recorded verification — `0.1.9`, 2026-07-10
 

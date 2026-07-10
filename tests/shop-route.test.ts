@@ -1,13 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { VENDOR_DEFINITIONS } from "../src/shared/armory-data";
+import { ITEM_DEFINITIONS, VENDOR_DEFINITIONS } from "../src/shared/armory-data";
 import { WORLD_LAYOUT } from "../src/shared/game-data";
 import type { ClientMessage, EquipmentSlots, Vec2 } from "../src/shared/protocol";
 import { GameWorld } from "../src/server/game";
 
 const NORTH_GATE = WORLD_LAYOUT.gates.north;
 const RELIQUARY = VENDOR_DEFINITIONS.veilglass_reliquary;
+const RELIQUARY_WARE_PRICE = ITEM_DEFINITIONS.runebound_focus.price;
+const STRATIFIED_ROUTE_SEEDS = Array.from(
+  { length: 512 },
+  (_, index) => Math.imul(index + 1, 0x9e37_79b1) >>> 0,
+);
+const ROUTE_SEEDS = [...new Set([
+  0,
+  1,
+  0xffff_ffff,
+  578,
+  1_248,
+  1_431,
+  ...STRATIFIED_ROUTE_SEEDS,
+])];
 
 interface RouteResult {
+  firstAffordableElapsed: number;
+  departureElapsed: number;
   departureGateHp: number;
   departureGold: number;
   nearestThreatDistance: number;
@@ -28,6 +44,11 @@ function normalize(vector: Vec2): Vec2 {
 
 function distance(a: Vec2, b: Vec2): number {
   return Math.hypot(a.x - b.x, a.z - b.z);
+}
+
+function percentile(values: number[], fraction: number): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.floor((sorted.length - 1) * fraction)]!;
 }
 
 function runNormalReliquaryRoute(seed: number): RouteResult {
@@ -55,11 +76,13 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
   send({ type: "level_ability", slot: "ability2" });
 
   let departure: {
+    elapsed: number;
     gateHp: number;
     gold: number;
     playerHp: number;
     nearestThreatDistance: number;
   } | null = null;
+  let firstAffordableElapsed: number | null = null;
 
   while (elapsed < 65) {
     const snapshot = game.getSnapshot();
@@ -71,9 +94,13 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
     const nearestThreatDistance = nearestGateThreat
       ? distance(nearestGateThreat.position, NORTH_GATE)
       : Number.POSITIVE_INFINITY;
+    if (firstAffordableElapsed === null && player.gold >= RELIQUARY_WARE_PRICE) {
+      firstAffordableElapsed = elapsed;
+    }
 
-    if (player.gold >= 24 && nearestThreatDistance >= 35 && snapshot.gates[0]!.hp === 260) {
+    if (player.gold >= RELIQUARY_WARE_PRICE && nearestThreatDistance >= 35 && snapshot.gates[0]!.hp === 260) {
       departure = {
+        elapsed,
         gateHp: snapshot.gates[0]!.hp,
         gold: player.gold,
         playerHp: player.hp,
@@ -110,6 +137,7 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
   }
 
   if (!departure) throw new Error(`Seed ${seed} never created a safe Reliquary window.`);
+  if (firstAffordableElapsed === null) throw new Error(`Seed ${seed} never afforded a Reliquary ware.`);
 
   const routeStart = elapsed;
   while (elapsed - routeStart < 30) {
@@ -150,6 +178,8 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
     throw new Error(`Seed ${seed} could not return to North within 30 seconds.`);
   }
   return {
+    firstAffordableElapsed,
+    departureElapsed: departure.elapsed,
     departureGateHp: departure.gateHp,
     departureGold: departure.gold,
     nearestThreatDistance: departure.nearestThreatDistance,
@@ -165,20 +195,28 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
 }
 
 describe("normal-timing local shop route", () => {
-  test("100 Warden routes preserve a useful solo defense margin", () => {
-    const results = Array.from({ length: 100 }, (_, index) => runNormalReliquaryRoute(index + 1));
+  test("stratified Warden routes preserve a useful solo defense margin", () => {
+    const results = ROUTE_SEEDS.map(runNormalReliquaryRoute);
     const gateHealth = results.map((result) => result.returnGateHp);
+    const departureTimes = results.map((result) => result.departureElapsed);
     const averageGateHealth = gateHealth.reduce((sum, value) => sum + value, 0) / gateHealth.length;
+    const averageDeparture = departureTimes.reduce((sum, value) => sum + value, 0) / departureTimes.length;
 
+    expect(results.every((result) => result.firstAffordableElapsed <= result.departureElapsed)).toBe(true);
+    expect(results.every((result) => result.firstAffordableElapsed <= 28)).toBe(true);
+    expect(results.every((result) => result.departureElapsed <= 50)).toBe(true);
+    expect(averageDeparture).toBeLessThanOrEqual(27);
+    expect(percentile(departureTimes, 0.95)).toBeLessThanOrEqual(35);
+    expect(results.every((result) => result.departureGold >= RELIQUARY_WARE_PRICE)).toBe(true);
     expect(results.every((result) => result.departureGateHp === 260)).toBe(true);
     expect(results.every((result) => result.nearestThreatDistance >= 35)).toBe(true);
-    expect(results.every((result) => result.routeTime <= 10)).toBe(true);
-    expect(Math.min(...gateHealth)).toBeGreaterThanOrEqual(176);
-    expect(averageGateHealth).toBeGreaterThanOrEqual(218);
+    expect(results.every((result) => result.routeTime <= 12)).toBe(true);
+    expect(Math.min(...gateHealth)).toBeGreaterThanOrEqual(130);
+    expect(averageGateHealth).toBeGreaterThanOrEqual(215);
     expect(results.every((result) => result.returnNexusHp === 800)).toBe(true);
     expect(results.every((result) => !result.downed)).toBe(true);
     expect(results.every((result) => result.returnPlayerHp - result.departurePlayerHp >= -7)).toBe(true);
-    expect(results.every((result) => result.returnGold === result.departureGold - 24)).toBe(true);
+    expect(results.every((result) => result.returnGold === result.departureGold - RELIQUARY_WARE_PRICE)).toBe(true);
     expect(results.every((result) => result.equipment[0] === "runebound_focus")).toBe(true);
-  });
+  }, { timeout: 10_000 });
 });

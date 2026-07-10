@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { goldFromUnits, goldRewardShareUnits } from "../src/server/economy";
+import {
+  ENEMY_GOLD_REWARDS,
+  goldFromUnits,
+  goldRewardShareUnits,
+  goldToUnits,
+} from "../src/server/economy";
+import { ARMORY_WARE_PRICE } from "../src/shared/armory-data";
 import { HERO_IDS } from "../src/shared/game-data";
 import { GameWorld } from "../src/server/game";
 
@@ -18,10 +24,29 @@ function advance(game: GameWorld, seconds: number): void {
 }
 
 describe("authoritative run economy", () => {
-  test("three-player fractional shares accumulate to exact whole-gold thresholds", () => {
-    let walletUnits = 0;
-    for (let reward = 0; reward < 3; reward += 1) walletUnits += goldRewardShareUnits(35, 3);
-    expect(goldFromUnits(walletUnits)).toBe(35);
+  test("the locked reward table conserves every payout exactly for one through four players", () => {
+    expect(ENEMY_GOLD_REWARDS).toEqual({
+      imp: 1,
+      hound: 1,
+      brute: 3,
+      siege: 35,
+      rift_guard: 6,
+    });
+
+    for (const reward of Object.values(ENEMY_GOLD_REWARDS)) {
+      for (const playerCount of [1, 2, 3, 4]) {
+        expect(goldRewardShareUnits(reward, playerCount) * playerCount).toBe(goldToUnits(reward));
+      }
+    }
+  });
+
+  test("thirty synchronized common-lane batches fund exactly one ware for every party size", () => {
+    expect(ARMORY_WARE_PRICE).toBe(30);
+    for (const playerCount of [1, 2, 3, 4]) {
+      const unitsPerPlayerPerBatch = goldRewardShareUnits(ENEMY_GOLD_REWARDS.imp, playerCount) * playerCount;
+      expect(goldFromUnits(unitsPerPlayerPerBatch * (ARMORY_WARE_PRICE - 1))).toBe(ARMORY_WARE_PRICE - 1);
+      expect(goldFromUnits(unitsPerPlayerPerBatch * ARMORY_WARE_PRICE)).toBe(ARMORY_WARE_PRICE);
+    }
   });
 
   for (const playerCount of [1, 2, 3, 4]) {

@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — Gold should carry weight
+
+`0.1.9` made a full build changeable, but normal play exposed a deeper problem: the wallet had become a faucet. An efficient Warden filled all six sockets before the first minute and soon held enough gold to replace the entire build repeatedly. The item decisions were real; their cost was not.
+
+`0.1.10` changes only that purchasing rhythm. Common defense rewards become smaller, every ware costs 30 gold, and the exceptional Gatebreaker payout still buys one item with a little left over. The first safe retreat now earns one defining choice, a complete build arrives near the siege midpoint, and reshaping it requires another honest stretch of combat.
+
+Nothing new competes with that loop. The two shops, four wares, six unrestricted sockets, duplicate freedom, replacement flow, item effects, routes, combat, art, and audio remain intact. Gold now creates anticipation between decisions instead of erasing the decisions through abundance.
+
 ## 2026-07-10 — Six choices, not six locks
 
 The six unrestricted sockets gave the Armory a clear shape, but normal play exposed a bad ending to that shape. The Warden filled all six slots in just over a minute, still had 111 gold and a healthy defense, then found both physical shops permanently disabled. A complete build had stopped being a build decision.
@@ -62,6 +70,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.10`: made each ware and later reshape require a distinct, earned combat window.
 - `0.1.9`: kept both local shops useful at six slots through one explicit full-price replacement decision.
 - `0.1.8`: turned one shop into a real local route and build choice without adding a global catalog.
 - `0.1.7`: made the first physical Forge turn personal gold into visible run-only power.

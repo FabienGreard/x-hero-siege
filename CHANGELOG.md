@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.10] - 2026-07-10
+
+### Added
+
+- Added a `100`-seed normal-timing economy gate that keeps purchasing power below five wares at `85s` and reaches six-ware purchasing power between `105–120s`.
+- Expanded the normal-timing shop-route gate to `518` stratified and regression seeds, preserving a first affordable retreat, controlled departure, local purchase, safe return, and untouched Nexus under the new economy.
+
+### Changed
+
+- Reduced repeatable defense rewards from `3/3/9` to `1/1/3` gold for imps, hounds, and brutes while preserving the Gatebreaker's defining `35` gold and the Rift Guard's later `6` gold.
+- Set every ware and full-build replacement to one universal `30`-gold price.
+- Made the reward table and universal ware price canonical authoritative constants shared by simulation, purchases, presentation, and tests.
+
+### Preserved
+
+- Both physical shops, their distinct two-item inventories, all four item effects, exactly six unrestricted duplicate-ready run-only slots, first-empty auto-equip, explicit full-build replacement, and personal co-op-safe ownership.
+- Enemy health, damage, speed, spawning, XP, hero baselines, item effects, combat timing, controls, routes, art, audio, and phase flow.
+- No dynamic pricing, discounts, refunds, resale, salvage, new currency, ware, catalog, tag, evolution, persistence, or permanent power was introduced.
+
 ## [0.1.9] - 2026-07-10
 
 ### Added

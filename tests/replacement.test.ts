@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { VENDOR_DEFINITIONS } from "../src/shared/armory-data";
+import { ARMORY_WARE_PRICE, VENDOR_DEFINITIONS } from "../src/shared/armory-data";
 import { HERO_IDS } from "../src/shared/game-data";
 import {
   parseClientMessage,
@@ -40,7 +40,7 @@ function equip(
   game: GameWorld,
   equipment: EquipmentSlots,
   playerId = "p1",
-  gold = 24,
+  gold = ARMORY_WARE_PRICE,
 ): void {
   const player = game.players.get(playerId)!;
   player.equipment = [...equipment] as EquipmentSlots;
@@ -154,7 +154,7 @@ describe("authoritative full-build item replacement", () => {
     expect(replace(game, "ironbound_forge", "tempered_edge", 0, "runebound_focus").code)
       .toBe("REPLACEMENT_NOT_REQUIRED");
     let player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
     expect(player.equipment).toEqual(partial);
     expect(game.takePendingEvents().filter((event) => event.kind === "item_purchased")).toHaveLength(0);
 
@@ -165,14 +165,14 @@ describe("authoritative full-build item replacement", () => {
       itemId: "tempered_edge",
     }).code).toBe("EQUIPMENT_FULL");
     player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
     expect(player.equipment).toEqual(sixFocuses);
   });
 
   test("stale selection, invalid slot, and same-item confirmations never charge or mutate", () => {
     const game = new GameWorld();
     readyHero(game, "warden");
-    equip(game, sixFocuses, "p1", 72);
+    equip(game, sixFocuses, "p1", 3 * ARMORY_WARE_PRICE);
     placeAt(game, "ironbound_forge");
     game.takePendingEvents();
     const before = game.getSnapshot().players[0]!;
@@ -264,7 +264,7 @@ describe("authoritative full-build item replacement", () => {
         code: "INSUFFICIENT_GOLD",
         setup: (game) => {
           placeAt(game, "ironbound_forge");
-          game.players.get("p1")!.goldUnits = goldToUnits(23);
+          game.players.get("p1")!.goldUnits = goldToUnits(ARMORY_WARE_PRICE - 1);
         },
       },
     ];
@@ -308,13 +308,13 @@ describe("authoritative full-build item replacement", () => {
       "fleetstep_greaves",
       "runebound_focus",
     ];
-    equip(game, equipment, "p1", 48);
+    equip(game, equipment, "p1", 2 * ARMORY_WARE_PRICE);
     placeAt(game, "ironbound_forge");
 
     expect(replace(game, "ironbound_forge", "tempered_edge", 0, "tempered_edge").code).toBe("SAME_ITEM");
     expect(replace(game, "ironbound_forge", "tempered_edge", 1, "runebound_focus").ok).toBe(true);
     const player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
     expect(player.equipment.filter((itemId) => itemId === "tempered_edge")).toHaveLength(2);
     expect(player.equipment).toHaveLength(6);
   });
@@ -330,7 +330,7 @@ describe("authoritative full-build item replacement", () => {
       "runebound_focus",
       "runebound_focus",
     ];
-    equip(game, equipment, "p1", 48);
+    equip(game, equipment, "p1", 2 * ARMORY_WARE_PRICE);
     placeAt(game, "ironbound_forge");
     const state = game.players.get("p1")!;
     Object.assign(state.cooldowns, {

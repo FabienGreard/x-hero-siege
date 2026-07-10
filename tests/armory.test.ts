@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ARMORY_WARE_PRICE,
   EQUIPMENT_SLOT_COUNT,
   VENDOR_DEFINITIONS,
   createEmptyEquipment,
@@ -99,7 +100,7 @@ describe("authoritative Ironbound Forge", () => {
     const game = new GameWorld();
     readyParty(game, 1);
     placeAtForge(game);
-    fund(game, 48);
+    fund(game, 2 * ARMORY_WARE_PRICE);
     const before = game.getSnapshot().players[0]!;
 
     const unknownVendor = game.handleMessage("p1", {
@@ -123,20 +124,20 @@ describe("authoritative Ironbound Forge", () => {
   test("remote and insufficient-fund attempts leave wallet, equipment, and stats untouched", () => {
     const game = new GameWorld();
     readyParty(game, 1);
-    fund(game, 24);
+    fund(game, ARMORY_WARE_PRICE);
     const baseline = game.getSnapshot().players[0]!;
 
     expect(buy(game, "tempered_edge").code).toBe("OUT_OF_RANGE");
     let player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
     expect(player.equipment).toEqual(createEmptyEquipment());
     expect(player.stats).toEqual(baseline.stats);
 
     placeAtForge(game);
-    fund(game, 23);
+    fund(game, ARMORY_WARE_PRICE - 1);
     expect(buy(game, "tempered_edge").code).toBe("INSUFFICIENT_GOLD");
     player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(23);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE - 1);
     expect(player.equipment).toEqual(createEmptyEquipment());
     expect(player.stats).toEqual(baseline.stats);
   });
@@ -151,7 +152,7 @@ describe("authoritative Ironbound Forge", () => {
     placeAtForge(game);
     expect(buy(game, "tempered_edge").ok).toBe(true);
     const player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(11);
+    expect(player.gold).toBe(35 - ARMORY_WARE_PRICE);
     expect(player.equipment[0]).toBe("tempered_edge");
     expect(player.stats.basicDamage).toBeCloseTo(36);
   });
@@ -161,7 +162,7 @@ describe("authoritative Ironbound Forge", () => {
     expect(game.addPlayer("p1", "Ada").ok).toBe(true);
     expect(game.claimHero("p1", "warden").ok).toBe(true);
     placeAtForge(game);
-    fund(game, 24);
+    fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "tempered_edge").code).toBe("RUN_INACTIVE");
 
     expect(game.setReady("p1", true).ok).toBe(true);
@@ -176,7 +177,7 @@ describe("authoritative Ironbound Forge", () => {
     const game = new GameWorld();
     readyParty(game, 1);
     placeAtForge(game);
-    fund(game, 48);
+    fund(game, 2 * ARMORY_WARE_PRICE);
     game.handleMessage("p1", {
       type: "input",
       seq: 1,
@@ -271,7 +272,7 @@ describe("authoritative Ironbound Forge", () => {
     const game = new GameWorld();
     readyParty(game, 1);
     placeAtForge(game);
-    fund(game, 7 * 24);
+    fund(game, 7 * ARMORY_WARE_PRICE);
 
     for (let copy = 0; copy < EQUIPMENT_SLOT_COUNT; copy += 1) {
       expect(buy(game, "tempered_edge").ok).toBe(true);
@@ -287,11 +288,11 @@ describe("authoritative Ironbound Forge", () => {
     let player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(sixEdges);
     expect(player.stats.basicDamage).toBeCloseTo(66);
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
 
     expect(buy(game, "fleetstep_greaves").code).toBe("EQUIPMENT_FULL");
     player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(24);
+    expect(player.gold).toBe(ARMORY_WARE_PRICE);
     expect(player.equipment).toEqual(sixEdges);
     expect(player.stats.basicDamage).toBeCloseTo(66);
   });
@@ -300,7 +301,7 @@ describe("authoritative Ironbound Forge", () => {
     const game = new GameWorld();
     readyParty(game, 2);
     placeAtForge(game, "p1");
-    fund(game, 24, "p1");
+    fund(game, ARMORY_WARE_PRICE, "p1");
 
     expect(buy(game, "tempered_edge", "p1").ok).toBe(true);
     const snapshot = game.getSnapshot();
@@ -318,7 +319,7 @@ describe("authoritative Ironbound Forge", () => {
     const game = new GameWorld();
     readyParty(game, 1);
     placeAtForge(game);
-    fund(game, 24);
+    fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "fleetstep_greaves").ok).toBe(true);
     expect(game.getSnapshot().players[0]!.stats.moveSpeed).toBeCloseTo(11.55);
 
@@ -339,7 +340,7 @@ describe("authoritative Ironbound Forge", () => {
     const game = new GameWorld();
     readyParty(game, 1);
     placeAtForge(game);
-    fund(game, 24);
+    fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "tempered_edge").ok).toBe(true);
 
     const state = game.players.get("p1")!;

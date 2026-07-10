@@ -42,7 +42,7 @@ import type {
   VendorId,
   Vec2,
 } from "../shared/protocol";
-import { goldFromUnits, goldRewardShareUnits, goldToUnits } from "./economy";
+import { ENEMY_GOLD_REWARDS, goldFromUnits, goldRewardShareUnits, goldToUnits } from "./economy";
 import { deriveHeroStats } from "./hero-stats";
 
 export interface GameTimings {
@@ -159,11 +159,11 @@ interface EnemyStats {
 }
 
 const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
-  imp: { hp: 42, radius: 0.75, damage: 7, speed: 5.4, attackCooldown: 0.9, xp: 7, gold: 3 },
-  hound: { hp: 30, radius: 0.65, damage: 6, speed: 7.6, attackCooldown: 0.75, xp: 6, gold: 3 },
-  brute: { hp: 125, radius: 1.25, damage: 14, speed: 3.8, attackCooldown: 1.2, xp: 18, gold: 9 },
-  siege: { hp: 540, radius: 2.1, damage: 28, speed: 2.8, attackCooldown: 1.5, xp: 70, gold: 35 },
-  rift_guard: { hp: 95, radius: 1, damage: 10, speed: 5.1, attackCooldown: 0.9, xp: 12, gold: 6 },
+  imp: { hp: 42, radius: 0.75, damage: 7, speed: 5.4, attackCooldown: 0.9, xp: 7, gold: ENEMY_GOLD_REWARDS.imp },
+  hound: { hp: 30, radius: 0.65, damage: 6, speed: 7.6, attackCooldown: 0.75, xp: 6, gold: ENEMY_GOLD_REWARDS.hound },
+  brute: { hp: 125, radius: 1.25, damage: 14, speed: 3.8, attackCooldown: 1.2, xp: 18, gold: ENEMY_GOLD_REWARDS.brute },
+  siege: { hp: 540, radius: 2.1, damage: 28, speed: 2.8, attackCooldown: 1.5, xp: 70, gold: ENEMY_GOLD_REWARDS.siege },
+  rift_guard: { hp: 95, radius: 1, damage: 10, speed: 5.1, attackCooldown: 0.9, xp: 12, gold: ENEMY_GOLD_REWARDS.rift_guard },
 };
 
 const PLAYER_ACTION_TIMINGS: Record<AbilitySlot, { windup: number; active: number; recovery: number }> = {

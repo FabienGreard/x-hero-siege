@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { VENDOR_DEFINITIONS } from "../src/shared/armory-data";
+import { ARMORY_WARE_PRICE, VENDOR_DEFINITIONS } from "../src/shared/armory-data";
 import { createGameServer } from "../src/server/index";
 import { goldToUnits } from "../src/server/economy";
 import type { EquipmentSlots, GameSnapshot, HeroId, ServerMessage } from "../src/shared/protocol";
@@ -129,10 +129,10 @@ try {
   const forgeBuyer = instance.game.players.get(peers[0]!.playerId)!;
   const reliquaryBuyer = instance.game.players.get(peers[1]!.playerId)!;
   forgeBuyer.equipment = [...sixFocuses] as EquipmentSlots;
-  forgeBuyer.goldUnits = goldToUnits(24);
+  forgeBuyer.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
   forgeBuyer.position = { ...VENDOR_DEFINITIONS.ironbound_forge.position };
   reliquaryBuyer.equipment = [...sixEdges] as EquipmentSlots;
-  reliquaryBuyer.goldUnits = goldToUnits(24);
+  reliquaryBuyer.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
   reliquaryBuyer.position = { ...VENDOR_DEFINITIONS.veilglass_reliquary.position };
 
   peers[0]!.send({
