@@ -42,6 +42,17 @@ import type {
 } from "../shared/protocol";
 import { itemPurchaseDeliveryPolicy } from "./event-delivery";
 import {
+  beginOrdinaryPurchaseRequest,
+  ordinaryPurchaseRequestAfterError,
+  reconcileOrdinaryPurchaseRequest,
+  type OrdinaryPurchaseRequest,
+} from "./ordinary-purchase-request";
+import {
+  EQUIPMENT_STAT_FIELDS,
+  formatEquipmentStat,
+  projectOrdinaryPurchasePreview,
+} from "./shop-preview";
+import {
   BUILD_SIGNATURE_COLORS,
   HERO_PRESENTATION,
   createArena,
@@ -240,6 +251,7 @@ let replacementItemId: ItemId | null = null;
 let replacementSlotIndex: EquipmentSlotIndex | null = null;
 let replacementExpectedItemId: ItemId | null = null;
 let replacementRequestPending = false;
+let ordinaryPurchaseRequest: OrdinaryPurchaseRequest | null = null;
 const keys = new Set<string>();
 const pointer = new THREE.Vector2(0, 0);
 const aimWorld = new THREE.Vector3(0, 0, -10);
@@ -411,12 +423,19 @@ function connect(): void {
         else refreshReplacementState();
         shopAnnouncement.textContent = `${message.message} No gold was spent.`;
       }
+      const pendingOrdinaryPurchase = ordinaryPurchaseRequest;
+      ordinaryPurchaseRequest = ordinaryPurchaseRequestAfterError(ordinaryPurchaseRequest, message.code);
+      if (pendingOrdinaryPurchase && !ordinaryPurchaseRequest) {
+        const self = currentPlayer();
+        if (shopOpen && self) updateShopCards(self);
+      }
       toast(message.message, "warning");
       lobbyNote.textContent = message.message;
     }
   });
   socket.addEventListener("close", () => {
     connectionState("offline", "Reconnecting…");
+    ordinaryPurchaseRequest = null;
     socket = null;
     reconnectTimer = window.setTimeout(connect, 1200);
   });
@@ -455,25 +474,12 @@ function formatHeroStat(value: number, decimals = 0): string {
   return fixed.replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
 }
 
-const REFORGE_STAT_FIELDS = [
-  { key: "basicDamage", label: "Basic Damage" },
-  { key: "moveSpeed", label: "Move Speed" },
-  { key: "abilityPower", label: "Skill Power" },
-  { key: "cooldownRecovery", label: "Cooldown Speed" },
-] as const satisfies ReadonlyArray<{ key: keyof HeroStatsSnapshot; label: string }>;
-
 const REFORGE_ITEM_NAMES: Record<ItemId, string> = {
   tempered_edge: "Edge",
   fleetstep_greaves: "Greaves",
   runebound_focus: "Focus",
   quickening_sigil: "Sigil",
 };
-
-function formatReforgeStat(key: (typeof REFORGE_STAT_FIELDS)[number]["key"], value: number): string {
-  if (key === "moveSpeed") return formatHeroStat(value, 1);
-  if (key === "abilityPower" || key === "cooldownRecovery") return `${formatHeroStat(value * 100)}%`;
-  return formatHeroStat(value, 1);
-}
 
 function replacementStackPreview(
   current: PlayerSnapshot["equipment"],
@@ -491,9 +497,9 @@ function replacementStackPreview(
 }
 
 function replacementStatsPreview(current: HeroStatsSnapshot, projected: HeroStatsSnapshot): string {
-  return REFORGE_STAT_FIELDS
+  return EQUIPMENT_STAT_FIELDS
     .filter(({ key }) => Math.abs(current[key] - projected[key]) > 1e-9)
-    .map(({ key, label }) => `${label} ${formatReforgeStat(key, current[key])} → ${formatReforgeStat(key, projected[key])}`)
+    .map(({ key, label }) => `${label} ${formatEquipmentStat(key, current[key])} → ${formatEquipmentStat(key, projected[key])}`)
     .join(" · ");
 }
 
@@ -662,6 +668,7 @@ function renderShopCatalog(vendorId: VendorId): void {
       <strong class="shop-item-name">${item.name}</strong>
       <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">0 OWNED</small></span>
       <small class="shop-item-description">${item.description}</small>
+      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em></span>
       <span class="shop-item-price"><span>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
     button.addEventListener("click", () => buyShopItem(itemId));
     shopItems.append(button);
@@ -873,7 +880,9 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const item = ITEM_DEFINITIONS[itemId];
     const affordable = self.gold >= item.price;
     const selected = replacementItemId === itemId;
-    const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending;
+    const purchasePending = ordinaryPurchaseRequest !== null;
+    const pendingThisItem = ordinaryPurchaseRequest?.itemId === itemId;
+    const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending && !purchasePending;
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
     const owned = equipmentCopyCount(self.equipment, itemId);
     const equipmentStack = equipmentStacks.find((stack) => stack.itemId === itemId);
@@ -881,6 +890,24 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const nextCopyAttunes = owned === ITEM_ATTUNEMENT_THRESHOLD - 1;
     const effectiveCount = equipmentStack?.effectiveCount ?? owned;
     const ownedLabel = button.querySelector<HTMLElement>("[data-shop-owned]");
+    const purchasePreview = slotsFull
+      ? null
+      : projectOrdinaryPurchasePreview(
+          {
+            heroId: self.heroId,
+            level: self.level,
+            equipment: self.equipment,
+            stats: self.stats,
+          },
+          itemId,
+        );
+    const preview = button.querySelector<HTMLElement>("[data-shop-projection]");
+    const previewValue = button.querySelector<HTMLElement>("[data-shop-projection-value]");
+    const previewAttunement = button.querySelector<HTMLElement>("[data-shop-projection-attunement]");
+    button.classList.toggle("has-purchase-preview", purchasePreview !== null);
+    if (preview) preview.hidden = purchasePreview === null;
+    if (previewValue) previewValue.textContent = purchasePreview?.resultText ?? "—";
+    if (previewAttunement) previewAttunement.hidden = !purchasePreview?.attunes;
     if (ownedLabel) {
       ownedLabel.textContent = attuned
         ? `${owned} OWNED · ATTUNED`
@@ -894,8 +921,25 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     button.disabled = !canBuy;
     button.classList.toggle("can-buy", canBuy);
     button.classList.toggle("is-selected", selected);
-    if (status) {
-      status.textContent = !withinPurchaseRange
+    button.classList.toggle("is-pending", pendingThisItem);
+    const actionLabel = purchasePending
+      ? pendingThisItem ? "Purchase request pending." : "Another purchase request is pending."
+      : !withinPurchaseRange
+        ? `Move closer to ${vendorName}.`
+        : replacementRequestPending && selected
+          ? "Replacement request pending."
+          : slotsFull && selected && replacementSlotIndex !== null
+            ? "Selected. Confirm the exact replacement below."
+            : slotsFull && selected
+              ? "Selected. Choose equipment slot 1 through 6 to replace."
+              : slotsFull && affordable
+                ? "Select this ware, then choose an occupied equipment slot to replace."
+                : affordable
+                  ? "Buy and equip."
+                  : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`;
+    const statusLabel = purchasePending
+      ? pendingThisItem ? "PURCHASING" : "WAIT"
+      : !withinPurchaseRange
         ? "MOVE CLOSER"
         : replacementRequestPending && selected
           ? "REFORGING"
@@ -908,26 +952,18 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
                 : affordable
                   ? "BUY & EQUIP"
                   : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
-    }
+    if (status) status.textContent = statusLabel;
+    const attunementDescription = attuned
+      ? ` This stack is Attuned: its fourth copy contributes twice its normal effect, so ${owned} equipped copies count as ${effectiveCount} copies.`
+      : nextCopyAttunes
+        ? " The next copy Attunes this stack; its fourth copy will contribute twice its normal effect."
+        : "";
+    const previewDescription = purchasePreview
+      ? ` Next Hero Stat result: ${purchasePreview.accessibleResult}`
+      : "";
     button.setAttribute(
       "aria-label",
-      `${item.name}, ${item.effectLabel}, ${item.price} gold. You own ${owned} ${owned === 1 ? "copy" : "copies"}.${attuned
-        ? ` This stack is Attuned: its fourth copy contributes twice its normal effect, so ${owned} equipped copies count as ${effectiveCount} copies.`
-        : nextCopyAttunes
-          ? " The next copy Attunes this stack; its fourth copy will contribute twice its normal effect."
-          : ""} ${!withinPurchaseRange
-        ? `Move closer to ${vendorName}.`
-        : replacementRequestPending && selected
-          ? "Replacement request pending."
-          : slotsFull && selected && replacementSlotIndex !== null
-            ? "Selected. Confirm the exact replacement below."
-            : slotsFull && selected
-              ? "Selected. Choose equipment slot 1 through 6 to replace."
-              : slotsFull && affordable
-                ? "Select this ware, then choose an occupied equipment slot to replace."
-                : affordable
-                  ? "Buy and equip."
-                  : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`}`,
+      `${item.name}, ${item.effectLabel}, ${item.price} gold. You own ${owned} ${owned === 1 ? "copy" : "copies"}.${attunementDescription}${previewDescription} ${actionLabel}`,
     );
   }
 }
@@ -1000,7 +1036,19 @@ function buyShopItem(itemId: ItemId): void {
     selectReplacementItem(itemId);
     return;
   }
+  const projection = projectEquipmentChange(self.equipment, itemId);
+  if (!projection || projection.replacedItemId !== null) {
+    toast("The next equipment slot is no longer available.", "warning");
+    return;
+  }
+  const request = beginOrdinaryPurchaseRequest(ordinaryPurchaseRequest, {
+    itemId,
+    slotIndex: projection.slotIndex,
+  });
+  if (!request.shouldSend) return;
   clearReplacementSelection();
+  ordinaryPurchaseRequest = request.request;
+  updateShopCards(self);
   audio.unlock();
   send({ type: "buy_item", vendorId: activeVendorId, itemId });
 }
@@ -1012,6 +1060,11 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
     return;
   }
 
+  ordinaryPurchaseRequest = reconcileOrdinaryPurchaseRequest(
+    ordinaryPurchaseRequest,
+    self.equipment,
+    isHeroStatsPhase(state.phase),
+  );
   if (replacementItemId && !equipmentIsFull(self.equipment)) clearReplacementSelection();
   if (
     replacementSlotIndex !== null &&

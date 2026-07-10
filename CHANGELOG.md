@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.16] - 2026-07-10
+
+### Added
+
+- Added one always-visible `NEXT` result to every ordinary shop purchase while an equipment socket is open, showing the exact champion-specific Hero Stat change before gold is spent.
+- Added an explicit `ATTUNES` marker to the nonlinear fourth-copy preview and kept exact results visible when a ware is unaffordable or the hero is outside purchase range.
+- Added canonical preview coverage for all four heroes, all four wares, levels 1 and 4, and raw copy counts zero through five, matched against 192 real authoritative purchases.
+
+### Changed
+
+- Derive ordinary-purchase previews from the same equipment projection and Hero Stats functions used by server authority while keeping the live Hero Stats panel unchanged until an accepted snapshot arrives.
+- Lock ordinary shop cards after one purchase request until the expected authoritative socket fills or the server rejects the trade, preventing a rapid double-click from spending twice against one displayed result.
+- Reuse the same stat formatting for ordinary purchases and established full-build reforges without adding an extra confirmation to the first six purchases.
+
+### Preserved
+
+- Both physical shops, their distinct two-ware inventories, all item effects, universal `30`-gold price, six unrestricted run-only sockets, Attunement threshold, full-build reforge flow, routes, economy, balance, controls, art, audio, and server authority.
+- No new ware, stat, effect, vendor, route, price, slot rule, confirmation step, proc, set bonus, rarity, currency, persistence, or parallel progression system was added.
+
 ## [0.1.15] - 2026-07-10
 
 ### Added

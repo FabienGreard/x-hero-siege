@@ -825,7 +825,7 @@ button.equipment-slot {
   position: relative;
   display: grid;
   grid-template-columns: 37px minmax(0, 1fr) auto;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto auto auto;
   align-items: center;
   min-height: 65px;
   padding: 7px 8px 7px 7px;
@@ -836,6 +836,10 @@ button.equipment-slot {
     linear-gradient(100deg, rgba(233, 186, 99, 0.055), transparent 43%),
     rgba(4, 6, 9, 0.72);
   border: 1px solid rgba(154, 163, 163, 0.14);
+}
+
+.shop-item.has-purchase-preview {
+  min-height: 75px;
 }
 
 .shop-panel[data-vendor="veilglass_reliquary"] .shop-item {
@@ -882,7 +886,7 @@ button.equipment-slot {
 }
 
 .shop-item-icon {
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 4;
   display: grid;
   place-items: center;
   width: 31px;
@@ -987,8 +991,51 @@ button.equipment-slot {
   font-size: 6px;
 }
 
+.shop-item-projection {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.shop-item-projection[hidden] {
+  display: none;
+}
+
+.shop-item-projection > small,
+.shop-item-projection > em {
+  flex: none;
+  padding: 1px 3px;
+  color: var(--shop-accent);
+  background: color-mix(in srgb, var(--shop-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--shop-accent) 28%, transparent);
+  font-size: 4.75px;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  line-height: 1.2;
+}
+
+.shop-item-projection > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #d9dedc;
+  font-size: 5.5px;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shop-item-projection > em {
+  color: #fff0bd;
+  border-color: rgba(255, 222, 143, 0.44);
+}
+
 .shop-item-price {
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 4;
   grid-column: 3;
   display: flex;
   flex-direction: column;

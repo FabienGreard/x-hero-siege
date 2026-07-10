@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — The next copy should answer one exact question
+
+Attunement made a fourth copy meaningful, but ordinary shopping still asked the player to translate a generic percentage into champion-specific power. A Warden carrying three Tempered Edges could read `+20% Basic Damage` and `NEXT ATTUNES`; only after spending did the live panel reveal that the real step was `48 → 60`. Curiously, the later full-build reforge already gave a better answer than the first six purchases.
+
+`0.1.16` puts that answer directly on each local card. Edge says what happens to Basic Damage, Greaves to Move Speed, Focus to Skill Power, and Sigil to Cooldown Speed. The fourth copy names the larger Attunement jump before it happens. The answer remains visible when gold is short, so a route and earning window can be planned around real power rather than a hidden calculation.
+
+The shop still buys in one click. Hero Stats remains the accepted present, not a speculative future, and only changes when the server's snapshot confirms the ware. A narrow pending lock makes that promise honest under a rapid double-click: one displayed result can fund only one request. Once all six sockets are occupied, the ordinary answer disappears because the sacrificed socket matters, and the established exact reforge confirmation takes over unchanged. No new item or rule was needed; the existing choice simply became knowable at the moment it is made.
+
 ## 2026-07-10 — The fourth copy should arrive in the world
 
 `0.1.14` gave the Armory its first real commitment threshold. The shop announced it, the stats reconciled it, and the fourth copy changed the outcome of a fight. Yet closing the panels left almost the same hero behind. A few signature pixels grew slightly larger and brighter; the moment itself passed with the same gold spark and chirp as an ordinary first copy.
@@ -112,6 +120,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.16`: made every ordinary local purchase reveal its exact next champion-stat result before spending.
 - `0.1.15`: made the authoritative Attunement crossing arrive once and resonate on the battlefield.
 - `0.1.14`: made the fourth matching ware a visible commitment between broad and specialist builds.
 - `0.1.13`: made every irreversible reforge's exact champion result knowable before spending.
