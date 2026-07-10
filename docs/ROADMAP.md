@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.17` — Read the Retreat
 
-**Status:** implemented and locally verified on 2026-07-10; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the route-awareness weakness exposed by shipped `0.1.16`: the local shops now answer every purchase exactly once reached, but away from them an actionable wallet remained a plain number and both strategic destinations stayed tiny static minimap marks.
 - Derive readiness per local player from active, living authoritative state and the actual prices of each vendor's current stock; never infer it from global party state or hard-code a universal price.
