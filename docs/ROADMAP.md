@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.18` — Wear the Gain
 
-**Status:** implemented and locally verified on 2026-07-10; push and companion-site deployment pending.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the transaction-feedback weakness exposed by normal `0.1.17` play: routes, previews, stats, sockets, and persistent signatures were clear, but an ordinary accepted purchase landed mainly as a small combat-log sentence while the fourth copy alone had a memorable world response.
 - On each directly delivered local ordinary purchase or reforge, bloom the incoming ware's established shape and color once on the actual hero, add a restrained matching burst, and repeat the exact canonical incoming Hero Stat change above the hero and in the existing toast.
