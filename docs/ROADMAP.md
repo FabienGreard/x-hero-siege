@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.19` — Read Every Cast
 
-**Status:** implemented and locally verified on 2026-07-10; push and companion-site deployment pending.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and production assets verified byte-for-byte; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the champion-stat comprehension weakness exposed by shipped `0.1.18`: an Ashcaller carrying Focus and Quickening truthfully showed `Skill Power 115%` and `Cooldown Speed 115%`, but those aggregates never answered what happened to Flame Ring, Cinder Wall, Falling Star, or Worldfire.
 - Add one compact `ABILITY IMPACT` block inside the existing non-pausing Hero Stats panel. For every learned ability, name the champion's cast, current rank, exact current per-target magnitude, and effective cooldown; keep rank-zero casts explicitly unlearned.
