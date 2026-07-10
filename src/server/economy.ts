@@ -8,3 +8,7 @@ export function goldRewardShareUnits(gold: number, playerCount: number): number 
 export function goldFromUnits(units: number): number {
   return units / GOLD_UNITS_PER_GOLD;
 }
+
+export function goldToUnits(gold: number): number {
+  return Math.round(gold * GOLD_UNITS_PER_GOLD);
+}

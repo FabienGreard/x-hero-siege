@@ -1,3 +1,5 @@
+import { isItemId, isVendorId } from "./armory-data";
+
 export type HeroId =
   | "warden"
   | "riftstalker"
@@ -15,6 +17,16 @@ export type GamePhase =
 export type AbilitySlot = "ability1" | "ability2" | "ability3" | "ultimate";
 export type ActionSlot = "basic" | AbilitySlot;
 export type ActionPhase = "idle" | "windup" | "active" | "recovery";
+export type ItemId = "tempered_edge" | "fleetstep_greaves";
+export type VendorId = "ironbound_forge";
+export type EquipmentSlots = [
+  ItemId | null,
+  ItemId | null,
+  ItemId | null,
+  ItemId | null,
+  ItemId | null,
+  ItemId | null,
+];
 
 export interface ActionSnapshot {
   kind: "basic" | AbilitySlot | "enemy_attack";
@@ -45,6 +57,7 @@ export type ClientMessage =
     }
   | { type: "cast"; slot: AbilitySlot }
   | { type: "level_ability"; slot: AbilitySlot }
+  | { type: "buy_item"; vendorId: VendorId; itemId: ItemId }
   | { type: "ping"; sentAt: number };
 
 export interface LobbySnapshot {
@@ -93,6 +106,14 @@ export interface HeroStatsSnapshot {
   cooldownRecovery: number;
 }
 
+export interface VendorSnapshot {
+  id: VendorId;
+  name: string;
+  position: Vec2;
+  interactionRadius: number;
+  itemIds: ItemId[];
+}
+
 export interface PlayerSnapshot {
   id: string;
   name: string;
@@ -111,6 +132,7 @@ export interface PlayerSnapshot {
   xp: number;
   nextLevelXp: number;
   gold: number;
+  equipment: EquipmentSlots;
   kills: number;
   abilityRanks: Record<AbilitySlot, number>;
   skillPoints: number;
@@ -220,6 +242,7 @@ export type GameEventKind =
   | "gate_breached"
   | "player_downed"
   | "player_revived"
+  | "item_purchased"
   | "rift_exposed"
   | "victory"
   | "defeat";
@@ -232,6 +255,8 @@ export interface GameEvent {
   position?: Vec2;
   playerId?: string;
   lane?: LaneId;
+  vendorId?: VendorId;
+  itemId?: ItemId;
 }
 
 export interface GameSnapshot {
@@ -249,6 +274,7 @@ export interface GameSnapshot {
   nexus: NexusSnapshot;
   gates: GateSnapshot[];
   riftHeart: RiftHeartSnapshot;
+  vendors: VendorSnapshot[];
   players: PlayerSnapshot[];
   enemies: EnemySnapshot[];
   projectiles: ProjectileSnapshot[];
@@ -324,6 +350,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case "level_ability":
       return typeof message.slot === "string"
         ? ({ type: "level_ability", slot: message.slot } as ClientMessage)
+        : null;
+    case "buy_item":
+      return isVendorId(message.vendorId) && isItemId(message.itemId)
+        ? { type: "buy_item", vendorId: message.vendorId, itemId: message.itemId }
         : null;
     case "ping":
       return Number.isFinite(message.sentAt)

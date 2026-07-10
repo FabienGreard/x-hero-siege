@@ -1,0 +1,64 @@
+import type { EquipmentSlots, ItemId, VendorId, Vec2 } from "./protocol";
+
+export const EQUIPMENT_SLOT_COUNT = 6;
+
+export interface ItemDefinition {
+  id: ItemId;
+  name: string;
+  description: string;
+  effectLabel: string;
+  price: number;
+  basicDamagePercent: number;
+  moveSpeedPercent: number;
+}
+
+export interface VendorDefinition {
+  id: VendorId;
+  name: string;
+  position: Vec2;
+  interactionRadius: number;
+  itemIds: ItemId[];
+}
+
+export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
+  tempered_edge: {
+    id: "tempered_edge",
+    name: "Tempered Edge",
+    description: "City steel honed against the horde.",
+    effectLabel: "+20% Basic Damage",
+    price: 24,
+    basicDamagePercent: 0.2,
+    moveSpeedPercent: 0,
+  },
+  fleetstep_greaves: {
+    id: "fleetstep_greaves",
+    name: "Fleetstep Greaves",
+    description: "Messenger gear made to outrun a breach.",
+    effectLabel: "+10% Move Speed",
+    price: 24,
+    basicDamagePercent: 0,
+    moveSpeedPercent: 0.1,
+  },
+};
+
+export const VENDOR_DEFINITIONS: Record<VendorId, VendorDefinition> = {
+  ironbound_forge: {
+    id: "ironbound_forge",
+    name: "Ironbound Forge",
+    position: { x: -20, z: -14.5 },
+    interactionRadius: 7,
+    itemIds: ["tempered_edge", "fleetstep_greaves"],
+  },
+};
+
+export function createEmptyEquipment(): EquipmentSlots {
+  return [null, null, null, null, null, null];
+}
+
+export function isItemId(value: unknown): value is ItemId {
+  return typeof value === "string" && Object.hasOwn(ITEM_DEFINITIONS, value);
+}
+
+export function isVendorId(value: unknown): value is VendorId {
+  return typeof value === "string" && Object.hasOwn(VENDOR_DEFINITIONS, value);
+}

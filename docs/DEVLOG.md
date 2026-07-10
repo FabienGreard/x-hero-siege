@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — A reason to retreat
+
+`0.1.6` made gold fair and power readable, but it also made the next absence obvious: the wallet went up and nothing in the city cared. A shop button would have made gold functional, yet it would have ignored Siegeheart's strongest spatial idea—the Citadel is a place worth defending.
+
+`0.1.7` turns the anonymous northwest building into the Ironbound Forge. Its brazier, counter, smith, hammer sign, and small gold sigil are visible before any prompt appears. Reaching it means deliberately leaving the shortest north-gate route, but the detour remains short enough for a solo defender.
+
+Inside range, `B` opens a compact trade panel while the horde keeps moving. The first 24 gold now asks a real question: make every basic attack hit harder with Tempered Edge, or move between pressure and safety faster with Fleetstep Greaves. The purchase fills one of six equal sockets and changes the same authoritative Hero Stat the simulation consumes. Buying another copy fills another unrestricted slot; there is no backpack, slot type, pause, or permanent inventory hiding behind the choice.
+
+This is one Forge, not yet a network of strategic shops. It proves that earning, retreating, choosing, equipping, and returning to battle can work as one continuous action-game loop. The next cycle must play that loop before deciding whether a second location or deeper item behavior creates more value.
+
 ## 2026-07-10 — Truth before trade
 
 Gold and equipment only create strategy when the numbers beneath them are trustworthy. Before `0.1.6`, leveling could raise health silently, the HUD could not explain a hero's combat baseline, and the finishing player alone received an enemy's gold. Turning that currency into shop power would have rewarded last-hit competition and asked players to buy against hidden rules.
@@ -30,6 +40,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.7`: made the first physical Forge turn personal gold into visible run-only power.
 - `0.1.6`: made hero power inspectable and personal gold cooperative before shops.
 - `0.1.5`: turned exact-point enemy queues into readable horde contact.
 - `0.1.4`: made Wraith Host raise authoritative hunting spirits.

@@ -2,9 +2,9 @@
 
 A browser-first, 1–4 player co-op action RPG about defending humanity's last city from a demon invasion. Four distinct heroes protect the central Heartfire Nexus, survive a breach, then counterattack through the rift.
 
-Version `0.1.6` is deliberately small: one 5–10 minute run that proves readable movement and attacks, party-sized lane defense, direct action-bar progression, authoritative summons, truthful hero power and cooperative gold, one pressure spike, and one boss payoff.
+Version `0.1.7` is deliberately small: one 5–10 minute run that proves readable combat, party-sized lane defense, direct action-bar progression, truthful cooperative gold, one physical Forge with two run-only wares and six unrestricted equipment slots, one pressure spike, and one boss payoff.
 
-![Siegeheart Warden defending the Nexus with the Hero Stats panel open](docs/playtest/truth-before-trade.jpg)
+![The Warden buys a Tempered Edge from Siegeheart's Ironbound Forge](docs/playtest/first-forge-after.jpg)
 
 ## Run locally
 
@@ -25,9 +25,13 @@ Open [http://localhost:3000](http://localhost:3000). Up to four browser clients 
 - `Q`, `E`, `R`: active abilities
 - `F`: ultimate
 - `C`: toggle the non-pausing Hero Stats panel
+- `B`: browse or close a physical shop while in range
+- `1` / `2`: buy and auto-equip the matching visible shop item
 - Click the gold `+` on a skill slot, or press `Ctrl` + `Q`/`E`/`R`/`F`, to spend a skill point
 
 Level-ups grant skill points only while purchasable ranks remain. Upgrades happen directly on the action bar; the ultimate becomes available at hero level 3, and a fully maxed build stops receiving unusable points.
+
+The Ironbound Forge sits in the northwest Citadel courtyard. Its two inexhaustible wares cost 24 personal gold, auto-equip into the first of six unrestricted run-only slots, allow duplicates, and immediately update the authoritative Hero Stats panel.
 
 ## Verification
 

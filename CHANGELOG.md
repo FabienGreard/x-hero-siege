@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.7] - 2026-07-10
+
+### Added
+
+- Turned the northwest Citadel building into the physical Ironbound Forge with a counter, smith, anvil, brazier, hammer sign, warm shop sigil, and minimap marker.
+- Added two curated 24-gold wares: Tempered Edge for additive-from-base Basic Damage and Fleetstep Greaves for additive-from-base Move Speed.
+- Added exactly six unrestricted, ordered, run-only equipment slots; any item or duplicate can occupy any open slot.
+- Added a proximity-only, non-pausing `B` trade panel with mouse and `1`/`2` purchasing, affordability states, live Hero Stats comparison, sockets, sound, toast, stat pulse, and world feedback.
+
+### Changed
+
+- Made the server authoritative for vendor stock, phase, living state, distance, fixed-point price deduction, equipment capacity, purchases, and item-derived stats.
+- Routed equipped Basic Damage and Move Speed through the existing canonical stat seam so real attacks and displacement match the displayed values.
+
+### Preserved
+
+- Every unequipped `0.1.6` hero baseline, cooperative gold rule, skill progression, controls, encounter timing, phase flow, art language, and procedural audio character.
+- No inventory grid, typed slots, scarce stock, random loot, selling, salvage, recipes, evolution, persistence, or second decorative vendor was introduced.
+
 ## [0.1.6] - 2026-07-10
 
 ### Changed

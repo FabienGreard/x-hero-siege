@@ -100,13 +100,14 @@ A scythe-wielding occult warrior who turns dense hordes into sustain and spirits
 ## Combat and progression direction
 
 - `WASD` movement and mouse aim are independent.
-- Hold left mouse for the primary attack; `Q`, `E`, and `R` trigger active abilities; `F` triggers the ultimate. There is no separate Space action.
+- Hold left mouse for the primary attack; `Q`, `E`, and `R` trigger active abilities; `F` triggers the ultimate. `B` browses a physical shop only while in range, with visible number shortcuts for its wares. There is no separate Space action or global shop menu.
 - Common enemies die quickly in groups. Elites create positioning problems. Boss challenge comes from telegraphs and mechanics rather than inflated health.
 - Heroes begin each run with one skill point. Basic abilities can reach rank 3; the ultimate unlocks at hero level 3 and can reach rank 2. Legal upgrades appear as compact `+` controls directly on the action bar, with `Ctrl` + ability key as the keyboard shortcut. Level-ups grant points only while unpurchased ranks remain, and rank-ups must create an immediately readable increase in power without pausing multiplayer.
 - Movement direction, attack direction, anticipation, impact, and recovery must remain readable from the world animation without relying on the HUD. Enemy damage never lands before a visible windup.
 - Party scaling comes from one equally pressured lane per starting player, not faster global cadence or multiplayer enemy-health inflation. The chosen lane set stays fixed for the defense so players can claim and rotate between fronts deliberately.
 - Defense approaches must be deep enough to intercept a wave outside the gate, retreat through the city, and reposition around the Nexus. Persistent enemy-facing furniture is avoided; attack telegraphs appear only when they carry actionable timing.
 - The approved Armory arc uses multiple physical Citadel shops with different small inventories whose locations create route choices without making solo defense impractical. Purchases never pause multiplayer, use personal co-op-safe gold, and reset every run.
+- The verified first layer is one Ironbound Forge with two inexhaustible 24-gold wares. It proves a local retreat, choice, auto-equip, duplicate-ready capacity, and combat-stat payoff; it does not yet prove strategy between multiple shop locations.
 - Heroes have exactly six unrestricted equipment slots: any item or duplicate may occupy any slot. Start with a curated catalog and concise buy/equip decisions; deepen replacement, salvage, build tags, duplicate ranks, and one earned evolution at a time only after rendered play proves the prior layer. Broad loot catalogs, recipe trees, crafting, permanent progression, inventory grids, and automation remain deferred.
 
 ## Scope guard

@@ -28,6 +28,8 @@ Useful read-only diagnostics:
 - `Q`, `E`, `R`: active abilities
 - `F`: ultimate
 - `C`: toggle the non-pausing Hero Stats panel
+- `B`: browse or close a physical shop while in authoritative range
+- `1` / `2`: buy and auto-equip the matching visible ware
 - Click the gold `+` on an ability slot: spend a skill point directly from the action bar
 - `Ctrl` + `Q`, `E`, `R`, or `F`: matching keyboard upgrade shortcut
 
@@ -38,9 +40,11 @@ Useful read-only diagnostics:
 3. Move, aim independently, attack while repositioning, and use every learned ability once.
 4. Fight the opening wave and note whether common enemies die quickly with readable impact feedback.
 5. Spend each earned skill point from the action bar without pausing the fight. Confirm the `+` disappears, the rank pip fills, and clicking the learned slot still casts normally.
-6. Respond to the forced gate breach. Confirm pressure clearly shifts toward protecting the Nexus and that a fallen gate does not itself end the run.
-7. Defeat the siege threat, follow the opened counterattack route as a group, and destroy the Rift source.
-8. Confirm the victory payoff is unambiguous and the run ends cleanly.
+6. After earning 24 gold, deliberately retreat to the northwest Ironbound Forge. Confirm the marker, physical landmark, proximity prompt, and travel cost are readable without a global shop button.
+7. Open the Forge with `B`, choose a ware by mouse or `1`/`2`, and confirm gold, one of six sockets, the affected Hero Stat, and subsequent movement or basic damage update while enemies continue acting.
+8. Respond to the forced gate breach. Confirm pressure clearly shifts toward protecting the Nexus and that a fallen gate does not itself end the run.
+9. Defeat the siege threat, follow the opened counterattack route as a group, and destroy the Rift source.
+10. Confirm the victory payoff is unambiguous and the run ends cleanly.
 
 Repeat once while allowing enemies to reach and destroy the Nexus. Confirm defeat occurs because Nexus health reaches zero, not merely because a gate falls.
 
@@ -86,6 +90,18 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - One change that would most improve the next playtest.
 
 After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.7`, 2026-07-10
+
+- Began from pushed `0.1.6` and played the normal-speed Warden opening at 1280×720. Pressing `B` remotely did nothing; the northwest building was an anonymous shell, and even a truthful gold counter offered no player decision.
+- Compared that gap with the approved concept's warm market props, gold economy language, compact bottom HUD, and readable city silhouettes. Rebuilt the existing northwest structure as the Ironbound Forge rather than adding a disconnected menu or second decorative vendor.
+- The Forge sits about 24.7 world units from the Nexus: roughly 2.35 seconds for a baseline Warden and a 1.45-second detour on the direct north-gate route. Three live Vanguard Rush casts reached its gold sigil and proximity-only `[B]` prompt.
+- Opened the non-pausing trade panel in a deterministic visual-QA runtime with one active enemy and a 48-gold test wallet. The Nexus continued falling from 100% to 80% and then 66% while the panel remained open, proving the room did not pause.
+- Bought Tempered Edge with keyboard `1`: gold changed `48 → 24`, socket one filled, and authoritative Basic Damage changed `30 → 36`. Bought Fleetstep Greaves by mouse: gold changed `24 → 0`, socket two filled, and Move Speed changed `10.5 → 11.55` (`11.6` displayed).
+- Cast `Q` while the Forge panel was open. The Warden moved beyond the ten-unit close threshold, Vanguard Rush entered cooldown, and both trade and comparison panels closed automatically without swallowing the cast.
+- Authoritative tests prove a real earned 35-gold Gatebreaker reward buys a 24-gold ware; actual fixed-tick displacement changes `1.05 → 1.155`; a real Warden basic hit changes `30 → 36`; all four heroes derive both wares correctly; duplicates fill six unrestricted slots; the seventh purchase is atomic; equipment survives revival, isolates allies, and resets with the run.
+- Typecheck, 45 tests with 565 assertions, the real four-client WebSocket smoke test, production build, and browser warnings/errors all passed. Deployment remains pending a configured game host.
+- Saved evidence: [anonymous courtyard before](playtest/first-forge-before.jpg) and [equipped First Forge loop](playtest/first-forge-after.jpg).
 
 ## Recorded verification — `0.1.6`, 2026-07-10
 

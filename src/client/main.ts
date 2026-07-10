@@ -5,6 +5,11 @@ import {
   LANE_IDS,
   WORLD_LAYOUT,
 } from "../shared/game-data";
+import {
+  EQUIPMENT_SLOT_COUNT,
+  ITEM_DEFINITIONS,
+  VENDOR_DEFINITIONS,
+} from "../shared/armory-data";
 import type {
   ActionSnapshot,
   AbilitySlot,
@@ -15,6 +20,7 @@ import type {
   GamePhase,
   GameSnapshot,
   HeroId,
+  ItemId,
   LaneId,
   PickupSnapshot,
   PlayerSnapshot,
@@ -22,6 +28,7 @@ import type {
   SummonSnapshot,
   ServerMessage,
   Vec2,
+  VendorId,
 } from "../shared/protocol";
 import {
   HERO_PRESENTATION,
@@ -72,6 +79,15 @@ const statAttackRate = requiredElement<HTMLElement>("stat-attack-rate");
 const statMoveSpeed = requiredElement<HTMLElement>("stat-move-speed");
 const statAbilityPower = requiredElement<HTMLElement>("stat-ability-power");
 const statCooldownRecovery = requiredElement<HTMLElement>("stat-cooldown-recovery");
+const equipmentCount = requiredElement<HTMLElement>("equipment-count");
+const heroEquipmentSlots = requiredElement<HTMLDivElement>("hero-equipment-slots");
+const shopPanel = requiredElement<HTMLElement>("shop-panel");
+const shopTitle = requiredElement<HTMLElement>("shop-title");
+const shopClose = requiredElement<HTMLButtonElement>("shop-close");
+const shopGold = requiredElement<HTMLElement>("shop-gold");
+const shopEquipmentCount = requiredElement<HTMLElement>("shop-equipment-count");
+const shopEquipmentSlots = requiredElement<HTMLDivElement>("shop-equipment-slots");
+const shopItems = requiredElement<HTMLDivElement>("shop-items");
 const teamList = requiredElement<HTMLDivElement>("team-list");
 const phaseLabel = requiredElement<HTMLSpanElement>("phase-label");
 const waveLabel = requiredElement<HTMLSpanElement>("wave-label");
@@ -110,6 +126,7 @@ const endCopy = requiredElement<HTMLElement>("end-copy");
 const endStats = requiredElement<HTMLDivElement>("end-stats");
 const playAgain = requiredElement<HTMLButtonElement>("play-again");
 const toastStack = requiredElement<HTMLDivElement>("toast-stack");
+const interactionPrompt = requiredElement<HTMLDivElement>("interaction-prompt");
 
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(-30, 30, 20, -20, 0.1, 300);
@@ -187,6 +204,8 @@ let endTimer: number | null = null;
 let endScheduledFor: "victory" | "defeat" | null = null;
 let victoryVisualStartedAt: number | null = null;
 let heroStatsOpen = false;
+let shopOpen = false;
+let heroStatsOpenBeforeShop = false;
 const keys = new Set<string>();
 const pointer = new THREE.Vector2(0, 0);
 const aimWorld = new THREE.Vector3(0, 0, -10);
@@ -201,6 +220,14 @@ const LANE_LABELS: Record<LaneId, string> = {
   south: "South",
   west: "West",
 };
+
+const FORGE_ID: VendorId = "ironbound_forge";
+const SHOP_CLOSE_DISTANCE_PADDING = 3;
+const ITEM_SYMBOLS: Record<ItemId, string> = {
+  tempered_edge: "†",
+  fleetstep_greaves: "»",
+};
+const shopItemButtons = new Map<ItemId, HTMLButtonElement>();
 
 const laneStatusElements = new Map<LaneId, HTMLElement>();
 for (const lane of LANE_IDS) {
@@ -376,6 +403,184 @@ function updateHeroStats(self: PlayerSnapshot): void {
   statCooldownRecovery.textContent = `${formatHeroStat(stats.cooldownRecovery * 100)}%`;
 }
 
+function distanceBetween(a: Vec2, b: Vec2): number {
+  return Math.hypot(a.x - b.x, a.z - b.z);
+}
+
+function currentForge(state: GameSnapshot | null = snapshot): GameSnapshot["vendors"][number] | undefined {
+  return state?.vendors.find((vendor) => vendor.id === FORGE_ID);
+}
+
+function currentPlayer(state: GameSnapshot | null = snapshot): PlayerSnapshot | undefined {
+  return state?.players.find((player) => player.id === localPlayerId);
+}
+
+function renderEquipmentSlots(container: HTMLDivElement, equipment: PlayerSnapshot["equipment"]): void {
+  const key = equipment.map((itemId) => itemId ?? "empty").join("|");
+  if (container.dataset.equipment === key) return;
+  container.dataset.equipment = key;
+  container.replaceChildren();
+  for (let index = 0; index < EQUIPMENT_SLOT_COUNT; index += 1) {
+    const itemId = equipment[index] ?? null;
+    const slot = document.createElement("span");
+    slot.className = `equipment-slot${itemId ? " has-item" : ""}`;
+    slot.dataset.slot = String(index + 1);
+    if (itemId) {
+      const item = ITEM_DEFINITIONS[itemId];
+      slot.dataset.item = itemId;
+      slot.textContent = ITEM_SYMBOLS[itemId];
+      slot.title = `${item.name}: ${item.effectLabel}`;
+      slot.setAttribute("aria-label", `Slot ${index + 1}: ${item.name}, ${item.effectLabel}`);
+    } else {
+      slot.setAttribute("aria-label", `Slot ${index + 1}: empty`);
+    }
+    container.append(slot);
+  }
+}
+
+function updateEquipmentReadouts(self: PlayerSnapshot): void {
+  const used = self.equipment.filter((itemId) => itemId !== null).length;
+  equipmentCount.textContent = `${used} / ${EQUIPMENT_SLOT_COUNT} SLOTS`;
+  shopEquipmentCount.textContent = `${used} / ${EQUIPMENT_SLOT_COUNT}`;
+  shopGold.textContent = `${Math.floor(self.gold)} GOLD`;
+  renderEquipmentSlots(heroEquipmentSlots, self.equipment);
+  renderEquipmentSlots(shopEquipmentSlots, self.equipment);
+}
+
+function renderShopCatalog(): void {
+  shopItems.replaceChildren();
+  shopItemButtons.clear();
+  const vendor = VENDOR_DEFINITIONS[FORGE_ID];
+  vendor.itemIds.forEach((itemId, index) => {
+    const item = ITEM_DEFINITIONS[itemId];
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "shop-item";
+    button.dataset.item = itemId;
+    button.innerHTML = `
+      <span class="shop-item-key">${index + 1}</span>
+      <span class="shop-item-icon" aria-hidden="true">${ITEM_SYMBOLS[itemId]}</span>
+      <strong class="shop-item-name">${item.name}</strong>
+      <span class="shop-item-effect">${item.effectLabel}</span>
+      <small class="shop-item-description">${item.description}</small>
+      <span class="shop-item-price"><span>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
+    button.addEventListener("click", () => buyShopItem(itemId));
+    shopItems.append(button);
+    shopItemButtons.set(itemId, button);
+  });
+}
+
+function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void {
+  const slotsFull = self.equipment.every((itemId) => itemId !== null);
+  for (const [itemId, button] of shopItemButtons) {
+    const item = ITEM_DEFINITIONS[itemId];
+    const affordable = self.gold >= item.price;
+    const canBuy = !self.downed && withinPurchaseRange && !slotsFull && affordable;
+    const status = button.querySelector<HTMLElement>("[data-shop-status]");
+    button.disabled = !canBuy;
+    button.classList.toggle("can-buy", canBuy);
+    if (status) {
+      status.textContent = !withinPurchaseRange
+        ? "MOVE CLOSER"
+        : slotsFull
+        ? "SLOTS FULL"
+        : affordable
+          ? "BUY & EQUIP"
+          : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
+    }
+    button.setAttribute(
+      "aria-label",
+      `${item.name}, ${item.effectLabel}, ${item.price} gold. ${!withinPurchaseRange ? "Move closer to the forge." : slotsFull ? "All equipment slots are full." : affordable ? "Buy and equip." : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`}`,
+    );
+  }
+}
+
+function canOpenForge(state: GameSnapshot, self: PlayerSnapshot | undefined): boolean {
+  const vendor = currentForge(state);
+  return Boolean(
+    vendor &&
+    self?.heroId &&
+    !self.downed &&
+    isHeroStatsPhase(state.phase) &&
+    distanceBetween(self.position, vendor.position) <= vendor.interactionRadius,
+  );
+}
+
+function setShopOpen(open: boolean): void {
+  const state = snapshot;
+  const self = currentPlayer(state);
+  const nextOpen = Boolean(open && state && canOpenForge(state, self));
+  if (nextOpen === shopOpen) return;
+  if (nextOpen) {
+    heroStatsOpenBeforeShop = heroStatsOpen;
+    shopOpen = true;
+    setHeroStatsOpen(true);
+    interactionPrompt.classList.add("is-hidden");
+  } else {
+    const restoreStats = heroStatsOpenBeforeShop;
+    shopOpen = false;
+    setHeroStatsOpen(restoreStats);
+  }
+  shopPanel.classList.toggle("is-hidden", !shopOpen);
+  shopPanel.setAttribute("aria-hidden", String(!shopOpen));
+  if (shopOpen && self) updateShopCards(self);
+}
+
+function buyShopItem(itemId: ItemId): void {
+  const self = currentPlayer();
+  if (!shopOpen || !self) return;
+  const vendor = currentForge();
+  if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
+    toast("Move closer to the forge.", "warning");
+    return;
+  }
+  const item = ITEM_DEFINITIONS[itemId];
+  if (self.equipment.every((slot) => slot !== null)) {
+    toast("All six equipment slots are full.", "warning");
+    return;
+  }
+  if (self.gold < item.price) {
+    toast(`Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`, "warning");
+    return;
+  }
+  audio.unlock();
+  send({ type: "buy_item", vendorId: FORGE_ID, itemId });
+}
+
+function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): void {
+  const vendor = currentForge(state);
+  if (!self || !vendor) {
+    if (shopOpen) setShopOpen(false);
+    interactionPrompt.classList.add("is-hidden");
+    return;
+  }
+
+  updateEquipmentReadouts(self);
+  shopTitle.textContent = vendor.name;
+  const distance = distanceBetween(self.position, vendor.position);
+  const shopPhase = isHeroStatsPhase(state.phase);
+  if (shopOpen && (self.downed || !shopPhase || distance > vendor.interactionRadius + SHOP_CLOSE_DISTANCE_PADDING)) {
+    setShopOpen(false);
+  }
+
+  const inRange = !self.downed && shopPhase && distance <= vendor.interactionRadius;
+  interactionPrompt.classList.toggle("is-hidden", !inRange || shopOpen);
+  interactionPrompt.classList.toggle("is-shop", inRange && !shopOpen);
+  if (inRange && !shopOpen) interactionPrompt.innerHTML = `<kbd>B</kbd> BROWSE · ${vendor.name.toUpperCase()}`;
+  if (shopOpen) updateShopCards(self, distance <= vendor.interactionRadius);
+}
+
+function pulsePurchasedStat(itemId: ItemId | undefined): void {
+  const value = itemId === "tempered_edge" ? statBasicDamage : itemId === "fleetstep_greaves" ? statMoveSpeed : null;
+  const stat = value?.closest<HTMLElement>(".hero-stat");
+  if (!stat) return;
+  stat.classList.remove("is-purchased");
+  requestAnimationFrame(() => {
+    stat.classList.add("is-purchased");
+    window.setTimeout(() => stat.classList.remove("is-purchased"), 760);
+  });
+}
+
 function renderHeroCards(): void {
   heroGrid.replaceChildren();
   for (const heroId of HERO_IDS) {
@@ -504,7 +709,7 @@ function handleEvent(event: GameEvent): void {
   }
   const eventKind = String(event.kind);
   const warning = eventKind === "gate_breached" || eventKind === "player_downed" || eventKind === "defeat";
-  const powerGained = eventKind === "skill_point" || eventKind === "ability_leveled";
+  const powerGained = eventKind === "skill_point" || eventKind === "ability_leveled" || eventKind === "item_purchased";
   addFeed(event.text, warning ? "warning" : powerGained ? "loot" : undefined);
   if (event.kind === "wave") showBanner("THE HORNS SOUND", event.text.toUpperCase(), event.lane?.toUpperCase() ?? "THE OUTER ROAD");
   if (event.kind === "gate_breached") {
@@ -514,6 +719,13 @@ function handleEvent(event: GameEvent): void {
   } else if (eventKind === "skill_point") {
     toast("Skill point ready — choose Q, E, R, or F", "loot");
     audio.play("loot");
+  } else if (event.kind === "item_purchased" && event.playerId === localPlayerId) {
+    const self = currentPlayer();
+    const position = event.position ?? self?.position ?? VENDOR_DEFINITIONS[FORGE_ID].position;
+    toast(event.text, "loot");
+    audio.play("loot");
+    spawnBurst(position, 0xf1c56f, 13, 1.15);
+    pulsePurchasedStat(event.itemId);
   } else if (event.kind === "rift_exposed") {
     showBanner("THE BARRIER RISES", "COUNTERATTACK", "DESTROY THE RIFT HEART");
     audio.play("cast");
@@ -586,6 +798,7 @@ function applySnapshot(next: GameSnapshot): void {
   syncPickups(next.pickups);
   syncEffects(next.effects);
   updateHud(next, self);
+  updateArmoryUi(next, self);
   heroSelect.classList.toggle("is-hidden", next.phase !== "lobby");
   hud.classList.toggle("is-hidden", next.phase === "lobby");
   if (next.phase !== "victory" && next.phase !== "defeat") {
@@ -1080,6 +1293,20 @@ function updateMinimap(state: GameSnapshot): void {
       context.beginPath(); context.moveTo(x + 3, y - 3); context.lineTo(x - 3, y + 3); context.stroke();
     }
   }
+  for (const vendor of state.vendors) {
+    const [x, y] = toMap(vendor.position);
+    context.fillStyle = "#e9ba63";
+    context.strokeStyle = "#2a1d0d";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(x, y - 4);
+    context.lineTo(x + 4, y);
+    context.lineTo(x, y + 4);
+    context.lineTo(x - 4, y);
+    context.closePath();
+    context.fill();
+    context.stroke();
+  }
   context.fillStyle = state.nexus.hp / state.nexus.maxHp < 0.3 ? "#ff555e" : "#5bdcff";
   context.beginPath(); context.arc(centerX, centerY, 4, 0, Math.PI * 2); context.fill();
   for (const enemy of state.enemies) {
@@ -1113,7 +1340,7 @@ function updateMinimap(state: GameSnapshot): void {
     const yOffset = lane === "north" ? 7 : lane === "south" ? -7 : 0;
     context.fillText(LANE_LABELS[lane].toUpperCase(), x + xOffset, y + yOffset);
   }
-  minimap.setAttribute("aria-label", `Battlefield minimap: ${state.activeLanes.map((lane) => LANE_LABELS[lane]).join(", ") || "no"} lanes open`);
+  minimap.setAttribute("aria-label", `Battlefield minimap: ${state.activeLanes.map((lane) => LANE_LABELS[lane]).join(", ") || "no"} lanes open; Ironbound Forge marked in gold`);
 }
 
 function showEnd(state: GameSnapshot, self: PlayerSnapshot | undefined): void {
@@ -1179,14 +1406,41 @@ function cast(slot: AbilitySlot): void {
 }
 
 heroStatsToggle.addEventListener("click", () => setHeroStatsOpen(!heroStatsOpen));
+shopClose.addEventListener("click", () => setShopOpen(false));
 
 window.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement) return;
+  const unmodified = !event.ctrlKey && !event.metaKey && !event.altKey;
+  if (event.code === "KeyB" && unmodified) {
+    if (!event.repeat) {
+      event.preventDefault();
+      setShopOpen(!shopOpen);
+    }
+    return;
+  }
+  if (shopOpen && unmodified && !event.repeat) {
+    const itemIndex = event.code === "Digit1" || event.code === "Numpad1"
+      ? 0
+      : event.code === "Digit2" || event.code === "Numpad2"
+        ? 1
+        : -1;
+    const itemId = itemIndex >= 0 ? VENDOR_DEFINITIONS[FORGE_ID].itemIds[itemIndex] : undefined;
+    if (itemId) {
+      event.preventDefault();
+      buyShopItem(itemId);
+      return;
+    }
+  }
   if (event.code === "KeyC" && !event.ctrlKey && !event.metaKey && !event.altKey) {
     if (!event.repeat) {
       event.preventDefault();
       setHeroStatsOpen(!heroStatsOpen);
     }
+    return;
+  }
+  if (event.code === "Escape" && shopOpen) {
+    event.preventDefault();
+    setShopOpen(false);
     return;
   }
   if (event.code === "Escape" && heroStatsOpen) {
@@ -1401,6 +1655,7 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
+renderShopCatalog();
 renderHeroCards();
 resize();
 connect();

@@ -1,4 +1,11 @@
 import {
+  ITEM_DEFINITIONS,
+  VENDOR_DEFINITIONS,
+  createEmptyEquipment,
+  isItemId,
+  isVendorId,
+} from "../shared/armory-data";
+import {
   DEBUG_TIMINGS,
   DEFAULT_TIMINGS,
   HERO_DEFINITIONS,
@@ -17,20 +24,23 @@ import type {
   EffectSnapshot,
   EnemyKind,
   EnemySnapshot,
+  EquipmentSlots,
   GameEvent,
   GamePhase,
   GameSnapshot,
   HeroId,
   HeroStatsSnapshot,
+  ItemId,
   LaneId,
   PickupSnapshot,
   PlayerSnapshot,
   ProjectileKind,
   ProjectileSnapshot,
   SummonSnapshot,
+  VendorId,
   Vec2,
 } from "../shared/protocol";
-import { goldFromUnits, goldRewardShareUnits } from "./economy";
+import { goldFromUnits, goldRewardShareUnits, goldToUnits } from "./economy";
 import { deriveHeroStats } from "./hero-stats";
 
 export interface GameTimings {
@@ -70,6 +80,7 @@ interface PlayerState {
   level: number;
   xp: number;
   goldUnits: number;
+  equipment: EquipmentSlots;
   kills: number;
   abilityRanks: Record<AbilitySlot, number>;
   skillPoints: number;
@@ -241,6 +252,7 @@ export class GameWorld {
       level: 1,
       xp: 0,
       goldUnits: 0,
+      equipment: createEmptyEquipment(),
       kills: 0,
       abilityRanks: ZERO_ABILITY_RANKS(),
       skillPoints: 0,
@@ -334,6 +346,7 @@ export class GameWorld {
       player.move = { x: 0, z: 0 };
       player.attacking = false;
       player.action = null;
+      player.equipment = createEmptyEquipment();
       player.abilityRanks = ZERO_ABILITY_RANKS();
       player.skillPoints = 0;
       player.cooldowns = ZERO_COOLDOWNS();
@@ -350,6 +363,7 @@ export class GameWorld {
       case "reset_run": return this.resetRun(playerId);
       case "cast": return isAbilitySlot(message.slot) ? this.cast(playerId, message.slot) : this.failure("INVALID_ABILITY", "Unknown ability.");
       case "level_ability": return isAbilitySlot(message.slot) ? this.levelAbility(playerId, message.slot) : this.failure("INVALID_ABILITY", "Unknown ability.");
+      case "buy_item": return this.buyItem(playerId, message.vendorId, message.itemId);
       case "input": return this.setInput(playerId, message.seq, message.move, message.aim, message.attacking);
       case "ping": return { ok: true, pong: { sentAt: message.sentAt, serverTime: Date.now() } };
     }
@@ -480,6 +494,13 @@ export class GameWorld {
       nexus: { position: copy(WORLD_LAYOUT.nexus), ...this.nexus },
       gates: LANE_IDS.map((lane) => ({ lane, position: copy(WORLD_LAYOUT.gates[lane]), ...this.gates.get(lane)! })),
       riftHeart: { position: copy(WORLD_LAYOUT.riftHeart), ...this.riftHeart },
+      vendors: Object.values(VENDOR_DEFINITIONS).map((vendor) => ({
+        id: vendor.id,
+        name: vendor.name,
+        position: copy(vendor.position),
+        interactionRadius: vendor.interactionRadius,
+        itemIds: [...vendor.itemIds],
+      })),
       players: [...this.players.values()].map((player) => this.playerSnapshot(player)),
       enemies: [...this.enemies.values()].map((enemy) => this.enemySnapshot(enemy)),
       projectiles: [...this.projectiles.values()].map(({ damage: _d, pierce: _p, hitIds: _h, ...projectile }) => projectile),
@@ -517,6 +538,7 @@ export class GameWorld {
       player.maxBarrier = 100;
       player.barrier = 0;
       player.level = 1;
+      player.equipment = createEmptyEquipment();
       player.hp = this.heroStats(player).maxHp;
       player.xp = 0;
       player.goldUnits = 0;
@@ -549,6 +571,39 @@ export class GameWorld {
     player.move = moveLength > 1 ? normalize(move) : { x: clamp(move.x, -1, 1), z: clamp(move.z, -1, 1) };
     if (length(aim) > 0.01) player.aim = normalize(aim);
     player.attacking = attacking;
+    return { ok: true };
+  }
+
+  private buyItem(playerId: string, vendorId: VendorId, itemId: ItemId): GameActionResult {
+    const player = this.players.get(playerId);
+    if (!player) return this.failure("PLAYER_UNKNOWN", "Player is not connected.");
+    if (!player.heroId || (this.phase !== "defense" && this.phase !== "breach" && this.phase !== "push")) {
+      return this.failure("RUN_INACTIVE", "The forge only trades during an active siege.");
+    }
+    if (player.downedFor > 0) return this.failure("PLAYER_DOWNED", "A downed hero cannot trade.");
+    if (!isVendorId(vendorId)) return this.failure("VENDOR_UNKNOWN", "That vendor does not exist.");
+    if (!isItemId(itemId)) return this.failure("ITEM_UNKNOWN", "That item does not exist.");
+
+    const vendor = VENDOR_DEFINITIONS[vendorId];
+    if (!vendor.itemIds.includes(itemId)) return this.failure("ITEM_NOT_STOCKED", `${vendor.name} does not stock that item.`);
+    if (distance(player.position, vendor.position) > vendor.interactionRadius) {
+      return this.failure("OUT_OF_RANGE", `Move closer to ${vendor.name} to trade.`);
+    }
+
+    const item = ITEM_DEFINITIONS[itemId];
+    const priceUnits = goldToUnits(item.price);
+    if (player.goldUnits < priceUnits) return this.failure("INSUFFICIENT_GOLD", `${item.name} costs ${item.price} gold.`);
+    const slotIndex = player.equipment.indexOf(null);
+    if (slotIndex < 0) return this.failure("EQUIPMENT_FULL", "All six equipment slots are full.");
+
+    player.goldUnits -= priceUnits;
+    player.equipment[slotIndex] = itemId;
+    this.emit("item_purchased", `${player.name} equipped ${item.name} at ${vendor.name}.`, {
+      playerId,
+      vendorId,
+      itemId,
+      position: vendor.position,
+    });
     return { ok: true };
   }
 
@@ -1063,7 +1118,7 @@ export class GameWorld {
   }
 
   private heroStats(player: PlayerState): HeroStatsSnapshot {
-    return deriveHeroStats(player.heroId, player.level);
+    return deriveHeroStats(player.heroId, player.level, player.equipment);
   }
 
   private abilityMagnitude(player: PlayerState, base: number, rank: number): number {
@@ -1297,7 +1352,7 @@ export class GameWorld {
       id: player.id, name: player.name, heroId: player.heroId, ready: player.ready, position: copy(player.position),
       velocity: copy(player.velocity), aim: copy(player.aim), hp: player.hp, maxHp: stats.maxHp, stats, barrier: player.barrier,
       maxBarrier: player.maxBarrier, level: player.level, xp: player.xp, nextLevelXp: this.nextLevelXp(player.level), gold: goldFromUnits(player.goldUnits),
-      kills: player.kills, abilityRanks: { ...player.abilityRanks }, skillPoints: player.skillPoints,
+      equipment: [...player.equipment] as EquipmentSlots, kills: player.kills, abilityRanks: { ...player.abilityRanks }, skillPoints: player.skillPoints,
       action: player.action ? this.copyAction(player.action) : null, downed: player.downedFor > 0,
       invulnerable: player.invulnerableFor > 0, cooldowns: { ...player.cooldowns }, lastInputSeq: player.lastInputSeq,
     };

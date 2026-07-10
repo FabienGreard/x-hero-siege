@@ -2,6 +2,17 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.7` — the First Forge
+
+**Status:** implemented and locally verified on 2026-07-10; deployment verification pending a configured game host.
+
+- Make the northwest Ironbound Forge a recognizable physical destination rather than a global menu or anonymous building.
+- Let a hero earn personal gold, retreat to the Forge, inspect two contrasting 24-gold wares, buy by mouse or `1`/`2`, auto-equip, and return to combat while the siege continues.
+- Establish exactly six unrestricted run-only slots immediately; duplicates occupy separate slots and stack additively from the hero's verified base stat.
+- Offer only Tempered Edge (`+20%` Basic Damage) and Fleetstep Greaves (`+10%` Move Speed), both inexhaustible and personal.
+- Keep stock, proximity, phase, living state, price, deduction, capacity, equipment, and effects authoritative on the server.
+- Prove one local detour and trade loop without claiming multiple-shop route choice, replacement, salvage, rarity, recipes, or permanent progression.
+
 ## `0.1.6` — truth before trade
 
 **Status:** implemented and locally verified on 2026-07-10; deployment verification pending a configured game host.
@@ -15,7 +26,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved Armory arc
 
-The next progression arc is intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. Shops must create readable route strategy without pausing multiplayer or making solo defense impractical. Begin with one physical vendor and one complete purchase/equip loop, then deepen replacement, duplicates, build tags, salvage, and at most one earned evolution per played checkpoint.
+The progression arc remains intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. `0.1.7` proves the first physical vendor, local access cost, choice, purchase, duplicate-ready capacity, and visible stat payoff; it deliberately does not claim multi-shop route strategy yet. Future checkpoints must begin with rendered play and add one deeper layer at a time—another distinct location, replacement, salvage, build tags, or one earned evolution—only when that layer is the highest-leverage weakness.
 
 ## `0.1.5` — authoritative contact spacing
 

@@ -63,6 +63,37 @@
               <span>COOLDOWN SPEED</span><strong id="stat-cooldown-recovery">—</strong><small>RECOVERY RATE</small>
             </div>
           </div>
+          <div class="equipment-readout">
+            <div class="equipment-heading">
+              <span class="eyebrow">EQUIPMENT</span>
+              <span id="equipment-count">0 / 6 SLOTS</span>
+            </div>
+            <div id="hero-equipment-slots" class="equipment-slots" aria-label="Six unrestricted equipment slots"></div>
+          </div>
+        </aside>
+
+        <aside
+          id="shop-panel"
+          class="shop-panel panel-chrome is-hidden"
+          aria-labelledby="shop-title"
+          aria-hidden="true"
+        >
+          <header class="shop-header">
+            <div>
+              <span class="eyebrow">NORTHWEST CITADEL</span>
+              <strong id="shop-title">IRONBOUND FORGE</strong>
+              <small>MARTIAL GOODS · THE SIEGE CONTINUES</small>
+            </div>
+            <button id="shop-close" type="button" aria-label="Close Ironbound Forge"><kbd>B</kbd> CLOSE</button>
+          </header>
+          <div class="shop-loadout">
+            <div class="equipment-heading">
+              <span class="eyebrow">YOUR LOADOUT</span>
+              <span class="shop-loadout-meta"><b id="shop-gold">0 GOLD</b><span id="shop-equipment-count">0 / 6</span></span>
+            </div>
+            <div id="shop-equipment-slots" class="equipment-slots is-compact" aria-label="Current equipment"></div>
+          </div>
+          <div id="shop-items" class="shop-items" aria-label="Items for sale"></div>
         </aside>
 
         <aside class="team-panel panel-chrome" aria-label="Party">

@@ -9,6 +9,7 @@ import type {
   ProjectileKind,
   Vec2,
 } from "../shared/protocol";
+import { VENDOR_DEFINITIONS } from "../shared/armory-data";
 import { HERO_DEFINITIONS, WORLD_LAYOUT } from "../shared/game-data";
 
 export const HERO_PRESENTATION: Record<HeroId, {
@@ -900,6 +901,13 @@ interface Brazier {
   seed: number;
 }
 
+interface ForgeVisual {
+  sigil: THREE.Mesh;
+  sigilGlow: THREE.Sprite;
+  sign: THREE.Group;
+  light: THREE.PointLight;
+}
+
 interface GateSealVisual {
   root: THREE.Group;
   ward: THREE.Mesh;
@@ -993,6 +1001,81 @@ function addBrazier(parent: THREE.Group, x: number, z: number, braziers: Brazier
   light.position.set(x, 2.6, z);
   parent.add(flame, light);
   braziers.push({ flame, light, seed });
+}
+
+function addIronboundForge(parent: THREE.Group, braziers: Brazier[]): ForgeVisual {
+  const vendor = VENDOR_DEFINITIONS.ironbound_forge;
+  const buildingX = -20;
+  const buildingZ = -19;
+  const stone = stoneMaterial("forge-building", 0x34383a);
+  const darkStone = stoneMaterial("forge-dark-stone", 0x262a2d);
+  const timber = stoneMaterial("forge-timber", 0x5b3d28);
+  const iron = stoneMaterial("forge-iron", 0x3c4143);
+  const warmIron = stoneMaterial("forge-warm-iron", 0x71513a);
+  const roof = stoneMaterial("forge-roof", 0x4a2c29);
+
+  addBox(parent, [8, 4, 6], [buildingX, 2, buildingZ], stone);
+  const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(5.8, 2.7, 4), roof);
+  roofMesh.position.set(buildingX, 5.25, buildingZ);
+  roofMesh.rotation.y = Math.PI / 4;
+  parent.add(roofMesh);
+
+  // The open counter faces the Nexus so the route and interaction side remain
+  // readable without adding collision or placing a shop panel over combat.
+  addBox(parent, [6.4, 1.25, 1.05], [buildingX, 0.64, -15.5], timber);
+  addBox(parent, [6.9, 0.26, 3.1], [buildingX, 3.7, -16.1], roof);
+  for (const x of [buildingX - 2.8, buildingX + 2.8]) {
+    addBox(parent, [0.3, 3.6, 0.3], [x, 1.8, -14.8], timber);
+  }
+
+  // Low-poly smith silhouette behind the counter.
+  const smithBody = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.7, 1.75, 6), darkStone);
+  smithBody.position.set(buildingX + 0.4, 1.73, -16.3);
+  const smithHead = new THREE.Mesh(new THREE.DodecahedronGeometry(0.42, 0), warmIron);
+  smithHead.position.set(buildingX + 0.4, 2.83, -16.3);
+  parent.add(smithBody, smithHead);
+
+  // Anvil and resting hammer make the forge legible before the UI prompt does.
+  addBox(parent, [1.45, 0.3, 0.7], [buildingX - 1.65, 1.32, -14.7], iron);
+  addBox(parent, [0.62, 0.9, 0.5], [buildingX - 1.65, 0.75, -14.7], darkStone);
+  const hammer = new THREE.Group();
+  addBox(hammer, [0.16, 1.15, 0.16], [0, 0.55, 0], timber).rotation.z = -0.58;
+  const hammerHead = addBox(hammer, [0.8, 0.28, 0.34], [0.32, 1.03, 0], iron);
+  hammerHead.rotation.z = -0.12;
+  hammer.position.set(buildingX + 1.6, 1.18, -15.05);
+  hammer.rotation.y = 0.35;
+  parent.add(hammer);
+
+  addBrazier(parent, buildingX - 3.5, -13.9, braziers, 7.4);
+
+  // Hanging hammer sign, deliberately warm and smaller than objective crystals.
+  const sign = new THREE.Group();
+  sign.position.set(buildingX + 3.2, 4.45, -14.9);
+  const board = addBox(sign, [1.55, 1.65, 0.22], [0, 0, 0], darkStone);
+  board.rotation.z = 0.02;
+  addBox(sign, [0.16, 1.05, 0.16], [-0.12, -0.02, 0.18], timber).rotation.z = -0.62;
+  addBox(sign, [0.84, 0.26, 0.18], [0.24, 0.37, 0.18], warmIron).rotation.z = -0.08;
+  parent.add(sign);
+
+  const sigil = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.58, 0),
+    new THREE.MeshStandardMaterial({ color: 0xf0c56f, emissive: 0x8b5423, emissiveIntensity: 1.45, roughness: 0.28 }),
+  );
+  sigil.position.set(vendor.position.x, 6.45, vendor.position.z);
+  const sigilGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture("#e9ba63"),
+    color: 0xe9ba63,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }));
+  sigilGlow.position.copy(sigil.position);
+  sigilGlow.scale.set(4.2, 4.2, 1);
+  const light = new THREE.PointLight(0xe9a54f, 1.7, 18, 2);
+  light.position.set(vendor.position.x, 4, vendor.position.z);
+  parent.add(sigil, sigilGlow, light);
+
+  return { sigil, sigilGlow, sign, light };
 }
 
 function addBanner(parent: THREE.Group, x: number, z: number, rotation: number, color: number): void {
@@ -1229,6 +1312,7 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
   for (const [index, point] of [[-11, -11], [11, -11], [-11, 11], [11, 11], [-43, -43], [43, -43], [-43, 43], [43, 43]] .entries()) {
     addBrazier(root, point[0] ?? 0, point[1] ?? 0, braziers, index * 0.81);
   }
+  const forge = addIronboundForge(root, braziers);
   addBanner(root, -10.5, -43, 0, 0x2f6e99);
   addBanner(root, 10.5, -43, Math.PI, 0x2f6e99);
   addBanner(root, -43, -10.5, Math.PI / 2, 0x3c7560);
@@ -1236,10 +1320,11 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
   addWagon(root, -31, 26, -0.4);
   addWagon(root, 30, -29, 2.2);
 
-  // Varied city silhouettes: forge, storehouse, chapel ruin, and watch hut.
+  // Remaining city silhouettes: storehouse, chapel ruin, and watch hut. The
+  // northwest building is the distinct, playable Ironbound Forge above.
   const roof = stoneMaterial("roof", 0x442b2c);
   const timber = stoneMaterial("timber", 0x513827);
-  for (const [x, z, w, d, h] of [[-20, -19, 8, 6, 4], [20, 19, 7, 8, 4.8], [-19, 20, 6, 6, 5.2], [20, -20, 6, 6, 3.5]] as const) {
+  for (const [x, z, w, d, h] of [[20, 19, 7, 8, 4.8], [-19, 20, 6, 6, 5.2], [20, -20, 6, 6, 3.5]] as const) {
     addBox(root, [w, h, d], [x, h / 2, z], stoneMaterial("building", 0x30383a));
     const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 2.6, 4), roof);
     roofMesh.position.set(x, h + 1.25, z);
@@ -1328,6 +1413,15 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
       brazier.flame.position.y = 2.15 + Math.sin(elapsed * 7 + brazier.seed) * 0.08;
       brazier.light.intensity = 1.2 + pulse * 0.7;
     }
+    const forgePulse = 0.9 + Math.sin(elapsed * 3.2) * 0.1;
+    forge.sigil.rotation.y = elapsed * 0.82;
+    forge.sigil.rotation.z = Math.sin(elapsed * 1.6) * 0.12;
+    forge.sigil.position.y = 6.45 + Math.sin(elapsed * 2.2) * 0.18;
+    forge.sigilGlow.position.y = forge.sigil.position.y;
+    forge.sigilGlow.scale.setScalar(3.8 + forgePulse * 0.55);
+    forge.sigilGlow.material.opacity = 0.38 + forgePulse * 0.2;
+    forge.light.intensity = 1.15 + forgePulse * 0.72;
+    forge.sign.rotation.z = Math.sin(elapsed * 0.9) * 0.012;
     const laneSelectionActive = phase === "defense" || phase === "breach";
     for (const lane of ["north", "east", "south", "west"] as const) {
       const isPressure = lane === pressure;
