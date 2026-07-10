@@ -84,6 +84,15 @@ export interface RiftHeartSnapshot {
   active: boolean;
 }
 
+export interface HeroStatsSnapshot {
+  maxHp: number;
+  moveSpeed: number;
+  basicDamage: number;
+  basicAttackInterval: number;
+  abilityPower: number;
+  cooldownRecovery: number;
+}
+
 export interface PlayerSnapshot {
   id: string;
   name: string;
@@ -93,7 +102,9 @@ export interface PlayerSnapshot {
   velocity: Vec2;
   aim: Vec2;
   hp: number;
+  /** Compatibility projection of stats.maxHp for existing clients. */
   maxHp: number;
+  stats: HeroStatsSnapshot;
   barrier: number;
   maxBarrier: number;
   level: number;

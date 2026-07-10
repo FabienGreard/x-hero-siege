@@ -106,7 +106,8 @@ A scythe-wielding occult warrior who turns dense hordes into sustain and spirits
 - Movement direction, attack direction, anticipation, impact, and recovery must remain readable from the world animation without relying on the HUD. Enemy damage never lands before a visible windup.
 - Party scaling comes from one equally pressured lane per starting player, not faster global cadence or multiplayer enemy-health inflation. The chosen lane set stays fixed for the defense so players can claim and rotate between fronts deliberately.
 - Defense approaches must be deep enough to intercept a wave outside the gate, retreat through the city, and reposition around the Nexus. Persistent enemy-facing furniture is avoided; attack telegraphs appear only when they carry actionable timing.
-- Full-game items use six equipment sockets, concise equip/replace/salvage decisions, build tags, duplicate ranks, and evolved recipes. Broad loot catalogs, crafting, recipes, permanent progression, and inventory automation are explicitly deferred until the combat slice earns expansion.
+- The approved Armory arc uses multiple physical Citadel shops with different small inventories whose locations create route choices without making solo defense impractical. Purchases never pause multiplayer, use personal co-op-safe gold, and reset every run.
+- Heroes have exactly six unrestricted equipment slots: any item or duplicate may occupy any slot. Start with a curated catalog and concise buy/equip decisions; deepen replacement, salvage, build tags, duplicate ranks, and one earned evolution at a time only after rendered play proves the prior layer. Broad loot catalogs, recipe trees, crafting, permanent progression, inventory grids, and automation remain deferred.
 
 ## Scope guard
 

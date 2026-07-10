@@ -2,6 +2,21 @@
 
 All notable project changes are recorded here.
 
+## [0.1.6] - 2026-07-10
+
+### Changed
+
+- Added one canonical server-derived Hero Stats model for maximum health, movement speed, basic damage, attack interval, skill power, and cooldown recovery.
+- Routed combat, movement, healing, barriers, ability magnitude, and cooldown presentation through those authoritative values while retaining the existing snapshot compatibility projection.
+- Added a compact, non-pausing `C` Hero Stats panel that reads the server snapshot directly and closes outside active play.
+- Made personal gold cooperative: every enemy reward is divided equally among connected players in exact fixed-point units while kill credit remains with the finishing hero.
+- Made gold and Rift Shard drops honest visual feedback instead of proximity-consumable objects that could imply or grant a second reward.
+
+### Preserved
+
+- Every hero's baseline health, movement, basic damage, attack cadence, ability rank scaling, cooldowns, controls, and solo gold income.
+- Four-hero authority, fixed player-sized lanes, central Nexus pressure, breach, counterattack, Rift payoff, art language, and procedural audio.
+
 ## [0.1.5] - 2026-07-10
 
 ### Changed

@@ -27,6 +27,7 @@ Useful read-only diagnostics:
 - Hold left mouse: primary attack
 - `Q`, `E`, `R`: active abilities
 - `F`: ultimate
+- `C`: toggle the non-pausing Hero Stats panel
 - Click the gold `+` on an ability slot: spend a skill point directly from the action bar
 - `Ctrl` + `Q`, `E`, `R`, or `F`: matching keyboard upgrade shortcut
 
@@ -85,6 +86,16 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - One change that would most improve the next playtest.
 
 After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.6`, 2026-07-10
+
+- Began from pushed `0.1.5` and played a normal-speed Riftstalker opening at 1280×720. Reaching level 2 silently changed maximum health from 125 to 133 and produced 24 gold, but the player had no readable way to inspect either the hero's combat baseline or what progression had changed.
+- Replayed the implemented checkpoint as Warden and Riftstalker. The `C` panel displayed authoritative basic damage, maximum health, attacks per second, movement speed, skill power, and cooldown speed directly from the live snapshot.
+- Held movement and primary attack with the panel open, then ranked and cast `Q`. The hero continued moving and attacking, the ability learned and entered cooldown, and the panel remained visible without pausing or taking focus. `C` toggles it and `Escape` closes it.
+- Enemy gold is now divided equally among every connected player in fixed-point units while only the finishing hero receives kill credit. Deterministic one-, two-, three-, and four-player coverage proves the Gatebreaker's 35 gold is conserved exactly, including repeated three-player fractional payouts, and no lane or last hit can steal required purchasing power.
+- Solo gold income is unchanged. Gold and Rift Shard drops remain visible, expire naturally, and cannot be collected for duplicate credit; only healing drops retain proximity consumption. Starting a new run resets all wallets.
+- Typecheck, 31 server tests with 398 assertions, the real four-client WebSocket smoke test, production build, and rendered browser diagnostics passed.
+- Saved evidence: [truthful Hero Stats during live Nexus defense](playtest/truth-before-trade.jpg).
 
 ## Recorded verification — `0.1.5`, 2026-07-10
 

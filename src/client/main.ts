@@ -63,6 +63,15 @@ const lobbyCount = requiredElement<HTMLSpanElement>("lobby-count");
 const lobbyNote = requiredElement<HTMLSpanElement>("lobby-note");
 const connectionPill = requiredElement<HTMLDivElement>("connection-pill");
 const connectionLabel = requiredElement<HTMLSpanElement>("connection-label");
+const heroStatsToggle = requiredElement<HTMLButtonElement>("hero-stats-toggle");
+const heroStatsPanel = requiredElement<HTMLElement>("hero-stats-panel");
+const heroStatsName = requiredElement<HTMLElement>("hero-stats-name");
+const statBasicDamage = requiredElement<HTMLElement>("stat-basic-damage");
+const statMaxHealth = requiredElement<HTMLElement>("stat-max-health");
+const statAttackRate = requiredElement<HTMLElement>("stat-attack-rate");
+const statMoveSpeed = requiredElement<HTMLElement>("stat-move-speed");
+const statAbilityPower = requiredElement<HTMLElement>("stat-ability-power");
+const statCooldownRecovery = requiredElement<HTMLElement>("stat-cooldown-recovery");
 const teamList = requiredElement<HTMLDivElement>("team-list");
 const phaseLabel = requiredElement<HTMLSpanElement>("phase-label");
 const waveLabel = requiredElement<HTMLSpanElement>("wave-label");
@@ -177,6 +186,7 @@ let joinedName = "";
 let endTimer: number | null = null;
 let endScheduledFor: "victory" | "defeat" | null = null;
 let victoryVisualStartedAt: number | null = null;
+let heroStatsOpen = false;
 const keys = new Set<string>();
 const pointer = new THREE.Vector2(0, 0);
 const aimWorld = new THREE.Vector3(0, 0, -10);
@@ -330,6 +340,40 @@ function heroCss(heroId: HeroId | null): void {
   const presentation = HERO_PRESENTATION[heroId];
   document.documentElement.style.setProperty("--hero-color", presentation.color);
   document.documentElement.style.setProperty("--hero-dark", presentation.dark);
+}
+
+function isHeroStatsPhase(phase: GamePhase | undefined): boolean {
+  return phase === "defense" || phase === "breach" || phase === "push";
+}
+
+function setHeroStatsOpen(open: boolean): void {
+  const self = snapshot?.players.find((player) => player.id === localPlayerId);
+  const nextOpen = open && isHeroStatsPhase(snapshot?.phase) && Boolean(self?.heroId);
+  heroStatsOpen = nextOpen;
+  heroStatsPanel.classList.toggle("is-hidden", !nextOpen);
+  heroStatsPanel.setAttribute("aria-hidden", String(!nextOpen));
+  heroStatsToggle.classList.toggle("is-open", nextOpen);
+  heroStatsToggle.setAttribute("aria-expanded", String(nextOpen));
+  heroStatsToggle.setAttribute("aria-label", `${nextOpen ? "Close" : "Open"} hero stats (C)`);
+}
+
+function formatHeroStat(value: number, decimals = 0): string {
+  if (!Number.isFinite(value)) return "—";
+  const fixed = value.toFixed(decimals);
+  return fixed.replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
+}
+
+function updateHeroStats(self: PlayerSnapshot): void {
+  const stats = self.stats;
+  heroStatsName.textContent = self.heroId ? HERO_DEFINITIONS[self.heroId].name : "Defender";
+  statBasicDamage.textContent = formatHeroStat(stats.basicDamage, 1);
+  statMaxHealth.textContent = formatHeroStat(stats.maxHp);
+  statAttackRate.textContent = stats.basicAttackInterval > 0
+    ? formatHeroStat(1 / stats.basicAttackInterval, 2)
+    : "—";
+  statMoveSpeed.textContent = formatHeroStat(stats.moveSpeed, 1);
+  statAbilityPower.textContent = `${formatHeroStat(stats.abilityPower * 100)}%`;
+  statCooldownRecovery.textContent = `${formatHeroStat(stats.cooldownRecovery * 100)}%`;
 }
 
 function renderHeroCards(): void {
@@ -522,6 +566,9 @@ function applySnapshot(next: GameSnapshot): void {
     selectedHero = self.heroId;
     heroCss(self.heroId);
   }
+  const heroStatsAvailable = Boolean(self?.heroId) && isHeroStatsPhase(next.phase);
+  heroStatsToggle.classList.toggle("is-hidden", !heroStatsAvailable);
+  if (!heroStatsAvailable) setHeroStatsOpen(false);
 
   if (next.phase !== previousPhase) {
     if (!firstSnapshot) onPhaseChanged(next.phase);
@@ -834,11 +881,12 @@ function updateHud(state: GameSnapshot, self: PlayerSnapshot | undefined): void 
   heroLevel.textContent = String(self.level);
   heroHealth.style.width = `${Math.max(0, (self.hp / Math.max(1, self.maxHp)) * 100)}%`;
   heroHealthValue.textContent = `${Math.ceil(self.hp)} / ${self.maxHp}${self.barrier > 0 ? `  +${Math.ceil(self.barrier)}` : ""}`;
-  goldValue.textContent = String(self.gold);
+  goldValue.textContent = String(Math.floor(self.gold));
   killsValue.textContent = String(self.kills);
   if (self.heroId) {
     heroOrb.dataset.hero = self.heroId;
     updateAbilityBar(self);
+    updateHeroStats(self);
   }
 }
 
@@ -917,10 +965,11 @@ function updateAbilityBar(self: PlayerSnapshot): void {
     const ability = definition.abilities[slot.action];
     const rank = self.abilityRanks[slot.action] ?? 0;
     const cooldown = Math.max(0, self.cooldowns[slot.action] ?? 0);
+    const effectiveCooldown = slot.cooldown / Math.max(0.01, self.stats.cooldownRecovery);
     const maxed = rank >= slot.maxRank;
     const canUpgrade = self.skillPoints > 0 && self.level >= ability.unlockLevel && !maxed;
     if (canUpgrade) upgradeableCount += 1;
-    element.style.setProperty("--cooldown", `${Math.min(100, (cooldown / slot.cooldown) * 100)}%`);
+    element.style.setProperty("--cooldown", `${Math.min(100, (cooldown / effectiveCooldown) * 100)}%`);
     element.classList.toggle("is-locked", rank === 0);
     element.classList.toggle("is-level-locked", self.level < ability.unlockLevel);
     element.classList.toggle("is-maxed", maxed);
@@ -1129,8 +1178,22 @@ function cast(slot: AbilitySlot): void {
   window.setTimeout(() => abilityBar.querySelector(`[data-action="${slot}"]`)?.classList.remove("is-active"), 100);
 }
 
+heroStatsToggle.addEventListener("click", () => setHeroStatsOpen(!heroStatsOpen));
+
 window.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement) return;
+  if (event.code === "KeyC" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    if (!event.repeat) {
+      event.preventDefault();
+      setHeroStatsOpen(!heroStatsOpen);
+    }
+    return;
+  }
+  if (event.code === "Escape" && heroStatsOpen) {
+    event.preventDefault();
+    setHeroStatsOpen(false);
+    return;
+  }
   if (event.code === "KeyW" || event.code === "KeyA" || event.code === "KeyS" || event.code === "KeyD") keys.add(event.code);
   if (event.repeat) return;
   const keyedSkill = event.code === "KeyQ" ? "ability1"

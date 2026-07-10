@@ -21,6 +21,7 @@ import type {
   GamePhase,
   GameSnapshot,
   HeroId,
+  HeroStatsSnapshot,
   LaneId,
   PickupSnapshot,
   PlayerSnapshot,
@@ -29,6 +30,8 @@ import type {
   SummonSnapshot,
   Vec2,
 } from "../shared/protocol";
+import { goldFromUnits, goldRewardShareUnits } from "./economy";
+import { deriveHeroStats } from "./hero-stats";
 
 export interface GameTimings {
   defenseDuration: number;
@@ -62,12 +65,11 @@ interface PlayerState {
   move: Vec2;
   attacking: boolean;
   hp: number;
-  maxHp: number;
   barrier: number;
   maxBarrier: number;
   level: number;
   xp: number;
-  gold: number;
+  goldUnits: number;
   kills: number;
   abilityRanks: Record<AbilitySlot, number>;
   skillPoints: number;
@@ -234,12 +236,11 @@ export class GameWorld {
       move: { x: 0, z: 0 },
       attacking: false,
       hp: 100,
-      maxHp: 100,
       barrier: 0,
       maxBarrier: 100,
       level: 1,
       xp: 0,
-      gold: 0,
+      goldUnits: 0,
       kills: 0,
       abilityRanks: ZERO_ABILITY_RANKS(),
       skillPoints: 0,
@@ -444,8 +445,7 @@ export class GameWorld {
       player.xp -= this.nextLevelXp(player.level);
       player.level += 1;
       player.skillPoints = Math.min(player.skillPoints + 1, this.remainingAbilityRanks(player));
-      player.maxHp += 8;
-      player.hp = Math.min(player.maxHp, player.hp + 20);
+      player.hp = Math.min(this.heroStats(player).maxHp, player.hp + 20);
     }
   }
 
@@ -509,19 +509,17 @@ export class GameWorld {
     const starts: Vec2[] = [{ x: -4, z: 7 }, { x: 4, z: 7 }, { x: -4, z: -7 }, { x: 4, z: -7 }];
     let index = 0;
     for (const player of this.players.values()) {
-      const hero = HERO_DEFINITIONS[player.heroId!];
       player.position = copy(starts[index++]!);
       player.velocity = { x: 0, z: 0 };
       player.move = { x: 0, z: 0 };
       player.aim = { x: 0, z: -1 };
       player.attacking = false;
-      player.maxHp = hero.maxHp;
-      player.hp = hero.maxHp;
       player.maxBarrier = 100;
       player.barrier = 0;
       player.level = 1;
+      player.hp = this.heroStats(player).maxHp;
       player.xp = 0;
-      player.gold = 0;
+      player.goldUnits = 0;
       player.kills = 0;
       player.abilityRanks = ZERO_ABILITY_RANKS();
       player.skillPoints = 1;
@@ -560,7 +558,8 @@ export class GameWorld {
     if (player.action && player.action.kind !== "basic") return this.failure("ACTION_BUSY", "Finish the current action first.");
     if (player.abilityRanks[slot] <= 0) return this.failure("ABILITY_UNLEARNED", "Spend a skill point on this ability first.");
     if (player.cooldowns[slot] > 0) return this.failure("COOLDOWN", "Ability is cooling down.");
-    player.cooldowns[slot] = HERO_DEFINITIONS[player.heroId].abilities[slot].cooldown;
+    const stats = this.heroStats(player);
+    player.cooldowns[slot] = HERO_DEFINITIONS[player.heroId].abilities[slot].cooldown / stats.cooldownRecovery;
     const timing = PLAYER_ACTION_TIMINGS[slot];
     player.action = this.action(slot, "windup", timing.windup, normalize(player.aim));
     return { ok: true };
@@ -570,22 +569,22 @@ export class GameWorld {
     if (slot === "ability1") {
       const origin = copy(player.position);
       const reach = this.rankRadius(10, rank);
-      this.damageLine(player, origin, aim, reach, this.rankRadius(2.5, rank), this.rankDamage(58, rank));
+      this.damageLine(player, origin, aim, reach, this.rankRadius(2.5, rank), this.abilityMagnitude(player, 58, rank));
       player.position.x += aim.x * reach; player.position.z += aim.z * reach; this.clampPlayer(player);
       const midpoint = { x: origin.x + aim.x * reach * 0.5, z: origin.z + aim.z * reach * 0.5 };
       this.effect("warden_charge", midpoint, reach * 0.5, player.id, 0.55, null, this.directionYaw(aim));
     } else if (slot === "ability2") {
       const reach = this.rankRadius(15, rank);
-      this.damageLine(player, player.position, aim, reach, this.rankRadius(3.7, rank), this.rankDamage(72, rank));
+      this.damageLine(player, player.position, aim, reach, this.rankRadius(3.7, rank), this.abilityMagnitude(player, 72, rank));
       this.effect("warden_wave", player.position, reach, player.id, 0.65, null, this.directionYaw(aim));
     } else if (slot === "ability3") {
       const radius = this.rankRadius(9, rank);
-      this.damageCircle(player, player.position, radius, this.rankDamage(38, rank));
-      player.barrier = Math.min(player.maxBarrier, player.barrier + this.rankDamage(30, rank));
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 38, rank));
+      player.barrier = Math.min(player.maxBarrier, player.barrier + this.abilityMagnitude(player, 30, rank));
       this.effect("war_standard", player.position, radius, player.id, 5 + rank);
     } else {
       const radius = this.rankRadius(17, rank);
-      this.damageCircle(player, player.position, radius, this.rankDamage(145, rank));
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 145, rank));
       player.barrier = player.maxBarrier;
       this.effect("warden_bastion", player.position, radius, player.id, 1.2);
     }
@@ -594,55 +593,55 @@ export class GameWorld {
   private castRiftstalker(player: PlayerState, slot: AbilitySlot, aim: Vec2, target: Vec2, rank: number): void {
     if (slot === "ability1") {
       player.position.x -= aim.x * 6; player.position.z -= aim.z * 6; this.clampPlayer(player); player.invulnerableFor = 0.3;
-      this.fireProjectile(player, "arrow", aim, this.rankDamage(44, rank), 31, 2, this.rankRadius(0.45, rank));
+      this.fireProjectile(player, "arrow", aim, this.abilityMagnitude(player, 44, rank), 31, 2, this.rankRadius(0.45, rank));
       this.effect("slash", player.position, this.rankRadius(2, rank), player.id);
     } else if (slot === "ability2") {
-      for (const angle of [-0.18, 0, 0.18]) this.fireProjectile(player, "splitbolt", rotate(aim, angle), this.rankDamage(47, rank), 29, 4, this.rankRadius(0.45, rank));
+      for (const angle of [-0.18, 0, 0.18]) this.fireProjectile(player, "splitbolt", rotate(aim, angle), this.abilityMagnitude(player, 47, rank), 29, 4, this.rankRadius(0.45, rank));
     } else if (slot === "ability3") {
       const radius = this.rankRadius(7.5, rank);
-      this.damageCircle(player, target, radius, this.rankDamage(28, rank), 4); this.effect("snare", target, radius, player.id, 1.1);
+      this.damageCircle(player, target, radius, this.abilityMagnitude(player, 28, rank), 4); this.effect("snare", target, radius, player.id, 1.1);
     } else {
-      for (let index = -5; index <= 5; index++) this.fireProjectile(player, "arrow", rotate(aim, index * 0.075), this.rankDamage(48, rank), 34, 3, this.rankRadius(0.45, rank));
+      for (let index = -5; index <= 5; index++) this.fireProjectile(player, "arrow", rotate(aim, index * 0.075), this.abilityMagnitude(player, 48, rank), 34, 3, this.rankRadius(0.45, rank));
     }
   }
 
   private castAshcaller(player: PlayerState, slot: AbilitySlot, aim: Vec2, target: Vec2, rank: number): void {
     if (slot === "ability1") {
       const radius = this.rankRadius(7, rank);
-      this.damageCircle(player, player.position, radius, this.rankDamage(54, rank)); this.effect("fire", player.position, radius, player.id);
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 54, rank)); this.effect("fire", player.position, radius, player.id);
     } else if (slot === "ability2") {
       const hit = new Set<string>();
       for (let step = 1; step <= 5; step++) {
         const point = { x: player.position.x + aim.x * step * 3.2, z: player.position.z + aim.z * step * 3.2 };
         const radius = this.rankRadius(3.2, rank);
-        this.damageCircle(player, point, radius, this.rankDamage(42, rank), 2, hit); this.effect("fire", point, radius, player.id, 1);
+        this.damageCircle(player, point, radius, this.abilityMagnitude(player, 42, rank), 2, hit); this.effect("fire", point, radius, player.id, 1);
       }
     } else if (slot === "ability3") {
       const radius = this.rankRadius(8, rank);
       this.effect("meteor_warning", target, radius, player.id, 0.9);
-      this.delayed.push({ at: this.totalTime + 0.8, ownerId: player.id, position: target, radius, damage: this.rankDamage(105, rank), kind: "meteor" });
+      this.delayed.push({ at: this.totalTime + 0.8, ownerId: player.id, position: target, radius, damage: this.abilityMagnitude(player, 105, rank), kind: "meteor" });
     } else {
       const radius = this.rankRadius(19, rank);
-      this.damageCircle(player, player.position, radius, this.rankDamage(155, rank)); this.effect("fire", player.position, radius, player.id, 1.2);
+      this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, 155, rank)); this.effect("fire", player.position, radius, player.id, 1.2);
     }
   }
 
   private castGravebinder(player: PlayerState, slot: AbilitySlot, aim: Vec2, target: Vec2, rank: number): void {
     if (slot === "ability1") {
       const radius = this.rankRadius(8, rank);
-      const hit = this.damageCircle(player, target, radius, this.rankDamage(67, rank));
+      const hit = this.damageCircle(player, target, radius, this.abilityMagnitude(player, 67, rank));
       for (const enemy of this.enemies.values()) if (distance(enemy.position, target) <= radius) {
         const pull = normalize({ x: player.position.x - enemy.position.x, z: player.position.z - enemy.position.z });
         enemy.position.x += pull.x * 4; enemy.position.z += pull.z * 4;
       }
-      player.hp = Math.min(player.maxHp, player.hp + hit * this.rankDamage(7, rank)); this.effect("souls", target, radius, player.id);
+      player.hp = Math.min(this.heroStats(player).maxHp, player.hp + hit * this.abilityMagnitude(player, 7, rank)); this.effect("souls", target, radius, player.id);
     } else if (slot === "ability2") {
-      player.barrier = Math.min(player.maxBarrier, player.barrier + this.rankDamage(75, rank)); this.effect("heal", player.position, this.rankRadius(4, rank), player.id);
+      player.barrier = Math.min(player.maxBarrier, player.barrier + this.abilityMagnitude(player, 75, rank)); this.effect("heal", player.position, this.rankRadius(4, rank), player.id);
     } else if (slot === "ability3") {
       this.raiseWraithHost(player, rank);
       this.effect("souls", player.position, this.rankRadius(7, rank), player.id, 0.8);
     } else {
-      this.fireProjectile(player, "death_tide", aim, this.rankDamage(125, rank), 19, 99, this.rankRadius(3.2, rank));
+      this.fireProjectile(player, "death_tide", aim, this.abilityMagnitude(player, 125, rank), 19, 99, this.rankRadius(3.2, rank));
       this.effect("souls", player.position, this.rankRadius(10, rank), player.id, 1);
     }
   }
@@ -654,7 +653,7 @@ export class GameWorld {
       if (player.downedFor > 0) {
         player.downedFor -= dt;
         if (player.downedFor <= 0) {
-          player.hp = player.maxHp * 0.55; player.position = { x: 0, z: 6 }; player.invulnerableFor = 2;
+          player.hp = this.heroStats(player).maxHp * 0.55; player.position = { x: 0, z: 6 }; player.invulnerableFor = 2;
           this.emit("player_revived", `${player.name} returned at the Nexus.`, { playerId: player.id });
         }
         player.action = null;
@@ -663,10 +662,11 @@ export class GameWorld {
       }
       const hero = player.heroId ? HERO_DEFINITIONS[player.heroId] : null;
       if (!hero) continue;
+      const stats = this.heroStats(player);
       this.updatePlayerAction(player, dt);
       const movement = length(player.move) > 1 ? normalize(player.move) : player.move;
       const movementScale = !player.action ? 1 : player.action.phase === "recovery" ? 0.45 : 0;
-      player.velocity = { x: movement.x * hero.speed * movementScale, z: movement.z * hero.speed * movementScale };
+      player.velocity = { x: movement.x * stats.moveSpeed * movementScale, z: movement.z * stats.moveSpeed * movementScale };
       player.position.x += player.velocity.x * dt;
       player.position.z += player.velocity.z * dt;
       this.clampPlayer(player);
@@ -691,7 +691,7 @@ export class GameWorld {
     }
     if (current.phase === "active") {
       const duration = current.kind === "basic"
-        ? Math.max(0.08, (player.heroId ? HERO_DEFINITIONS[player.heroId].basicCooldown : 0.4) * 0.28)
+        ? Math.max(0.08, this.heroStats(player).basicAttackInterval * 0.28)
         : PLAYER_ACTION_TIMINGS[current.kind].recovery;
       player.action = this.action(current.kind, "recovery", duration, current.direction);
       return;
@@ -701,9 +701,9 @@ export class GameWorld {
 
   private startBasicAttack(player: PlayerState): void {
     if (!player.heroId) return;
-    const hero = HERO_DEFINITIONS[player.heroId];
-    player.cooldowns.basic = hero.basicCooldown;
-    const windup = clamp(hero.basicCooldown * 0.34, 0.08, 0.18);
+    const stats = this.heroStats(player);
+    player.cooldowns.basic = stats.basicAttackInterval;
+    const windup = clamp(stats.basicAttackInterval * 0.34, 0.08, 0.18);
     player.action = this.action("basic", "windup", windup, normalize(player.aim));
   }
 
@@ -725,12 +725,11 @@ export class GameWorld {
 
   private basicAttackImpact(player: PlayerState, direction: Vec2): void {
     if (!player.heroId) return;
-    const hero = HERO_DEFINITIONS[player.heroId];
-    const damage = hero.basicDamage;
+    const damage = this.heroStats(player).basicDamage;
     if (player.heroId === "warden" || player.heroId === "gravebinder") {
       const center = { x: player.position.x + direction.x * 3.2, z: player.position.z + direction.z * 3.2 };
       const hits = this.damageCircle(player, center, 3.8, damage);
-      if (player.heroId === "gravebinder" && hits) player.hp = Math.min(player.maxHp, player.hp + hits * 2.5);
+      if (player.heroId === "gravebinder" && hits) player.hp = Math.min(this.heroStats(player).maxHp, player.hp + hits * 2.5);
       this.effect("slash", center, 4, player.id, 0.35, null, this.directionYaw(direction));
     } else {
       this.fireProjectile(player, player.heroId === "ashcaller" ? "ember" : "arrow", direction, damage, player.heroId === "ashcaller" ? 23 : 29, 1);
@@ -777,7 +776,7 @@ export class GameWorld {
         radius: 0.72,
         remaining: 6 + rank * 1.25,
         targetId: null,
-        damage: this.rankDamage(24, rank),
+        damage: this.abilityMagnitude(player, 24, rank),
         speed: 14.5 + rank,
         strikeCooldown: index * 0.12,
         orbitOffset: angle,
@@ -1063,8 +1062,12 @@ export class GameWorld {
     return { ...action, direction: copy(action.direction) };
   }
 
-  private rankDamage(base: number, rank: number): number {
-    return base * (1 + Math.max(0, rank - 1) * 0.25);
+  private heroStats(player: PlayerState): HeroStatsSnapshot {
+    return deriveHeroStats(player.heroId, player.level);
+  }
+
+  private abilityMagnitude(player: PlayerState, base: number, rank: number): number {
+    return base * (1 + Math.max(0, rank - 1) * 0.25) * this.heroStats(player).abilityPower;
   }
 
   private rankRadius(base: number, rank: number): number {
@@ -1114,7 +1117,9 @@ export class GameWorld {
 
   private killEnemy(enemy: EnemyState, source: PlayerState): void {
     if (!this.enemies.delete(enemy.id)) return;
-    source.kills += 1; source.gold += enemy.gold;
+    source.kills += 1;
+    const goldShareUnits = goldRewardShareUnits(enemy.gold, this.players.size);
+    for (const player of this.players.values()) player.goldUnits += goldShareUnits;
     for (const player of this.players.values()) this.grantExperience(player.id, enemy.xp);
     const pickup: PickupState = { id: this.id("pickup"), kind: enemy.elite ? "rift_shard" : "gold", position: copy(enemy.position), value: enemy.gold, remaining: 6 };
     this.pickups.set(pickup.id, pickup);
@@ -1146,9 +1151,12 @@ export class GameWorld {
     for (const pickup of [...this.pickups.values()]) {
       pickup.remaining -= dt;
       if (pickup.remaining <= 0) { this.pickups.delete(pickup.id); continue; }
+      // Gold and Rift Shards are shared reward feedback, not stealable
+      // transactions. Only restorative pickups are consumed by proximity.
+      if (pickup.kind !== "heal") continue;
       const player = this.closestLivingPlayer(pickup.position, 4.5);
       if (!player) continue;
-      if (pickup.kind === "heal") player.hp = Math.min(player.maxHp, player.hp + pickup.value);
+      player.hp = Math.min(this.heroStats(player).maxHp, player.hp + pickup.value);
       this.pickups.delete(pickup.id);
     }
   }
@@ -1284,10 +1292,11 @@ export class GameWorld {
   }
 
   private playerSnapshot(player: PlayerState): PlayerSnapshot {
+    const stats = this.heroStats(player);
     return {
       id: player.id, name: player.name, heroId: player.heroId, ready: player.ready, position: copy(player.position),
-      velocity: copy(player.velocity), aim: copy(player.aim), hp: player.hp, maxHp: player.maxHp, barrier: player.barrier,
-      maxBarrier: player.maxBarrier, level: player.level, xp: player.xp, nextLevelXp: this.nextLevelXp(player.level), gold: player.gold,
+      velocity: copy(player.velocity), aim: copy(player.aim), hp: player.hp, maxHp: stats.maxHp, stats, barrier: player.barrier,
+      maxBarrier: player.maxBarrier, level: player.level, xp: player.xp, nextLevelXp: this.nextLevelXp(player.level), gold: goldFromUnits(player.goldUnits),
       kills: player.kills, abilityRanks: { ...player.abilityRanks }, skillPoints: player.skillPoints,
       action: player.action ? this.copyAction(player.action) : null, downed: player.downedFor > 0,
       invulnerable: player.invulnerableFor > 0, cooldowns: { ...player.cooldowns }, lastInputSeq: player.lastInputSeq,

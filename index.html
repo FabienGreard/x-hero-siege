@@ -20,6 +20,51 @@
           <span id="connection-label">Waking the realm…</span>
         </div>
 
+        <button
+          id="hero-stats-toggle"
+          class="hero-stats-toggle is-hidden"
+          type="button"
+          aria-controls="hero-stats-panel"
+          aria-expanded="false"
+        >
+          <kbd>C</kbd><span>STATS</span>
+        </button>
+
+        <aside
+          id="hero-stats-panel"
+          class="hero-stats-panel panel-chrome is-hidden"
+          aria-labelledby="hero-stats-title"
+          aria-hidden="true"
+        >
+          <header class="hero-stats-header">
+            <div>
+              <span id="hero-stats-title" class="eyebrow">HERO STATS</span>
+              <strong id="hero-stats-name">DEFENDER</strong>
+            </div>
+            <span class="hero-stats-close"><kbd>C</kbd> CLOSE</span>
+          </header>
+          <div class="hero-stats-grid">
+            <div class="hero-stat">
+              <span>BASIC DAMAGE</span><strong id="stat-basic-damage">—</strong><small>PER HIT</small>
+            </div>
+            <div class="hero-stat">
+              <span>MAX HEALTH</span><strong id="stat-max-health">—</strong><small>TOTAL</small>
+            </div>
+            <div class="hero-stat">
+              <span>ATTACK RATE</span><strong id="stat-attack-rate">—</strong><small>ATTACKS / SEC</small>
+            </div>
+            <div class="hero-stat">
+              <span>MOVE SPEED</span><strong id="stat-move-speed">—</strong><small>WORLD / SEC</small>
+            </div>
+            <div class="hero-stat">
+              <span>SKILL POWER</span><strong id="stat-ability-power">—</strong><small>ALL ABILITIES</small>
+            </div>
+            <div class="hero-stat">
+              <span>COOLDOWN SPEED</span><strong id="stat-cooldown-recovery">—</strong><small>RECOVERY RATE</small>
+            </div>
+          </div>
+        </aside>
+
         <aside class="team-panel panel-chrome" aria-label="Party">
           <div class="eyebrow">DEFENDERS</div>
           <div id="team-list" class="team-list"></div>

@@ -2,6 +2,21 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.6` — truth before trade
+
+**Status:** implemented and locally verified on 2026-07-10; deployment verification pending a configured game host.
+
+- Establish one canonical, server-derived source for maximum health, movement speed, basic damage, attack cadence, skill power, and cooldown recovery.
+- Expose those values in one compact `C` panel without pausing play, stealing combat input, or inferring authority on the client.
+- Divide every enemy's personal gold reward evenly among connected players so lane assignment and last hits cannot distort purchasing power.
+- Keep dropped gold and Rift Shards as honest combat feedback rather than a second, proximity-consumable reward path.
+- Preserve all current hero baselines, solo income, skill ranks, controls, visual language, encounter balance, and phase flow.
+- Verify the live rendered panel during movement and casting, one-to-four-player reward accounting, production build, and real four-client state.
+
+## Approved Armory arc
+
+The next progression arc is intentionally narrow: multiple physical Citadel shops with different small inventories, run-only purchases, and exactly six unrestricted equipment slots. Any item or duplicate may occupy any slot. Shops must create readable route strategy without pausing multiplayer or making solo defense impractical. Begin with one physical vendor and one complete purchase/equip loop, then deepen replacement, duplicates, build tags, salvage, and at most one earned evolution per played checkpoint.
+
 ## `0.1.5` — authoritative contact spacing
 
 **Status:** implemented and locally verified on 2026-07-10; deployment verification pending a configured game host.
@@ -106,7 +121,7 @@ Do not schedule expansion until those answers support it in the actual build.
 ## Deferred beyond the slice
 
 - Larger wave and boss catalogs.
-- Equipment sockets, loot rarity, recipes, and item evolutions.
+- Broad loot rarity catalogs, recipe trees, crafting systems, and permanent equipment progression beyond the approved Armory arc.
 - Permanent Citadel Renown and corruption difficulties.
 - Matchmaking, public rooms, reconnection, and join-in-progress polish.
 - Mobile and controller input implementations.
