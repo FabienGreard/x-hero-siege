@@ -6,6 +6,7 @@ import {
 } from "../shared/armory-data";
 import { deriveHeroStats } from "../shared/hero-stats";
 import type {
+  EquipmentSlotIndex,
   EquipmentSlots,
   HeroId,
   HeroStatsSnapshot,
@@ -27,6 +28,10 @@ const ITEM_STAT_FIELDS: Record<ItemId, (typeof EQUIPMENT_STAT_FIELDS)[number]> =
   runebound_focus: EQUIPMENT_STAT_FIELDS[2],
   quickening_sigil: EQUIPMENT_STAT_FIELDS[3],
 };
+
+export function equipmentStatFieldForItem(itemId: ItemId): (typeof EQUIPMENT_STAT_FIELDS)[number] {
+  return ITEM_STAT_FIELDS[itemId];
+}
 
 function formatNumber(value: number, decimals = 0): string {
   if (!Number.isFinite(value)) return "—";
@@ -65,6 +70,18 @@ export interface OrdinaryPurchasePreview {
   projectedCount: number;
   effectiveProjectedCount: number;
   attunes: boolean;
+}
+
+export interface AcceptedPurchaseImpact {
+  itemId: ItemId;
+  equipment: EquipmentSlots;
+  statKey: EquipmentStatKey;
+  statLabel: string;
+  currentValue: string;
+  projectedValue: string;
+  resultText: string;
+  accessibleResult: string;
+  changed: boolean;
 }
 
 export function formatOrdinaryPurchaseResult(
@@ -121,5 +138,38 @@ export function projectOrdinaryPurchasePreview(
     projectedCount,
     effectiveProjectedCount: effectiveStackCopies(projectedCount),
     attunes,
+  };
+}
+
+/**
+ * Reconstructs the exact incoming-stat result of an accepted purchase from the
+ * last authoritative player snapshot. A non-null slot is the established
+ * full-build replacement path; ordinary purchases still use first-empty.
+ */
+export function projectAcceptedPurchaseImpact(
+  source: OrdinaryPurchasePreviewSource,
+  itemId: ItemId,
+  replacementSlotIndex: EquipmentSlotIndex | null = null,
+): AcceptedPurchaseImpact | null {
+  if (!source.heroId) return null;
+  const projection = projectEquipmentChange(
+    source.equipment,
+    itemId,
+    replacementSlotIndex,
+  );
+  if (!projection) return null;
+  const field = equipmentStatFieldForItem(itemId);
+  const projectedStats = deriveHeroStats(source.heroId, source.level, projection.equipment);
+  return {
+    itemId,
+    equipment: projection.equipment,
+    statKey: field.key,
+    statLabel: field.label,
+    ...formatOrdinaryPurchaseResult(
+      field.key,
+      field.label,
+      source.stats[field.key],
+      projectedStats[field.key],
+    ),
   };
 }

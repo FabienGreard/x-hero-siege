@@ -428,6 +428,9 @@ export interface EntityVisual extends THREE.Group {
     attackTelegraph: THREE.Group;
     buildSignature: THREE.Sprite | null;
     buildSignatureEcho: THREE.Sprite | null;
+    wareReceipt: THREE.Sprite | null;
+    wareReceiptStartedAt: number;
+    wareReceiptUntil: number;
     buildSignatureItemId: ItemId | null;
     buildSignatureAttuned: boolean;
     buildSignatureTransitionChange: "gained" | "lost" | null;
@@ -543,9 +546,11 @@ export function createEntityVisual(
   const attackTelegraph = createAttackTelegraph(kind, scale);
   const buildSignature = kind === "hero" ? createBuildSignature() : null;
   const buildSignatureEcho = kind === "hero" ? createBuildSignature(9, 0.2) : null;
+  const wareReceipt = kind === "hero" ? createBuildSignature(10, 0) : null;
 
   group.add(shadow, facingIndicator, attackTelegraph);
   if (buildSignatureEcho) group.add(buildSignatureEcho);
+  if (wareReceipt) group.add(wareReceipt);
   if (buildSignature) group.add(buildSignature);
   group.add(silhouette, sprite);
   group.userData = {
@@ -557,6 +562,9 @@ export function createEntityVisual(
     attackTelegraph,
     buildSignature,
     buildSignatureEcho,
+    wareReceipt,
+    wareReceiptStartedAt: 0,
+    wareReceiptUntil: 0,
     buildSignatureItemId: null,
     buildSignatureAttuned: false,
     buildSignatureTransitionChange: null,
@@ -568,6 +576,22 @@ export function createEntityVisual(
     isLocal: false,
   };
   return group;
+}
+
+/** One restrained, item-shaped receipt for an accepted local trade. */
+export function pulseEntityWareReceipt(
+  visual: EntityVisual,
+  itemId: ItemId,
+  now = performance.now(),
+): void {
+  const receipt = visual.userData.wareReceipt;
+  if (!receipt) return;
+  const material = receipt.material as THREE.SpriteMaterial;
+  material.map = buildSignatureTexture(itemId);
+  material.needsUpdate = true;
+  receipt.visible = true;
+  visual.userData.wareReceiptStartedAt = now;
+  visual.userData.wareReceiptUntil = now + 760;
 }
 
 export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | null, attuned = false): void {
@@ -635,6 +659,7 @@ export function updateEntityVisual(
   const telegraph = visual.userData.attackTelegraph;
   const buildSignature = visual.userData.buildSignature;
   const buildSignatureEcho = visual.userData.buildSignatureEcho;
+  const wareReceipt = visual.userData.wareReceipt;
   const baseScale = visual.userData.baseScale;
   const hero = visual.userData.entityKind === "hero";
   if (now >= visual.userData.flashUntil) (sprite.material as THREE.SpriteMaterial).color.setHex(0xffffff);
@@ -767,6 +792,27 @@ export function updateEntityVisual(
       visual.userData.buildSignatureTransitionChange = null;
       visual.userData.buildSignatureTransitionItemId = null;
       if (buildSignatureEcho && !attuned) buildSignatureEcho.visible = false;
+    }
+  }
+  if (wareReceipt) {
+    const receiptActive = now < visual.userData.wareReceiptUntil;
+    wareReceipt.visible = receiptActive;
+    if (receiptActive) {
+      const receiptDuration = Math.max(
+        1,
+        visual.userData.wareReceiptUntil - visual.userData.wareReceiptStartedAt,
+      );
+      const receiptProgress = THREE.MathUtils.clamp(
+        (now - visual.userData.wareReceiptStartedAt) / receiptDuration,
+        0,
+        1,
+      );
+      const bloom = 0.92 + Math.sin(receiptProgress * Math.PI) * 0.18;
+      wareReceipt.scale.set(scaleX * 1.48 * bloom, scaleY * 1.34 * bloom, 1);
+      wareReceipt.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.01);
+      const material = wareReceipt.material as THREE.SpriteMaterial;
+      material.rotation = lean;
+      material.opacity = Math.sin(receiptProgress * Math.PI) * 0.48;
     }
   }
 

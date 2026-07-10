@@ -50,6 +50,7 @@ import {
 import {
   EQUIPMENT_STAT_FIELDS,
   formatEquipmentStat,
+  projectAcceptedPurchaseImpact,
   projectOrdinaryPurchasePreview,
 } from "./shop-preview";
 import {
@@ -68,6 +69,7 @@ import {
   createProjectileVisual,
   createWraithVisual,
   pulseEntityBuildSignature,
+  pulseEntityWareReceipt,
   setEntityFlash,
   setEntityBuildSignature,
   updateEffectVisual,
@@ -1281,8 +1283,53 @@ function playAttunementTransition(
     (tracked?.visual.userData.baseScale ?? 6.2) + 1.2,
     position.z,
   );
+  if (event.playerId) {
+    text.userData.followPlayerId = event.playerId;
+    text.userData.followHeight = (tracked?.visual.userData.baseScale ?? 6.2) + 1.2;
+  }
   scene.add(text);
   floatingTexts.push(text);
+}
+
+const PURCHASE_STAT_SHORT_LABELS = {
+  basicDamage: "BASIC",
+  moveSpeed: "MOVE",
+  abilityPower: "SKILL",
+  cooldownRecovery: "COOLDOWN",
+} as const;
+
+function playWareReceipt(event: GameEvent): ReturnType<typeof projectAcceptedPurchaseImpact> {
+  if (!event.playerId || !event.itemId) return null;
+  const player = snapshot?.players.find((candidate) => candidate.id === event.playerId);
+  if (!player) return null;
+  const impact = projectAcceptedPurchaseImpact(
+    player,
+    event.itemId,
+    event.replacedItemId ? event.slotIndex ?? null : null,
+  );
+  const tracked = playerVisuals.get(event.playerId);
+  const position = tracked
+    ? { x: tracked.visual.position.x, z: tracked.visual.position.z }
+    : player.position;
+  const color = BUILD_SIGNATURE_COLORS[event.itemId];
+  spawnBurst(position, new THREE.Color(color).getHex(), 11, 0.95);
+  if (tracked) pulseEntityWareReceipt(tracked.visual, event.itemId);
+  if (!impact) return null;
+  const text = createFloatingText(
+    `${PURCHASE_STAT_SHORT_LABELS[impact.statKey]} ${impact.currentValue}→${impact.projectedValue}`,
+    color,
+    13,
+  );
+  text.position.set(
+    position.x,
+    (tracked?.visual.userData.baseScale ?? 6.2) + 1,
+    position.z,
+  );
+  text.userData.followPlayerId = event.playerId;
+  text.userData.followHeight = (tracked?.visual.userData.baseScale ?? 6.2) + 1;
+  scene.add(text);
+  floatingTexts.push(text);
+  return impact;
 }
 
 function handleEvent(event: GameEvent, playTransient = false): void {
@@ -1308,6 +1355,7 @@ function handleEvent(event: GameEvent, playTransient = false): void {
     const transition = event.attunementTransition;
     const delivery = itemPurchaseDeliveryPolicy(event, localPlayerId, playTransient);
     if (transition && delivery.playAttunementTransient) playAttunementTransition(event, transition);
+    const purchaseImpact = delivery.playWareReceiptTransient ? playWareReceipt(event) : null;
     if (delivery.acknowledgeLocalPurchase) {
       const self = currentPlayer();
       const position = event.position ?? self?.position ?? (event.vendorId ? VENDOR_DEFINITIONS[event.vendorId].position : WORLD_LAYOUT.nexus);
@@ -1321,10 +1369,12 @@ function handleEvent(event: GameEvent, playTransient = false): void {
         ? `${itemName} Attuned · ×${transition.fromCount} → ×${transition.toCount} · effective ×${effectiveStackCopies(transition.toCount)}`
         : transition?.change === "lost"
           ? `${itemName} Attunement lost · ×${transition.fromCount} → ×${transition.toCount}`
-          : event.text;
+          : purchaseImpact
+            ? `${event.text} ${purchaseImpact.resultText}.`
+            : event.text;
       toast(transitionToast, "loot");
       audio.play(transition?.change === "gained" ? "attune" : transition?.change === "lost" ? "unattune" : "loot");
-      if (!transition) spawnBurst(position, 0xf1c56f, 13, 1.15);
+      if (!transition && !delivery.playWareReceiptTransient) spawnBurst(position, 0xf1c56f, 13, 1.15);
       pulsePurchasedStat(event.itemId);
       if (event.replacedItemId) pulsePurchasedStat(event.replacedItemId);
     }
@@ -2265,7 +2315,17 @@ function updateWorld(now: number, delta: number): void {
     const text = floatingTexts[index];
     if (!text) continue;
     const age = now - (text.userData.bornAt as number);
-    text.position.y += delta * 2.4;
+    const followPlayerId = text.userData.followPlayerId;
+    const followed = typeof followPlayerId === "string" ? playerVisuals.get(followPlayerId) : null;
+    if (followed) {
+      text.position.set(
+        followed.visual.position.x,
+        Number(text.userData.followHeight ?? followed.visual.userData.baseScale + 1) + age / 1000 * 2.4,
+        followed.visual.position.z,
+      );
+    } else {
+      text.position.y += delta * 2.4;
+    }
     const material = text.material as THREE.SpriteMaterial;
     material.opacity = THREE.MathUtils.clamp(1 - age / 760, 0, 1);
     if (age > 780) {

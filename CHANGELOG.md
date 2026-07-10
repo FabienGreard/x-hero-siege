@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## [0.1.18] - 2026-07-10
+
+### Added
+
+- Added one local, non-replayable ware receipt to every directly accepted ordinary purchase and full-build reforge: the incoming ware's established shape and color bloom briefly on the hero.
+- Added one exact world label and purchase toast derived from the last authoritative Hero Stats snapshot and canonical equipment projection, such as `SKILL 100% → 115%`.
+- Added focused parity coverage for all four heroes and wares, ordinary and replacement projections, direct versus replay delivery, and Attunement separation.
+
+### Changed
+
+- Replace the generic gold purchase burst with an item-specific hero-centered receipt on live local events; snapshot history retains acknowledgement without manufacturing a new receipt.
+- Keep the receipt below the fourth-copy Attunement ceremony in duration, scale, opacity, particle count, audio, and persistence so an ordinary trade feels accepted without diluting the earned threshold.
+
+### Preserved
+
+- Every item effect, Hero Stat, price, reward, vendor, route, six-slot and replacement rule, Attunement threshold, dominant signature, combat value, control, and server authority.
+- No new power, proc, ware, vendor, slot type, set bonus, currency, economy change, persistent progression, central banner, ground ring, screen flash, or ally UI noise was added.
+
 ## [0.1.17] - 2026-07-10
 
 ### Added

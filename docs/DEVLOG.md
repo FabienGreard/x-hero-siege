@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — A purchase should land on the hero
+
+`0.1.17` completed the route into the Armory: the wallet announced readiness, both physical destinations remained equally legible, each card named the exact next stat, and Hero Stats reconciled the accepted build. Normal play through one Focus and one Edge then exposed a smaller but important break in the sentence. Gold left, a combat-log line appeared, and the hero returned to battle; the ordinary decision itself barely arrived in the world. Only the fourth-copy Attunement felt like an earned equipment moment.
+
+`0.1.18` gives ordinary acceptance one restrained receipt. The incoming ware's existing shape and color flash around the actual hero, a short matching particle lift lands, and the exact canonical result—such as `SKILL 100% → 115%`—rises once above the character and appears in the existing toast. A full-build reforge uses the same incoming-stat answer after its established exact confirmation.
+
+The approved concept's midpoint lets power acquisition live around the hero through a bright central halo and readable reward text. Siegeheart borrows that hierarchy without copying its spectacle. The ordinary receipt is shorter, smaller, quieter, and non-persistent; it adds no ground ring, beam, new sound, or ally interface. Attunement still owns the larger bloom, stinger, count language, and settled echo. Replayed snapshot history acknowledges the trade but cannot pretend the old choice just happened.
+
 ## 2026-07-10 — Gold should say when it becomes a route choice
 
 `0.1.16` made the decision inside each shop exact. Normal play then exposed the missing link outside those walls. The Warden could hold 87 gold—enough for two more wares—while the combat HUD showed only `87` and two tiny static symbols near the Nexus. Nothing said that the wallet had crossed from scorekeeping into a new choice between the warm Forge and cool Reliquary.

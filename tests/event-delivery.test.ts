@@ -28,6 +28,7 @@ describe("item-purchase delivery policy", () => {
       acknowledgeLocalPurchase: true,
       playAttunementTransient: false,
       playLocalPurchaseFeedback: false,
+      playWareReceiptTransient: false,
     });
   });
 
@@ -36,6 +37,7 @@ describe("item-purchase delivery policy", () => {
       acknowledgeLocalPurchase: true,
       playAttunementTransient: true,
       playLocalPurchaseFeedback: true,
+      playWareReceiptTransient: false,
     });
   });
 
@@ -44,6 +46,7 @@ describe("item-purchase delivery policy", () => {
       acknowledgeLocalPurchase: false,
       playAttunementTransient: true,
       playLocalPurchaseFeedback: false,
+      playWareReceiptTransient: false,
     });
   });
 
@@ -52,6 +55,7 @@ describe("item-purchase delivery policy", () => {
       acknowledgeLocalPurchase: false,
       playAttunementTransient: false,
       playLocalPurchaseFeedback: false,
+      playWareReceiptTransient: false,
     });
   });
 
@@ -60,6 +64,25 @@ describe("item-purchase delivery policy", () => {
       acknowledgeLocalPurchase: true,
       playAttunementTransient: false,
       playLocalPurchaseFeedback: true,
+      playWareReceiptTransient: false,
+    });
+  });
+
+  test("a direct ordinary local purchase adds one non-replayable ware receipt", () => {
+    expect(itemPurchaseDeliveryPolicy(ordinaryPurchase, "local", true)).toEqual({
+      acknowledgeLocalPurchase: true,
+      playAttunementTransient: false,
+      playLocalPurchaseFeedback: true,
+      playWareReceiptTransient: true,
+    });
+  });
+
+  test("an ally ordinary purchase never adds local UI or a world receipt", () => {
+    expect(itemPurchaseDeliveryPolicy(ordinaryPurchase, "ally", true)).toEqual({
+      acknowledgeLocalPurchase: false,
+      playAttunementTransient: false,
+      playLocalPurchaseFeedback: false,
+      playWareReceiptTransient: false,
     });
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   formatEquipmentStat,
   formatOrdinaryPurchaseResult,
+  projectAcceptedPurchaseImpact,
   projectOrdinaryPurchasePreview,
 } from "../src/client/shop-preview";
 import {
@@ -167,5 +168,63 @@ describe("ordinary shop purchase previews", () => {
       accessibleResult: "No Hero Stat change.",
       changed: false,
     });
+  });
+});
+
+describe("accepted purchase impact receipts", () => {
+  test("ordinary and replacement receipts report the exact incoming Hero Stat result", () => {
+    const openEquipment: EquipmentSlots = [
+      "runebound_focus",
+      "tempered_edge",
+      null,
+      null,
+      null,
+      null,
+    ];
+    expect(projectAcceptedPurchaseImpact(source("warden", 6, openEquipment), "quickening_sigil")).toMatchObject({
+      statKey: "cooldownRecovery",
+      currentValue: "100%",
+      projectedValue: "115%",
+      resultText: "COOLDOWN SPEED 100% → 115%",
+    });
+
+    const fullEquipment: EquipmentSlots = [
+      "tempered_edge",
+      "tempered_edge",
+      "runebound_focus",
+      "runebound_focus",
+      "fleetstep_greaves",
+      "fleetstep_greaves",
+    ];
+    expect(projectAcceptedPurchaseImpact(source("warden", 6, fullEquipment), "quickening_sigil", 1)).toMatchObject({
+      equipment: [
+        "tempered_edge",
+        "quickening_sigil",
+        "runebound_focus",
+        "runebound_focus",
+        "fleetstep_greaves",
+        "fleetstep_greaves",
+      ],
+      statKey: "cooldownRecovery",
+      currentValue: "100%",
+      projectedValue: "115%",
+      resultText: "COOLDOWN SPEED 100% → 115%",
+    });
+  });
+
+  test("all four heroes and wares reconstruct the same canonical post-purchase stat", () => {
+    for (const heroId of HERO_IDS) {
+      for (const itemId of ITEM_IDS) {
+        const equipment: EquipmentSlots = [null, null, null, null, null, null];
+        const receipt = projectAcceptedPurchaseImpact(source(heroId, 4, equipment), itemId);
+        expect(receipt).not.toBeNull();
+        expect(receipt!.projectedValue).toBe(
+          formatEquipmentStat(
+            receipt!.statKey,
+            deriveHeroStats(heroId, 4, receipt!.equipment)[receipt!.statKey],
+          ),
+        );
+      }
+    }
   });
 });

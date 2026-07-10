@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.18` — Wear the Gain
+
+**Status:** implemented and locally verified on 2026-07-10; push and companion-site deployment pending.
+
+- Correct the transaction-feedback weakness exposed by normal `0.1.17` play: routes, previews, stats, sockets, and persistent signatures were clear, but an ordinary accepted purchase landed mainly as a small combat-log sentence while the fourth copy alone had a memorable world response.
+- On each directly delivered local ordinary purchase or reforge, bloom the incoming ware's established shape and color once on the actual hero, add a restrained matching burst, and repeat the exact canonical incoming Hero Stat change above the hero and in the existing toast.
+- Reconstruct that result from the last authoritative player snapshot and the same canonical equipment projection and Hero Stats functions used by shop previews and server outcomes. Never speculate before acceptance or mutate live stats early.
+- Keep snapshot history and reconnect acknowledgement non-transient. Keep allies quiet for ordinary purchases. Preserve the larger, longer, audible, persistent Attunement ceremony exclusively for the fourth-copy threshold.
+- Prove all four wares and heroes, first-empty purchases, full-build replacements, direct-versus-replayed delivery, Attunement separation, 1280×720 hierarchy under real siege pressure, clean diagnostics, production build, authoritative suite, and four-client convergence.
+
+**Next-cycle nomination:** replay shipped `0.1.18` at normal timing and choose the next highest-leverage shop, item, or champion-stat weakness from real use. Do not infer balance from a controller deliberately held at a vendor for visual capture.
+
 ## `0.1.17` — Read the Retreat
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.

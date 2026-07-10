@@ -4,6 +4,7 @@ export interface ItemPurchaseDeliveryPolicy {
   acknowledgeLocalPurchase: boolean;
   playAttunementTransient: boolean;
   playLocalPurchaseFeedback: boolean;
+  playWareReceiptTransient: boolean;
 }
 
 export function itemPurchaseDeliveryPolicy(
@@ -17,5 +18,6 @@ export function itemPurchaseDeliveryPolicy(
     acknowledgeLocalPurchase: local,
     playAttunementTransient: transition && direct,
     playLocalPurchaseFeedback: local && (!transition || direct),
+    playWareReceiptTransient: local && !transition && direct,
   };
 }
