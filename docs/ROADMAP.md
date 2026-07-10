@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.15` — Attunement Ignites
 
-**Status:** implemented and locally verified on 2026-07-10; companion site deployment verification pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the world-feedback weakness exposed by shipped `0.1.14`: panels made `×3 → ×4` exact and mechanically meaningful, but the battlefield changed by only a slight signature scale and opacity adjustment that could not reliably carry the threshold without UI.
 - Extend the existing authoritative purchase event with one exact `gained` or `lost` Attunement transition and raw copy counts; ordinary fifth/sixth copies and `5 → 4` replacements remain non-events.
