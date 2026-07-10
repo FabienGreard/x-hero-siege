@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.10` — Weight of Gold
 
-**Status:** implemented and locally verified on 2026-07-10; companion site deployment and playable game deployment pending.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the purchasing-power weakness exposed by normal `0.1.9` play: an efficient route filled all six sockets by `51.63s`, retained `42` gold, and had accumulated `402` gold by `84.65s`, enough for ten additional full-price replacements.
 - Reduce repeatable imp, hound, and brute rewards to `1/1/3` gold while preserving the Gatebreaker's defining `35`-gold payoff and the Rift Guard's later `6` gold.
