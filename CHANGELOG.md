@@ -2,6 +2,27 @@
 
 All notable project changes are recorded here.
 
+## [0.1.15] - 2026-07-10
+
+### Added
+
+- Added an atomic Attunement transition to the existing authoritative purchase event, naming the ware, `gained` or `lost` direction, and exact raw `fromCount` and `toCount`.
+- Added one hero-centered awakening when a stack crosses `3 → 4`: the established ware color and shape bloom outward, a local `ATTUNED` cue and procedural synth stinger land once, and allies receive a quieter world-only read.
+- Added one cached echo sprite behind every settled Attuned signature, with a slow restrained breath; crossing `4 → 3` contracts and fades the old echo with a quieter local release cue.
+- Added coverage for every ware's six ordinary purchases, gain and loss through replacement, `5 → 4` remaining Attuned, identical gain/loss event payloads across four real WebSocket clients, and direct-versus-snapshot delivery policy.
+
+### Changed
+
+- Present Attunement ceremonies only from the live authoritative event message. Snapshot history still reconciles persistent signatures, but initial join, reconnect, repeated snapshots, and direct state restoration cannot replay an awakening.
+- Keep local purchase acknowledgement independent from one-shot presentation, so a missed live event followed by its authoritative snapshot still clears a pending six-slot reforge without replaying its toast, audio, particles, or world text.
+- Anchor transition particles and world text to the actual tracked hero while keeping the existing vendor position and purchase receipt intact.
+
+### Preserved
+
+- Every `0.1.14` stat, item effect, threshold, price, economy window, vendor route, six-slot rule, replacement outcome, champion baseline, cooldown rule, and creation-time power rule.
+- The same four signature textures, colors, hero silhouettes, selection marks, enemy telegraphs, compact HUD, controls, and procedural audio character.
+- No damage, speed, cooldown, health, economy, item, slot, proc, set bonus, rarity, currency, persistence, screen flash, ground ring, central banner, or new gameplay system was added.
+
 ## [0.1.14] - 2026-07-10
 
 ### Added

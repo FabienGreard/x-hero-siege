@@ -28,6 +28,13 @@ const ITEM_IDS = [
   "quickening_sigil",
 ] as const satisfies readonly ItemId[];
 
+const ITEM_VENDORS = {
+  tempered_edge: "ironbound_forge",
+  fleetstep_greaves: "ironbound_forge",
+  runebound_focus: "veilglass_reliquary",
+  quickening_sigil: "veilglass_reliquary",
+} as const satisfies Record<ItemId, VendorId>;
+
 function equipmentOf(itemId: ItemId, count: number): EquipmentSlots {
   return Array.from({ length: 6 }, (_, index) => index < count ? itemId : null) as EquipmentSlots;
 }
@@ -205,6 +212,32 @@ describe("canonical four-copy item attunement", () => {
     expect(game.takePendingEvents().filter((event) => event.kind === "item_purchased")).toHaveLength(6);
   });
 
+  test("every ware emits one authoritative gained transition only on its fourth ordinary purchase", () => {
+    for (const itemId of ITEM_IDS) {
+      const game = new GameWorld();
+      const vendorId = ITEM_VENDORS[itemId];
+      readyHero(game, "warden");
+      placeAt(game, vendorId);
+      fund(game, 6 * ARMORY_WARE_PRICE);
+      game.takePendingEvents();
+
+      for (let count = 1; count <= 6; count += 1) {
+        expect(buy(game, vendorId, itemId).ok).toBe(true);
+      }
+
+      const events = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
+      expect(events).toHaveLength(6);
+      expect(events.map((event) => event.attunementTransition ?? null)).toEqual([
+        null,
+        null,
+        null,
+        { itemId, change: "gained", fromCount: 3, toCount: 4 },
+        null,
+        null,
+      ]);
+    }
+  });
+
   test("full-build replacements gain and lose Attunement atomically without changing six-slot freedom", () => {
     const game = new GameWorld();
     readyHero(game, "warden");
@@ -235,6 +268,14 @@ describe("canonical four-copy item attunement", () => {
     expect(player.stats.basicDamage).toBeCloseTo(60);
     expect(player.stats.abilityPower).toBe(1);
     expect(dominantEquipmentStack(player.equipment)).toEqual({ itemId: "tempered_edge", count: 4, attuned: true });
+    const gainedEvents = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
+    expect(gainedEvents).toHaveLength(1);
+    expect(gainedEvents[0]!.attunementTransition).toEqual({
+      itemId: "tempered_edge",
+      change: "gained",
+      fromCount: 3,
+      toCount: 4,
+    });
 
     placeAt(game, "veilglass_reliquary");
     expect(replace(game, "veilglass_reliquary", "runebound_focus", 0, "tempered_edge").ok).toBe(true);
@@ -244,7 +285,38 @@ describe("canonical four-copy item attunement", () => {
     expect(player.stats.abilityPower).toBeCloseTo(1.15);
     expect(dominantEquipmentStack(player.equipment)).toEqual({ itemId: "tempered_edge", count: 3, attuned: false });
     expect(player.gold).toBe(0);
-    expect(game.takePendingEvents().filter((event) => event.kind === "item_purchased")).toHaveLength(2);
+    const lostEvents = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
+    expect(lostEvents).toHaveLength(1);
+    expect(lostEvents[0]!.attunementTransition).toEqual({
+      itemId: "tempered_edge",
+      change: "lost",
+      fromCount: 4,
+      toCount: 3,
+    });
+  });
+
+  test("replacing a fifth copy leaves the outgoing four-copy stack Attuned without a transition", () => {
+    const game = new GameWorld();
+    readyHero(game, "warden");
+    game.players.get("p1")!.equipment = [
+      "tempered_edge",
+      "tempered_edge",
+      "tempered_edge",
+      "tempered_edge",
+      "tempered_edge",
+      "runebound_focus",
+    ];
+    fund(game, ARMORY_WARE_PRICE);
+    placeAt(game, "veilglass_reliquary");
+    game.takePendingEvents();
+
+    expect(replace(game, "veilglass_reliquary", "quickening_sigil", 4, "tempered_edge").ok).toBe(true);
+
+    const player = game.getSnapshot().players[0]!;
+    expect(dominantEquipmentStack(player.equipment)).toEqual({ itemId: "tempered_edge", count: 4, attuned: true });
+    const events = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
+    expect(events).toHaveLength(1);
+    expect(events[0]!.attunementTransition).toBeUndefined();
   });
 
   test("crossing four Sigils preserves active cooldown progress in both directions without touching LMB or action timing", () => {

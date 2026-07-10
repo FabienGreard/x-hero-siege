@@ -168,7 +168,7 @@ function glowTexture(color: string): THREE.CanvasTexture {
   });
 }
 
-const BUILD_SIGNATURE_COLORS: Record<ItemId, string> = {
+export const BUILD_SIGNATURE_COLORS: Record<ItemId, string> = {
   tempered_edge: "#f0c56a",
   fleetstep_greaves: "#91e8ff",
   runebound_focus: "#c6a4ff",
@@ -227,13 +227,13 @@ function buildSignatureTexture(itemId: ItemId): THREE.CanvasTexture {
   });
 }
 
-function createBuildSignature(): THREE.Sprite {
+function createBuildSignature(renderOrder = 10, opacity = 0.76): THREE.Sprite {
   const signature = new THREE.Sprite(new THREE.SpriteMaterial({
     transparent: true,
     depthWrite: false,
-    opacity: 0.76,
+    opacity,
   }));
-  signature.renderOrder = 10;
+  signature.renderOrder = renderOrder;
   signature.visible = false;
   return signature;
 }
@@ -427,8 +427,13 @@ export interface EntityVisual extends THREE.Group {
     facingIndicator: THREE.Group;
     attackTelegraph: THREE.Group;
     buildSignature: THREE.Sprite | null;
+    buildSignatureEcho: THREE.Sprite | null;
     buildSignatureItemId: ItemId | null;
     buildSignatureAttuned: boolean;
+    buildSignatureTransitionChange: "gained" | "lost" | null;
+    buildSignatureTransitionItemId: ItemId | null;
+    buildSignatureTransitionStartedAt: number;
+    buildSignatureTransitionUntil: number;
     flashUntil: number;
     baseScale: number;
     isLocal: boolean;
@@ -537,8 +542,10 @@ export function createEntityVisual(
   const facingIndicator = createFacingIndicator(kind === "hero", scale);
   const attackTelegraph = createAttackTelegraph(kind, scale);
   const buildSignature = kind === "hero" ? createBuildSignature() : null;
+  const buildSignatureEcho = kind === "hero" ? createBuildSignature(9, 0.2) : null;
 
   group.add(shadow, facingIndicator, attackTelegraph);
+  if (buildSignatureEcho) group.add(buildSignatureEcho);
   if (buildSignature) group.add(buildSignature);
   group.add(silhouette, sprite);
   group.userData = {
@@ -549,8 +556,13 @@ export function createEntityVisual(
     facingIndicator,
     attackTelegraph,
     buildSignature,
+    buildSignatureEcho,
     buildSignatureItemId: null,
     buildSignatureAttuned: false,
+    buildSignatureTransitionChange: null,
+    buildSignatureTransitionItemId: null,
+    buildSignatureTransitionStartedAt: 0,
+    buildSignatureTransitionUntil: 0,
     flashUntil: 0,
     baseScale: scale,
     isLocal: false,
@@ -560,19 +572,48 @@ export function createEntityVisual(
 
 export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | null, attuned = false): void {
   const signature = visual.userData.buildSignature;
+  const echo = visual.userData.buildSignatureEcho;
   const nextAttuned = Boolean(itemId && attuned);
   if (
-    !signature ||
+    !signature || !echo ||
     (visual.userData.buildSignatureItemId === itemId && visual.userData.buildSignatureAttuned === nextAttuned)
   ) return;
   const itemChanged = visual.userData.buildSignatureItemId !== itemId;
   visual.userData.buildSignatureItemId = itemId;
   visual.userData.buildSignatureAttuned = nextAttuned;
   signature.visible = itemId !== null;
+  const lossTransitionActive =
+    visual.userData.buildSignatureTransitionChange === "lost" &&
+    performance.now() < visual.userData.buildSignatureTransitionUntil;
+  echo.visible = nextAttuned || lossTransitionActive;
   if (!itemId || !itemChanged) return;
+  const texture = buildSignatureTexture(itemId);
   const material = signature.material as THREE.SpriteMaterial;
-  material.map = buildSignatureTexture(itemId);
+  material.map = texture;
   material.needsUpdate = true;
+  if (!lossTransitionActive) {
+    const echoMaterial = echo.material as THREE.SpriteMaterial;
+    echoMaterial.map = texture;
+    echoMaterial.needsUpdate = true;
+  }
+}
+
+export function pulseEntityBuildSignature(
+  visual: EntityVisual,
+  itemId: ItemId,
+  change: "gained" | "lost",
+  now = performance.now(),
+): void {
+  const echo = visual.userData.buildSignatureEcho;
+  if (!echo) return;
+  const echoMaterial = echo.material as THREE.SpriteMaterial;
+  echoMaterial.map = buildSignatureTexture(itemId);
+  echoMaterial.needsUpdate = true;
+  echo.visible = true;
+  visual.userData.buildSignatureTransitionChange = change;
+  visual.userData.buildSignatureTransitionItemId = itemId;
+  visual.userData.buildSignatureTransitionStartedAt = now;
+  visual.userData.buildSignatureTransitionUntil = now + (change === "gained" ? 650 : 520);
 }
 
 export function setEntityFlash(visual: EntityVisual, now: number, color = 0xffffff): void {
@@ -593,6 +634,7 @@ export function updateEntityVisual(
   const indicator = visual.userData.facingIndicator;
   const telegraph = visual.userData.attackTelegraph;
   const buildSignature = visual.userData.buildSignature;
+  const buildSignatureEcho = visual.userData.buildSignatureEcho;
   const baseScale = visual.userData.baseScale;
   const hero = visual.userData.entityKind === "hero";
   if (now >= visual.userData.flashUntil) (sprite.material as THREE.SpriteMaterial).color.setHex(0xffffff);
@@ -661,13 +703,71 @@ export function updateEntityVisual(
   silhouette.material.rotation = lean;
   if (buildSignature?.visible) {
     const attuned = visual.userData.buildSignatureAttuned;
-    buildSignature.scale.set(scaleX * (attuned ? 1.43 : 1.34), scaleY * (attuned ? 1.27 : 1.2), 1);
+    const transitionChange = visual.userData.buildSignatureTransitionChange;
+    const transitionActive = Boolean(
+      transitionChange && now < visual.userData.buildSignatureTransitionUntil,
+    );
+    const transitionDuration = Math.max(
+      1,
+      visual.userData.buildSignatureTransitionUntil - visual.userData.buildSignatureTransitionStartedAt,
+    );
+    const transitionProgress = transitionActive
+      ? THREE.MathUtils.clamp(
+          (now - visual.userData.buildSignatureTransitionStartedAt) / transitionDuration,
+          0,
+          1,
+        )
+      : 1;
+    const signatureMatchesTransition =
+      visual.userData.buildSignatureItemId === visual.userData.buildSignatureTransitionItemId;
+    const signaturePulse = transitionActive && transitionChange === "gained" && signatureMatchesTransition
+      ? 1 + Math.sin(transitionProgress * Math.PI) * 0.1
+      : 1;
+    buildSignature.scale.set(
+      scaleX * (attuned ? 1.43 : 1.34) * signaturePulse,
+      scaleY * (attuned ? 1.27 : 1.2) * signaturePulse,
+      1,
+    );
     buildSignature.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.012);
     const signatureMaterial = buildSignature.material as THREE.SpriteMaterial;
     signatureMaterial.rotation = lean;
     signatureMaterial.opacity = visual.userData.isLocal
       ? attuned ? 0.84 : 0.76
       : attuned ? 0.62 : 0.56;
+
+    if (buildSignatureEcho) {
+      const echoVisible = attuned || transitionActive;
+      buildSignatureEcho.visible = echoVisible;
+      if (echoVisible) {
+        const breath = 1 + Math.sin(elapsed * 2.4) * 0.025;
+        const gainBloom = transitionActive && transitionChange === "gained"
+          ? 0.76 + (1 - Math.pow(1 - transitionProgress, 3)) * 0.24
+          : 1;
+        const lossCollapse = transitionActive && transitionChange === "lost"
+          ? 1 - transitionProgress * 0.28
+          : 1;
+        const echoScale = breath * gainBloom * lossCollapse;
+        buildSignatureEcho.scale.set(scaleX * 1.64 * echoScale, scaleY * 1.46 * echoScale, 1);
+        buildSignatureEcho.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.008);
+        const echoMaterial = buildSignatureEcho.material as THREE.SpriteMaterial;
+        echoMaterial.rotation = lean;
+        const settledOpacity = visual.userData.isLocal ? 0.24 : 0.12;
+        if (transitionActive && transitionChange === "gained") {
+          echoMaterial.opacity = settledOpacity +
+            Math.sin(transitionProgress * Math.PI) * (visual.userData.isLocal ? 0.34 : 0.15);
+        } else if (transitionActive && transitionChange === "lost") {
+          echoMaterial.opacity = settledOpacity * (1 - transitionProgress);
+        } else {
+          echoMaterial.opacity = settledOpacity;
+        }
+      }
+    }
+
+    if (!transitionActive && transitionChange) {
+      visual.userData.buildSignatureTransitionChange = null;
+      visual.userData.buildSignatureTransitionItemId = null;
+      if (buildSignatureEcho && !attuned) buildSignatureEcho.visible = false;
+    }
   }
 
   const showEnemyWarning = !hero && action?.kind === "enemy_attack" && isWindup;

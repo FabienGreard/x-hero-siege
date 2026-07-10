@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-10 — The fourth copy should arrive in the world
+
+`0.1.14` gave the Armory its first real commitment threshold. The shop announced it, the stats reconciled it, and the fourth copy changed the outcome of a fight. Yet closing the panels left almost the same hero behind. A few signature pixels grew slightly larger and brighter; the moment itself passed with the same gold spark and chirp as an ordinary first copy.
+
+`0.1.15` lets the server name the crossing and the battlefield answer once. The ware's existing shape blooms from the hero in its established color, a short synth contour lands for the buyer, and a faint second copy of the same signature settles behind the first. Reforging back below four contracts that echo rather than celebrating it. Allies get a quieter world read, not another toast or sound in their own interface.
+
+The approved concept uses beams, halos, and expanded effects to make growth live around the hero. Siegeheart borrows that principle without copying the spectacle: no giant lightning field, ground ring, banner, or new visual vocabulary. A fifth copy does not fire the moment again, and a reconnect does not pretend an old decision just happened. The fourth copy now feels earned because the existing world acknowledges it.
+
+That separation also protects the decision itself. If a live ceremony packet is missed, the next authoritative snapshot still finishes the accepted reforge in the shop and clears its pending state; it simply refuses to manufacture a late celebration.
+
 ## 2026-07-10 — The fourth copy should feel like commitment
 
 `0.1.13` made every reforge knowable, but it also made the remaining sameness easy to see. Six unrestricted sockets allowed any distribution, yet copies one through six were identical increments. A `3/3` build and a `4/2` build changed arithmetic without creating a moment where the player had clearly committed to one answer.
@@ -102,6 +112,7 @@ The important improvement is not additional content. It is that one of the four 
 
 ## Checkpoint index
 
+- `0.1.15`: made the authoritative Attunement crossing arrive once and resonate on the battlefield.
 - `0.1.14`: made the fourth matching ware a visible commitment between broad and specialist builds.
 - `0.1.13`: made every irreversible reforge's exact champion result knowable before spending.
 - `0.1.12`: made authoritative socket investment visible on every equipped battlefield hero.

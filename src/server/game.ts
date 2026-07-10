@@ -2,7 +2,9 @@ import {
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
   createEmptyEquipment,
+  equipmentCopyCount,
   isItemId,
+  isStackAttuned,
   isVendorId,
   projectEquipmentChange,
 } from "../shared/armory-data";
@@ -652,6 +654,36 @@ export class GameWorld {
     slotIndex = projection.slotIndex;
     const previousRecovery = this.heroStats(player).cooldownRecovery;
     const nextEquipment = projection.equipment;
+    const incomingBeforeCount = equipmentCopyCount(player.equipment, itemId);
+    const incomingAfterCount = equipmentCopyCount(nextEquipment, itemId);
+    const outgoingBeforeCount = replacedItemId
+      ? equipmentCopyCount(player.equipment, replacedItemId)
+      : 0;
+    const outgoingAfterCount = replacedItemId
+      ? equipmentCopyCount(nextEquipment, replacedItemId)
+      : 0;
+    const gainedAttunement =
+      !isStackAttuned(incomingBeforeCount) && isStackAttuned(incomingAfterCount);
+    const lostAttunement = Boolean(
+      replacedItemId &&
+      isStackAttuned(outgoingBeforeCount) &&
+      !isStackAttuned(outgoingAfterCount),
+    );
+    const attunementTransition: GameEvent["attunementTransition"] = gainedAttunement
+      ? {
+          itemId,
+          change: "gained",
+          fromCount: incomingBeforeCount,
+          toCount: incomingAfterCount,
+        }
+      : lostAttunement && replacedItemId
+        ? {
+            itemId: replacedItemId,
+            change: "lost",
+            fromCount: outgoingBeforeCount,
+            toCount: outgoingAfterCount,
+          }
+        : undefined;
     const nextRecovery = deriveHeroStats(player.heroId, player.level, nextEquipment).cooldownRecovery;
     const nextCooldowns = { ...player.cooldowns };
     if (nextRecovery !== previousRecovery) {
@@ -664,15 +696,20 @@ export class GameWorld {
     player.equipment = nextEquipment;
     player.cooldowns = nextCooldowns;
 
-    const eventText = replacedItemId
-      ? `${player.name} replaced ${ITEM_DEFINITIONS[replacedItemId].name} with ${item.name} at ${vendor.name}.`
-      : `${player.name} equipped ${item.name} at ${vendor.name}.`;
+    const eventText = attunementTransition?.change === "gained"
+      ? `${player.name} attuned ${ITEM_DEFINITIONS[attunementTransition.itemId].name} at ${vendor.name}.`
+      : attunementTransition?.change === "lost"
+        ? `${player.name} released ${ITEM_DEFINITIONS[attunementTransition.itemId].name} Attunement for ${item.name} at ${vendor.name}.`
+        : replacedItemId
+          ? `${player.name} replaced ${ITEM_DEFINITIONS[replacedItemId].name} with ${item.name} at ${vendor.name}.`
+          : `${player.name} equipped ${item.name} at ${vendor.name}.`;
     this.emit("item_purchased", eventText, {
       playerId,
       vendorId,
       itemId,
       slotIndex,
       ...(replacedItemId ? { replacedItemId } : {}),
+      ...(attunementTransition ? { attunementTransition } : {}),
       position: vendor.position,
     });
     return { ok: true };

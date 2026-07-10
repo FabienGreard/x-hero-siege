@@ -271,6 +271,12 @@ export interface GameEvent {
   itemId?: ItemId;
   slotIndex?: EquipmentSlotIndex;
   replacedItemId?: ItemId;
+  attunementTransition?: {
+    itemId: ItemId;
+    change: "gained" | "lost";
+    fromCount: number;
+    toCount: number;
+  };
 }
 
 export interface GameSnapshot {

@@ -172,6 +172,36 @@ try {
     expectedItemId: "runebound_focus",
   });
 
+  const attunementEvents = await Promise.all(peers.map(async (peer) => {
+    const gainedMessage = await peer.waitFor((message) =>
+      message.type === "event" &&
+      message.event.playerId === peers[0]!.playerId &&
+      message.event.attunementTransition?.change === "gained"
+    );
+    const lostMessage = await peer.waitFor((message) =>
+      message.type === "event" &&
+      message.event.playerId === peers[1]!.playerId &&
+      message.event.attunementTransition?.change === "lost"
+    );
+    assert.equal(gainedMessage.type, "event");
+    assert.equal(lostMessage.type, "event");
+    return { gained: gainedMessage.event, lost: lostMessage.event };
+  }));
+  const authoritativeAttunementEvents = attunementEvents[0]!;
+  for (const events of attunementEvents) assert.deepEqual(events, authoritativeAttunementEvents);
+  assert.deepEqual(authoritativeAttunementEvents.gained.attunementTransition, {
+    itemId: "tempered_edge",
+    change: "gained",
+    fromCount: 3,
+    toCount: 4,
+  });
+  assert.deepEqual(authoritativeAttunementEvents.lost.attunementTransition, {
+    itemId: "runebound_focus",
+    change: "lost",
+    fromCount: 4,
+    toCount: 3,
+  });
+
   const replacements = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) => {
     const forge = snapshot.players.find((player) => player.id === peers[0]!.playerId);
     const reliquary = snapshot.players.find((player) => player.id === peers[1]!.playerId);

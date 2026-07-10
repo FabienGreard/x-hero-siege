@@ -11,6 +11,7 @@ import {
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
   dominantEquipmentStack,
+  effectiveStackCopies,
   equipmentCopyCount,
   isStackAttuned,
   projectEquipmentChange,
@@ -39,7 +40,9 @@ import type {
   Vec2,
   VendorId,
 } from "../shared/protocol";
+import { itemPurchaseDeliveryPolicy } from "./event-delivery";
 import {
+  BUILD_SIGNATURE_COLORS,
   HERO_PRESENTATION,
   createArena,
   createEffectVisual,
@@ -49,6 +52,7 @@ import {
   createPickupVisual,
   createProjectileVisual,
   createWraithVisual,
+  pulseEntityBuildSignature,
   setEntityFlash,
   setEntityBuildSignature,
   updateEffectVisual,
@@ -315,7 +319,7 @@ class SiegeAudio {
     this.master.connect(this.context.destination);
   }
 
-  play(kind: "attack" | "impact" | "cast" | "warning" | "loot" | "victory"): void {
+  play(kind: "attack" | "impact" | "cast" | "warning" | "loot" | "attune" | "unattune" | "victory"): void {
     if (!this.context || !this.master) return;
     const nowMs = performance.now();
     const throttle = kind === "impact" ? 45 : kind === "attack" ? 90 : 0;
@@ -331,6 +335,8 @@ class SiegeAudio {
       cast: [220, 620, 0.16, "triangle"],
       warning: [105, 92, 0.3, "sawtooth"],
       loot: [440, 880, 0.14, "sine"],
+      attune: [260, 1040, 0.42, "triangle"],
+      unattune: [520, 180, 0.3, "sine"],
       victory: [330, 990, 0.7, "triangle"],
     } as const;
     const [start, end, duration, wave] = settings[kind];
@@ -338,9 +344,10 @@ class SiegeAudio {
     oscillator.frequency.setValueAtTime(start, now);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, end), now + duration);
     filter.type = "lowpass";
-    filter.frequency.value = kind === "impact" ? 500 : 1800;
+    filter.frequency.value = kind === "impact" ? 500 : kind === "unattune" ? 900 : 1800;
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.exponentialRampToValueAtTime(kind === "impact" ? 0.32 : 0.18, now + 0.01);
+    const peakGain = kind === "impact" ? 0.32 : kind === "attune" ? 0.24 : kind === "unattune" ? 0.15 : 0.18;
+    gain.gain.exponentialRampToValueAtTime(peakGain, now + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     oscillator.connect(filter).connect(gain).connect(this.master);
     oscillator.start(now);
@@ -385,7 +392,7 @@ function connect(): void {
     } else if (message.type === "snapshot") {
       applySnapshot(message.snapshot);
     } else if (message.type === "event") {
-      handleEvent(message.event);
+      handleEvent(message.event, true);
     } else if (message.type === "error") {
       const replacementError = new Set([
         "EQUIPMENT_CHANGED",
@@ -1178,7 +1185,48 @@ playAgain.addEventListener("click", () => {
   if (replaySub) replaySub.textContent = "REOPENING THE WAR TABLE";
 });
 
-function handleEvent(event: GameEvent): void {
+function playAttunementTransition(
+  event: GameEvent,
+  transition: NonNullable<GameEvent["attunementTransition"]>,
+): void {
+  const tracked = event.playerId ? playerVisuals.get(event.playerId) : null;
+  const player = event.playerId
+    ? snapshot?.players.find((candidate) => candidate.id === event.playerId)
+    : null;
+  const position = tracked
+    ? { x: tracked.visual.position.x, z: tracked.visual.position.z }
+    : player?.position ?? event.position ?? WORLD_LAYOUT.nexus;
+  const local = event.playerId === localPlayerId;
+  const color = new THREE.Color(BUILD_SIGNATURE_COLORS[transition.itemId]).getHex();
+  spawnBurst(
+    position,
+    color,
+    transition.change === "gained" ? local ? 26 : 15 : local ? 11 : 7,
+    transition.change === "gained" ? local ? 1.65 : 1.2 : local ? 0.85 : 0.6,
+  );
+  if (tracked) {
+    pulseEntityBuildSignature(
+      tracked.visual,
+      transition.itemId,
+      transition.change,
+    );
+  }
+  if (!local) return;
+  const text = createFloatingText(
+    transition.change === "gained" ? "ATTUNED" : "RELEASED",
+    BUILD_SIGNATURE_COLORS[transition.itemId],
+    transition.change === "gained" ? 17 : 14,
+  );
+  text.position.set(
+    position.x,
+    (tracked?.visual.userData.baseScale ?? 6.2) + 1.2,
+    position.z,
+  );
+  scene.add(text);
+  floatingTexts.push(text);
+}
+
+function handleEvent(event: GameEvent, playTransient = false): void {
   if (seenEvents.has(event.id)) return;
   seenEvents.add(event.id);
   if (seenEvents.size > 200) {
@@ -1197,18 +1245,30 @@ function handleEvent(event: GameEvent): void {
   } else if (eventKind === "skill_point") {
     toast("Skill point ready — choose Q, E, R, or F", "loot");
     audio.play("loot");
-  } else if (event.kind === "item_purchased" && event.playerId === localPlayerId) {
-    const self = currentPlayer();
-    const position = event.position ?? self?.position ?? (event.vendorId ? VENDOR_DEFINITIONS[event.vendorId].position : WORLD_LAYOUT.nexus);
-    if (event.replacedItemId) {
-      clearReplacementSelection();
-      shopAnnouncement.textContent = `${event.text} Build remains six of six.`;
+  } else if (event.kind === "item_purchased") {
+    const transition = event.attunementTransition;
+    const delivery = itemPurchaseDeliveryPolicy(event, localPlayerId, playTransient);
+    if (transition && delivery.playAttunementTransient) playAttunementTransition(event, transition);
+    if (delivery.acknowledgeLocalPurchase) {
+      const self = currentPlayer();
+      const position = event.position ?? self?.position ?? (event.vendorId ? VENDOR_DEFINITIONS[event.vendorId].position : WORLD_LAYOUT.nexus);
+      if (event.replacedItemId) {
+        clearReplacementSelection();
+        shopAnnouncement.textContent = `${event.text} Build remains six of six.`;
+      }
+      if (!delivery.playLocalPurchaseFeedback) return;
+      const itemName = transition ? ITEM_DEFINITIONS[transition.itemId].name : null;
+      const transitionToast = transition?.change === "gained"
+        ? `${itemName} Attuned · ×${transition.fromCount} → ×${transition.toCount} · effective ×${effectiveStackCopies(transition.toCount)}`
+        : transition?.change === "lost"
+          ? `${itemName} Attunement lost · ×${transition.fromCount} → ×${transition.toCount}`
+          : event.text;
+      toast(transitionToast, "loot");
+      audio.play(transition?.change === "gained" ? "attune" : transition?.change === "lost" ? "unattune" : "loot");
+      if (!transition) spawnBurst(position, 0xf1c56f, 13, 1.15);
+      pulsePurchasedStat(event.itemId);
+      if (event.replacedItemId) pulsePurchasedStat(event.replacedItemId);
     }
-    toast(event.text, "loot");
-    audio.play("loot");
-    spawnBurst(position, 0xf1c56f, 13, 1.15);
-    pulsePurchasedStat(event.itemId);
-    if (event.replacedItemId) pulsePurchasedStat(event.replacedItemId);
   } else if (event.kind === "rift_exposed") {
     showBanner("THE BARRIER RISES", "COUNTERATTACK", "DESTROY THE RIFT HEART");
     audio.play("cast");
@@ -1255,7 +1315,7 @@ function applySnapshot(next: GameSnapshot): void {
   } else if (next.phase !== "victory") {
     victoryVisualStartedAt = null;
   }
-  for (const event of next.events) handleEvent(event);
+  for (const event of next.events) handleEvent(event, false);
   const self = next.players.find((player) => player.id === localPlayerId);
   if (self?.heroId) {
     selectedHero = self.heroId;
