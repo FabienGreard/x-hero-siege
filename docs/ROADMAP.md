@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.16` — Know the Next Copy
 
-**Status:** implemented and locally verified on 2026-07-10; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the purchase-comprehension weakness exposed by shipped `0.1.15`: ordinary shop cards named a generic per-copy percentage and Attunement proximity, but did not reveal the exact champion-specific result before an immediate purchase. Exact knowledge arrived only after spending or later at the full-build reforge step.
 - While any socket is open, show one compact `NEXT` line on every local ware: the affected Hero Stat's exact current-to-projected value, plus `ATTUNES` only when the purchase crosses `×3 → ×4`.
