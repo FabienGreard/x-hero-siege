@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.9` — Reshape the Six
 
-**Status:** implemented and locally verified on 2026-07-10; companion site release verification pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Keep both physical shops strategically relevant after all six unrestricted sockets are occupied: select one ware from the local vendor, select one occupied socket, inspect the outgoing and incoming effects, and explicitly confirm.
 - Charge the same full 24-gold price, consume the old item without a refund, and leave the build at exactly `6/6`; reject a same-item no-op without spending.
