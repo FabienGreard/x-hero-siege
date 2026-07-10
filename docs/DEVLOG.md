@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A basic stat should name the strike it changes
+
+`0.1.19` made the arcane half of a build concrete. In the next normal Warden run, one Focus reconciled `Skill Power 115%` into a rank-three Rupturing Arc at `124.2` damage every `8s`, and the compact panel stayed readable while the wave continued. The same panel still said only `Basic Damage 30` and `Attack Rate 1.92`; the action bar separately said `Iron Cleave`. Tempered Edge could change the arithmetic, but the current build never joined that arithmetic to the champion's named primary.
+
+`0.1.20` completes that sentence without inventing DPS. `ACTION IMPACT` now begins with one full-width `LMB` row: Iron Cleave, Repeater Shot, Ember Lance, or Soul Scythe; exact damage to one target; and the authoritative attack cadence. Soul Scythe also names its genuine `2.5` heal per target. It does not claim range, pack damage, projectile travel, or sustained output that depends on positioning and enemies.
+
+The row reads the same server-derived Hero Stats that already govern basic attacks. Gravebinder's fixed healing now comes from the same shared primary-impact definition used by the panel. A real Edge purchase moves the Warden from `30 → 36 DMG/TARGET` while `1.92/S` remains still, and the named row receives the same restrained accepted-purchase pulse as the aggregate stat. No primary behavior, item value, or balance number changed; another established ware simply reaches the hero-specific consequence it already owned.
+
 ## 2026-07-10 — Arcane power should name the cast it changes
 
 `0.1.18` made a purchase land, but an Ashcaller wearing both Reliquary wares exposed the next abstraction. Hero Stats said `Skill Power 115%` and `Cooldown Speed 115%`; equipment repeated the same percentages. Flame Ring and Falling Star were visibly learned on the action bar, yet no surface joined those truths into the damage and recovery the current build could actually deliver.

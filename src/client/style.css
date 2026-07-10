@@ -339,6 +339,10 @@ button {
   gap: 4px;
 }
 
+.primary-impact {
+  margin-bottom: 4px;
+}
+
 .ability-impact {
   min-width: 0;
   min-height: 34px;
@@ -418,7 +422,8 @@ button {
   white-space: nowrap;
 }
 
-.ability-impact-readout.is-purchased {
+.ability-impact-readout.is-purchased,
+.primary-impact.is-purchased {
   border-color: rgba(233, 186, 99, 0.62);
   animation: purchased-stat 0.7s ease-out both;
 }

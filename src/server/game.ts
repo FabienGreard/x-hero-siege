@@ -13,6 +13,7 @@ import {
   scaleAbilityMagnitude,
   type AbilityImpactMetricId,
 } from "../shared/ability-impact";
+import { GRAVEBINDER_BASIC_HEAL_PER_TARGET } from "../shared/primary-impact";
 import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
   DEBUG_TIMINGS,
@@ -897,7 +898,12 @@ export class GameWorld {
     if (player.heroId === "warden" || player.heroId === "gravebinder") {
       const center = { x: player.position.x + direction.x * 3.2, z: player.position.z + direction.z * 3.2 };
       const hits = this.damageCircle(player, center, 3.8, damage);
-      if (player.heroId === "gravebinder" && hits) player.hp = Math.min(this.heroStats(player).maxHp, player.hp + hits * 2.5);
+      if (player.heroId === "gravebinder" && hits) {
+        player.hp = Math.min(
+          this.heroStats(player).maxHp,
+          player.hp + hits * GRAVEBINDER_BASIC_HEAL_PER_TARGET,
+        );
+      }
       this.effect("slash", center, 4, player.id, 0.35, null, this.directionYaw(direction));
     } else {
       this.fireProjectile(player, player.heroId === "ashcaller" ? "ember" : "arrow", direction, damage, player.heroId === "ashcaller" ? 23 : 29, 1);

@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.20` — Read Every Strike
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending.
+
+- Correct the remaining champion-stat disconnect exposed by shipped `0.1.19`: the Warden's accepted Focus resolved into exact Rupturing Arc output, but `Basic Damage 30`, `Attack Rate 1.92`, and the named `Iron Cleave` primary still lived on separate surfaces.
+- Broaden the existing current-build block to `ACTION IMPACT` and add one full-width `LMB` row naming each hero's primary, exact damage per target, and attacks per second. Include Soul Scythe's real fixed heal per struck target without estimating pack totals or DPS.
+- Derive the row from the authoritative Hero Stats snapshot and one shared primary-impact definition. Make Gravebinder's server healing consume the same canonical constant so presentation and resolution cannot drift.
+- Pulse the named primary row only when an accepted Tempered Edge purchase changes its damage. Keep Focus, Quickening, and Greaves isolated; keep ordinary shop previews and current-only `Q`/`E`/`R`/`F` truth unchanged.
+- Prove all four heroes, Edge counts zero through six and the `3 → 4` Attunement jump, real one-target impact, Gravebinder healing, non-Edge isolation, native 1280×720 Stats/shop coexistence, clean diagnostics, production build, authoritative suite, and four-client convergence.
+
+**Next-cycle nomination:** replay shipped `0.1.20` at normal timing and choose the next highest-leverage shop, item, or champion-stat weakness from actual use. Do not infer primary range, DPS, or total cleave value from a context-free readout.
+
 ## `0.1.19` — Read Every Cast
 
 **Status:** implemented, pushed, and locally verified on 2026-07-10; companion site deployed and production assets verified byte-for-byte; playable game deployment pending a configured Bun/WebSocket host.

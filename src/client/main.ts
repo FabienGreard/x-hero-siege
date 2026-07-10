@@ -19,6 +19,7 @@ import {
 } from "../shared/armory-data";
 import { deriveHeroStats } from "../shared/hero-stats";
 import { deriveAbilityImpactReadout } from "../shared/ability-impact";
+import { derivePrimaryImpactReadout } from "../shared/primary-impact";
 import type {
   ActionSnapshot,
   AbilitySlot,
@@ -112,6 +113,7 @@ const statMoveSpeed = requiredElement<HTMLElement>("stat-move-speed");
 const statAbilityPower = requiredElement<HTMLElement>("stat-ability-power");
 const statCooldownRecovery = requiredElement<HTMLElement>("stat-cooldown-recovery");
 const abilityImpactReadout = requiredElement<HTMLElement>("ability-impact-readout");
+const heroPrimaryImpact = requiredElement<HTMLDivElement>("hero-primary-impact");
 const heroAbilityImpact = requiredElement<HTMLDivElement>("hero-ability-impact");
 const equipmentCount = requiredElement<HTMLElement>("equipment-count");
 const heroEquipmentSlots = requiredElement<HTMLDivElement>("hero-equipment-slots");
@@ -310,6 +312,10 @@ const ABILITY_METRIC_SHORT_LABELS: Record<string, string> = {
   "HEAL / HIT": "HEAL/HIT",
   "WRAITH DAMAGE": "WRAITH",
 };
+const PRIMARY_METRIC_SHORT_LABELS: Record<string, string> = {
+  "DAMAGE / TARGET": "DMG/TARGET",
+  "HEAL / TARGET": "HEAL/TARGET",
+};
 const shopItemButtons = new Map<ItemId, HTMLButtonElement>();
 
 const laneStatusElements = new Map<LaneId, HTMLElement>();
@@ -500,6 +506,32 @@ function formatHeroStat(value: number, decimals = 0): string {
   return fixed.replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
 }
 
+function updateHeroPrimaryImpact(self: PlayerSnapshot): void {
+  if (!self.heroId) {
+    heroPrimaryImpact.replaceChildren();
+    delete heroPrimaryImpact.dataset.impact;
+    return;
+  }
+  const key = [self.heroId, self.stats.basicDamage, self.stats.basicAttackInterval].join("|");
+  if (heroPrimaryImpact.dataset.impact === key) return;
+  heroPrimaryImpact.dataset.impact = key;
+  const impact = derivePrimaryImpactReadout(self.heroId, self.stats);
+  const fullMetrics = impact.metrics
+    .map((metric) => `${formatHeroStat(metric.value, 1)} ${metric.label}`)
+    .join(" and ");
+  const compactMetrics = impact.metrics
+    .map((metric) => `${formatHeroStat(metric.value, 1)} ${PRIMARY_METRIC_SHORT_LABELS[metric.label] ?? metric.label}`)
+    .join(" / ");
+  const attacksPerSecond = `${formatHeroStat(impact.attacksPerSecond, 2)}/S`;
+  heroPrimaryImpact.setAttribute(
+    "aria-label",
+    `LMB, ${impact.name}. ${fullMetrics}. ${formatHeroStat(impact.attacksPerSecond, 2)} attacks per second.`,
+  );
+  heroPrimaryImpact.innerHTML = `
+    <div class="ability-impact-heading"><kbd>LMB</kbd><strong>${impact.name}</strong><small>PRIMARY</small></div>
+    <div class="ability-impact-result"><span>${compactMetrics}</span><em>${attacksPerSecond}</em></div>`;
+}
+
 function updateHeroAbilityImpact(self: PlayerSnapshot): void {
   if (!self.heroId) {
     heroAbilityImpact.replaceChildren();
@@ -603,6 +635,7 @@ function updateHeroStats(self: PlayerSnapshot): void {
   statMoveSpeed.textContent = formatHeroStat(stats.moveSpeed, 1);
   statAbilityPower.textContent = `${formatHeroStat(stats.abilityPower * 100)}%`;
   statCooldownRecovery.textContent = `${formatHeroStat(stats.cooldownRecovery * 100)}%`;
+  updateHeroPrimaryImpact(self);
   updateHeroAbilityImpact(self);
 }
 
@@ -1187,6 +1220,7 @@ function pulsePurchasedStat(itemId: ItemId | undefined): void {
   const stat = value?.closest<HTMLElement>(".hero-stat");
   const targets = [
     ...(stat ? [stat] : []),
+    ...(itemId === "tempered_edge" ? [heroPrimaryImpact] : []),
     ...(itemId === "runebound_focus" || itemId === "quickening_sigil" ? [abilityImpactReadout] : []),
   ];
   if (targets.length === 0) return;

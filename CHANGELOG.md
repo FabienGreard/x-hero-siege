@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.20] - 2026-07-11
+
+### Added
+
+- Added one champion-specific `LMB` row to the current-build impact surface: Iron Cleave, Repeater Shot, Ember Lance, and Soul Scythe now expose exact per-target damage and attack cadence beside `Q`/`E`/`R`/`F`.
+- Added Soul Scythe's genuine `2.5` healing per struck target without presenting context-dependent pack totals or DPS.
+- Added canonical primary-impact coverage for every hero and raw Edge count from zero through six, including the nonlinear fourth-copy Attunement step and real authoritative one-target impacts.
+
+### Changed
+
+- Broadened `ABILITY IMPACT` to `ACTION IMPACT` while preserving its compact current-build role; Tempered Edge now pulses the named primary row when an accepted purchase changes it.
+- Moved Gravebinder's fixed per-target primary healing into the shared definition consumed by both server resolution and the rendered readout.
+
+### Preserved
+
+- Every primary's damage, cadence, geometry, projectile behavior, cleave behavior, healing, item scaling, animation, audio, and existing balance.
+- All four wares, two physical shops, prices, rewards, routes, six unrestricted run-only slots, Attunement, replacement, ability-impact truth, controls, and server authority.
+- No DPS estimate, range claim, pack-total claim, projection, new item, proc, stat, vendor, progression system, or balance change was added.
+
 ## [0.1.19] - 2026-07-10
 
 ### Added
