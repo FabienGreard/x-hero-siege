@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.24` — Hold Your Place
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Correct the run-killing regression exposed during the normal `0.1.23` shop replay: after earning Greaves and Focus through two real physical routes, one socket loss deleted the Warden and its build, then every automatic reconnect entered hero selection and received `GAME_IN_PROGRESS` while the empty room continued to defeat.
 - Keep one disconnected defender in authoritative memory for `15s`. Preserve identity, hero, host role, position, health, level, XP, ranks, cooldowns, wallet, and all six unrestricted equipment slots; neutralize held input while leaving the hero targetable and the co-op simulation unpaused.
