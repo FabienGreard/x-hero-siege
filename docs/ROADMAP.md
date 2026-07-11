@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.25` — Leave the Step
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending release proof; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Correct the battlefield-read weakness exposed by normal authoritative `0.1.24` play: four real Forge trips produced an Attuned four-Greaves Warden by `86.061s` with the Nexus untouched, but Combat Stride moved only `0.607` world units across windup and impact and had no renderer-specific read.
 - Reuse the established cyan Attuned Fleetstep lower-chevron echo. During a moving basic windup or active impact, leave it opposite authoritative velocity by up to `0.18` hero scale; settle it home through recovery and keep the allied read quieter than the local one.
