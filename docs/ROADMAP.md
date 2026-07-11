@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.27` — Read the Wall
 
-**Status:** implemented and locally verified on 2026-07-11; companion site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Correct the missing defensive decision exposed by the shipped `0.1.26` replay and player review: the top objective truthfully named Nexus health, but City Watch reduced an active front to `OPEN · threat`, the minimap treated its gate as merely intact or breached, and the physical gate communicated durability only through a subtle crystal scale. A full and one-hit-from-fallen wall therefore read almost alike while the player was deciding whether to hold, rotate, or leave for a local shop.
 - Derive one canonical gate readout from the authoritative `hp`, `maxHp`, `breached`, active-lane, and threat snapshot. Keep each existing `20px` City Watch tile, replace `OPEN` with an exact clamped percentage, add one restrained two-pixel fill, name `SEALED` and `FALLEN` explicitly, and expose raw health plus threat count through the existing title and accessible label.
