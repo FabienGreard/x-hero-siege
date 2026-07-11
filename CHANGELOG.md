@@ -2,6 +2,28 @@
 
 All notable project changes are recorded here.
 
+## [0.1.28] - 2026-07-11
+
+### Added
+
+- Added one canonical ranged-primary definition for the `0.75` projectile envelope, shorter committed release/recovery windows, Riftstalker's two-target penetration, and Ashcaller's three-unit half-damage contact burst.
+- Added a normal-timing, thirty-seed, 120-second solo viability gate for all four champions, including identity-aware Nexus, gate, down, kill, and 60-gold affordability floors.
+- Added focused authoritative coverage for release-time aim, committed melee aim, exact `22`/`20` range endpoints, swept collision through a `0.1s` hitch, deterministic penetration order, Ashcaller burst boundaries, unchanged single-target and Rift Heart damage, ranged idle gaps, and established ability-projectile geometry.
+- Added native `1280×720` before, Riftstalker, and Ashcaller combat evidence against the approved gameplay concept.
+
+### Changed
+
+- Ranged basics now resolve toward the latest server-accepted aim when their windup releases, stop at the champion's declared range, and sweep each traveled segment instead of checking only the projectile endpoint.
+- Repeater Shot now penetrates the nearest two enemies; Ember Lance keeps one full direct hit and adds a half-damage burst to nearby enemies. Their basic damage, cadence, and one-target or boss output remain unchanged.
+- Ranged primary active and recovery occupancy now ends before the existing attack cooldown, creating a real full-speed repositioning gap between committed shots without granting baseline movement during windup or impact. Combat Stride retains its established `15%` advantage inside those committed phases.
+- Repeater Shot now owns a distinct thin violet projectile instead of sharing `arrow` with Riftstalker abilities. Repeater and Ember gain brief directional launch streaks, restrained tails, and compact contact shards; their old generic impact ring and seven-particle burst are removed.
+- The two ranged basics resolve multi-hit contacts in deterministic first-physical-contact order across mixed enemy sizes, while ability projectiles retain their established endpoint sampling, kinds, radii, lifetimes, pierce counts, speed, and damage.
+
+### Preserved
+
+- Warden and Gravebinder melee commitment, all four basic attack intervals, primary single-target damage, Rift Heart damage, ability projectile geometry and collision behavior, champion stats, input grammar, server authority, shops, prices, catalog, six unrestricted slots, item power, routes, art direction, and audio remain established.
+- Riftstalker remains the fragile ranged execution champion while Ashcaller remains the safer explosive area controller; the new all-four gate does not require parity with Warden or Gravebinder.
+
 ## [0.1.27] - 2026-07-11
 
 ### Added

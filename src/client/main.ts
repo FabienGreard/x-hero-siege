@@ -2117,7 +2117,12 @@ function syncEffects(effects: EffectSnapshot[]): void {
       world.add(visual);
       tracked = { visual, snapshot: effect };
       effectVisuals.set(effect.id, tracked);
-      if (effect.kind !== "meteor_warning" && effect.kind !== "snare") {
+      if (
+        effect.kind !== "meteor_warning" &&
+        effect.kind !== "snare" &&
+        effect.kind !== "repeater_impact" &&
+        effect.kind !== "ember_impact"
+      ) {
         const effectColor = effect.kind === "fire" || effect.kind === "meteor" ? 0xff7442 : effect.kind === "souls" || effect.kind === "heal" ? 0x6be3ad : 0x8cdcff;
         spawnBurst(effect.position, effectColor, effect.kind === "meteor" ? 20 : 7, Math.min(2.2, effect.radius * 0.25));
       }

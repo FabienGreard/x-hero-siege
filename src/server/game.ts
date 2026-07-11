@@ -15,6 +15,17 @@ import {
 } from "../shared/ability-impact";
 import { GRAVEBINDER_BASIC_HEAL_PER_TARGET } from "../shared/primary-impact";
 import { actionMoveRetention } from "../shared/combat-movement";
+import {
+  ASHCALLER_BASIC_BURST_DAMAGE_RATIO,
+  ASHCALLER_BASIC_BURST_RADIUS,
+  ASHCALLER_BASIC_RECOVERY_INTERVAL_RATIO,
+  ASHCALLER_BASIC_RECOVERY_MIN_SECONDS,
+  RANGED_BASIC_ACTIVE_SECONDS,
+  RANGED_BASIC_PROJECTILE_RADIUS,
+  RIFTSTALKER_BASIC_PIERCE,
+  RIFTSTALKER_BASIC_RECOVERY_SECONDS,
+  isRangedHero,
+} from "../shared/ranged-primary";
 import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
   DEBUG_TIMINGS,
@@ -204,6 +215,21 @@ const rotate = (v: Vec2, radians: number): Vec2 => ({
   x: v.x * Math.cos(radians) - v.z * Math.sin(radians),
   z: v.x * Math.sin(radians) + v.z * Math.cos(radians),
 });
+
+function segmentHitProgress(start: Vec2, end: Vec2, center: Vec2, radius: number): number | null {
+  const delta = { x: end.x - start.x, z: end.z - start.z };
+  const lengthSquared = delta.x * delta.x + delta.z * delta.z;
+  if (lengthSquared <= 0.000_001) return distance(start, center) <= radius ? 0 : null;
+  const relative = { x: start.x - center.x, z: start.z - center.z };
+  const inside = relative.x * relative.x + relative.z * relative.z <= radius * radius;
+  if (inside) return 0;
+  const linear = 2 * (relative.x * delta.x + relative.z * delta.z);
+  const constant = relative.x * relative.x + relative.z * relative.z - radius * radius;
+  const discriminant = linear * linear - 4 * lengthSquared * constant;
+  if (discriminant < 0) return null;
+  const firstContact = (-linear - Math.sqrt(discriminant)) / (2 * lengthSquared);
+  return firstContact >= 0 && firstContact <= 1 ? firstContact : null;
+}
 
 export class GameWorld {
   readonly players = new Map<string, PlayerState>();
@@ -884,13 +910,22 @@ export class GameWorld {
     if (current.remaining > 0) return;
     if (current.phase === "windup") {
       this.resolvePlayerAction(player, current);
-      const duration = current.kind === "basic" ? 0.08 : PLAYER_ACTION_TIMINGS[current.kind].active;
+      const duration = current.kind === "basic"
+        ? isRangedHero(player.heroId) ? RANGED_BASIC_ACTIVE_SECONDS : 0.08
+        : PLAYER_ACTION_TIMINGS[current.kind].active;
       player.action = this.action(current.kind, "active", duration, current.direction);
       return;
     }
     if (current.phase === "active") {
       const duration = current.kind === "basic"
-        ? Math.max(0.08, this.heroStats(player).basicAttackInterval * 0.28)
+        ? isRangedHero(player.heroId)
+          ? player.heroId === "riftstalker"
+            ? RIFTSTALKER_BASIC_RECOVERY_SECONDS
+            : Math.max(
+                ASHCALLER_BASIC_RECOVERY_MIN_SECONDS,
+                this.heroStats(player).basicAttackInterval * ASHCALLER_BASIC_RECOVERY_INTERVAL_RATIO,
+              )
+          : Math.max(0.08, this.heroStats(player).basicAttackInterval * 0.28)
         : PLAYER_ACTION_TIMINGS[current.kind].recovery;
       player.action = this.action(current.kind, "recovery", duration, current.direction);
       return;
@@ -909,7 +944,11 @@ export class GameWorld {
   private resolvePlayerAction(player: PlayerState, action: ActionSnapshot): void {
     if (!player.heroId || action.kind === "enemy_attack") return;
     if (action.kind === "basic") {
-      this.basicAttackImpact(player, action.direction);
+      // Ranged attacks resolve toward the latest server-accepted cursor aim.
+      // Melee keeps its committed windup direction.
+      const direction = isRangedHero(player.heroId) ? normalize(player.aim) : action.direction;
+      action.direction = copy(direction);
+      this.basicAttackImpact(player, direction);
       return;
     }
     const rank = player.abilityRanks[action.kind];
@@ -936,30 +975,132 @@ export class GameWorld {
       }
       this.effect("slash", center, 4, player.id, 0.35, null, this.directionYaw(direction));
     } else {
-      this.fireProjectile(player, player.heroId === "ashcaller" ? "ember" : "arrow", direction, damage, player.heroId === "ashcaller" ? 23 : 29, 1);
+      const ashcaller = player.heroId === "ashcaller";
+      const speed = ashcaller ? 23 : 29;
+      this.fireProjectile(
+        player,
+        ashcaller ? "ember" : "repeater",
+        direction,
+        damage,
+        speed,
+        ashcaller ? 1 : RIFTSTALKER_BASIC_PIERCE,
+        RANGED_BASIC_PROJECTILE_RADIUS,
+        Math.max(0, (HERO_DEFINITIONS[player.heroId].basicRange - 1.7) / speed),
+      );
     }
   }
 
   private updateProjectiles(dt: number): void {
     for (const projectile of [...this.projectiles.values()]) {
-      projectile.remaining -= dt;
-      projectile.position.x += projectile.velocity.x * dt;
-      projectile.position.z += projectile.velocity.z * dt;
-      if (projectile.remaining <= 0) { this.projectiles.delete(projectile.id); continue; }
-      if (projectile.team !== "heroes") continue;
+      const rangedBasic = projectile.kind === "repeater" || projectile.kind === "ember";
+      const previous = copy(projectile.position);
+      let expired = false;
+      if (rangedBasic) {
+        const stepSeconds = Math.min(Math.max(0, projectile.remaining), dt);
+        projectile.remaining = Math.max(0, projectile.remaining - dt);
+        projectile.position.x += projectile.velocity.x * stepSeconds;
+        projectile.position.z += projectile.velocity.z * stepSeconds;
+        expired = projectile.remaining <= 0;
+      } else {
+        // Preserve established ability and demon projectile travel: they move a
+        // full step, expire before collision, and sample only their new point.
+        projectile.remaining -= dt;
+        projectile.position.x += projectile.velocity.x * dt;
+        projectile.position.z += projectile.velocity.z * dt;
+        if (projectile.remaining <= 0) {
+          this.projectiles.delete(projectile.id);
+          continue;
+        }
+      }
+      if (projectile.team !== "heroes") {
+        if (expired) this.projectiles.delete(projectile.id);
+        continue;
+      }
       const owner = this.players.get(projectile.ownerId);
-      if (!owner) continue;
-      for (const enemy of [...this.enemies.values()]) {
-        if (projectile.hitIds.has(enemy.id) || distance(projectile.position, enemy.position) > projectile.radius + enemy.radius) continue;
+      if (!owner) {
+        if (expired) this.projectiles.delete(projectile.id);
+        continue;
+      }
+      const collisions: Array<{ enemy: EnemyState; progress: number }> = rangedBasic
+        ? [...this.enemies.values()]
+            .filter((enemy) => !projectile.hitIds.has(enemy.id))
+            .map((enemy) => ({
+              enemy,
+              progress: segmentHitProgress(
+                previous,
+                projectile.position,
+                enemy.position,
+                projectile.radius + enemy.radius,
+              ),
+            }))
+            .filter((collision): collision is { enemy: EnemyState; progress: number } => collision.progress !== null)
+            .sort((left, right) => left.progress - right.progress || left.enemy.id.localeCompare(right.enemy.id))
+        : [...this.enemies.values()]
+            .filter(
+              (enemy) =>
+                !projectile.hitIds.has(enemy.id) &&
+                distance(projectile.position, enemy.position) <= projectile.radius + enemy.radius,
+            )
+            .map((enemy) => ({ enemy, progress: 0 }));
+      const rangedHeartProgress = rangedBasic && this.phase === "push" && this.riftHeart.active
+        ? segmentHitProgress(
+            previous,
+            projectile.position,
+            WORLD_LAYOUT.riftHeart,
+            projectile.radius + 6,
+          )
+        : null;
+      let rangedHeartHit = false;
+
+      for (const { enemy, progress } of collisions) {
+        if (
+          rangedHeartProgress !== null &&
+          rangedHeartProgress <= progress &&
+          this.projectiles.has(projectile.id)
+        ) {
+          this.damageRiftHeart(projectile.damage);
+          this.projectiles.delete(projectile.id);
+          rangedHeartHit = true;
+          break;
+        }
         projectile.hitIds.add(enemy.id);
-        this.damageEnemy(enemy, projectile.damage, owner);
+        if (rangedBasic) {
+          this.damageEnemy(
+            enemy,
+            projectile.damage,
+            owner,
+            projectile.kind === "repeater" ? "repeater_impact" : "ember_impact",
+            this.directionYaw(projectile.velocity),
+          );
+        } else {
+          // Ability impacts retain their generic visual and RNG consumption.
+          this.damageEnemy(enemy, projectile.damage, owner);
+        }
+        if (projectile.kind === "ember") {
+          this.damageAshcallerBurst(enemy.position, projectile.damage, owner, enemy.id);
+        }
         projectile.pierce -= 1;
         if (projectile.pierce <= 0) { this.projectiles.delete(projectile.id); break; }
       }
-      if (this.phase === "push" && this.riftHeart.active && distance(projectile.position, WORLD_LAYOUT.riftHeart) <= projectile.radius + 6) {
+      if (
+        rangedBasic &&
+        !rangedHeartHit &&
+        rangedHeartProgress !== null &&
+        this.projectiles.has(projectile.id)
+      ) {
+        this.damageRiftHeart(projectile.damage);
+        this.projectiles.delete(projectile.id);
+      } else if (
+        !rangedBasic &&
+        this.phase === "push" &&
+        this.riftHeart.active &&
+        distance(projectile.position, WORLD_LAYOUT.riftHeart) <= projectile.radius + 6
+      ) {
+        // Preserve the established post-enemy endpoint check for abilities.
         this.damageRiftHeart(projectile.damage);
         this.projectiles.delete(projectile.id);
       }
+      if (rangedBasic && expired) this.projectiles.delete(projectile.id);
     }
   }
 
@@ -1247,12 +1388,21 @@ export class GameWorld {
     return "imp";
   }
 
-  private fireProjectile(player: PlayerState, kind: ProjectileKind, direction: Vec2, damage: number, speed: number, pierce: number, radius = 0.45): void {
+  private fireProjectile(
+    player: PlayerState,
+    kind: ProjectileKind,
+    direction: Vec2,
+    damage: number,
+    speed: number,
+    pierce: number,
+    radius = 0.45,
+    lifetime = kind === "death_tide" ? 4 : 2.2,
+  ): void {
     const normalized = normalize(direction);
     const projectile: ProjectileState = {
       id: this.id("projectile"), ownerId: player.id, team: "heroes", kind,
       position: { x: player.position.x + normalized.x * 1.7, z: player.position.z + normalized.z * 1.7 },
-      velocity: { x: normalized.x * speed, z: normalized.z * speed }, radius, remaining: kind === "death_tide" ? 4 : 2.2,
+      velocity: { x: normalized.x * speed, z: normalized.z * speed }, radius, remaining: lifetime,
       damage, pierce, hitIds: new Set(),
     };
     this.projectiles.set(projectile.id, projectile);
@@ -1321,9 +1471,45 @@ export class GameWorld {
     return hits;
   }
 
-  private damageEnemy(enemy: EnemyState, baseDamage: number, source: PlayerState): void {
+  private damageAshcallerBurst(
+    center: Vec2,
+    basicDamage: number,
+    source: PlayerState,
+    directTargetId: string,
+  ): void {
+    for (const enemy of [...this.enemies.values()]) {
+      if (
+        enemy.id === directTargetId ||
+        distance(center, enemy.position) > ASHCALLER_BASIC_BURST_RADIUS + enemy.radius
+      ) continue;
+      this.damageEnemy(
+        enemy,
+        basicDamage * ASHCALLER_BASIC_BURST_DAMAGE_RATIO,
+        source,
+        null,
+      );
+    }
+  }
+
+  private damageEnemy(
+    enemy: EnemyState,
+    baseDamage: number,
+    source: PlayerState,
+    impactKind: EffectKind | null = "impact",
+    impactRotation?: number,
+  ): void {
     enemy.hp -= baseDamage;
-    this.effect("impact", enemy.position, Math.max(1.2, enemy.radius * 1.5), source.id, 0.16);
+    if (impactKind) {
+      this.effect(
+        impactKind,
+        enemy.position,
+        Math.max(1.2, enemy.radius * 1.5),
+        source.id,
+        0.16,
+        null,
+        impactRotation ?? this.random() * Math.PI * 2,
+      );
+    }
     if (enemy.hp <= 0) this.killEnemy(enemy, source);
   }
 

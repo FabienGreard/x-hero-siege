@@ -181,6 +181,7 @@ export interface EnemySnapshot {
 
 export type ProjectileKind =
   | "arrow"
+  | "repeater"
   | "ember"
   | "soul"
   | "splitbolt"
@@ -223,6 +224,8 @@ export interface PickupSnapshot {
 export type EffectKind =
   | "slash"
   | "impact"
+  | "repeater_impact"
+  | "ember_impact"
   | "shock"
   | "fire"
   | "meteor_warning"

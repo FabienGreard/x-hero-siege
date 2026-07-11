@@ -2,6 +2,18 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A shot should go where it was released
+
+`0.1.27` gave the wall a voice, then the next ranged replay made the player's complaint measurable. Even with perfect current aim and nothing competing for attention except the primary attack, Riftstalker and Ashcaller both lost the Nexus before one minute. Their shots were not merely small. The server kept the aim from the beginning of the windup, ignored the range written into each champion, and checked only the projectile's new point after each update. A cursor correction could be right and still produce the wrong shot; a brief server hitch could put a demon between two collision samples.
+
+`0.1.28` makes release trustworthy. The shot takes the latest accepted aim, ends at the range the champion promises, and checks the path it actually traveled. The committed part of a ranged attack also finishes before its unchanged cooldown, leaving a small but real window to reposition at full speed. That window is not free kiting during the shot: windup and impact still stop an ordinary build, recovery keeps its established partial movement, and Attuned Fleetstep still earns the only movement inside commitment.
+
+The power answer is deliberately different for each champion. Riftstalker's Repeater passes through the first body and strikes the next; Ashcaller's Ember stops on first contact and blooms into a smaller half-strength burst. One remains a fragile line executor, the other an explosive area controller. Across thirty normal solo runs, both now keep the Nexus alive every time, but Riftstalker still goes down far more often and gives up much more gate health. Viability no longer requires pretending the identities are equal.
+
+The visual answer removes more than it adds. Repeater no longer borrows the same arrow used by larger abilities. Both basics become thin directional travel forms with one brief launch streak and one compact contact shard, while the old generic impact ring and seven-piece burst leave these attacks entirely. In the rendered comparison, the shot finally connects champion and target without competing with the horde, the wall, or a major cast.
+
+This does not settle the full review. Gold pickups and additive combat aftermath can still overpower ordinary action reads; Gravebinder still has uncapped sustain and summon scaling to examine; and the Armory still needs selling, higher prices, and careful breadth. What changed is the evidence beneath the economy: every champion can now reach a 60-gold decision inside a legal solo defense, so the next shop checkpoint no longer has to price around a ranged failure.
+
 ## 2026-07-11 — A wall should say how long it can hold
 
 The player review arrived as a connected list: the battlefield felt dark and busy, ranged attacks were hard to follow, Gravebinder felt too strong, the gate's health was unclear, and the Armory needed selling, higher prices, and more breadth. The right response was not to pour all seven into one release. Replaying `0.1.26` made the first broken decision plain. The Nexus said `100%` in one strong bar; the North gate said only `OPEN · 17`. A full wall and a wall one hit from collapse asked the same strategic question with almost the same answer.

@@ -422,6 +422,7 @@ function entityTexture(kind: "hero" | EnemyKind, variant: string, elite = false)
 export interface EntityVisual extends THREE.Group {
   userData: {
     entityKind: string;
+    variant: HeroId | string;
     sprite: THREE.Sprite;
     silhouette: THREE.Sprite;
     shadow: THREE.Sprite;
@@ -556,6 +557,7 @@ export function createEntityVisual(
   group.add(silhouette, sprite);
   group.userData = {
     entityKind: kind,
+    variant,
     sprite,
     silhouette,
     shadow,
@@ -663,6 +665,7 @@ export function updateEntityVisual(
   const wareReceipt = visual.userData.wareReceipt;
   const baseScale = visual.userData.baseScale;
   const hero = visual.userData.entityKind === "hero";
+  const variant = visual.userData.variant;
   const moving = Math.hypot(velocity.x, velocity.z) > 0.1;
   if (now >= visual.userData.flashUntil) (sprite.material as THREE.SpriteMaterial).color.setHex(0xffffff);
 
@@ -832,13 +835,31 @@ export function updateEntityVisual(
     }
   }
 
+  const fillMaterial = telegraph.userData.fillMaterial as THREE.MeshBasicMaterial;
+  const edgeMaterial = telegraph.userData.edgeMaterial as THREE.MeshBasicMaterial;
+  const showRangedLaunch = hero &&
+    action?.kind === "basic" &&
+    (variant === "riftstalker" || variant === "ashcaller") &&
+    (isActive || (isRecovery && actionProgress < 0.42));
   const showEnemyWarning = !hero && action?.kind === "enemy_attack" && isWindup;
-  telegraph.visible = showEnemyWarning;
-  if (showEnemyWarning) {
+  telegraph.visible = showRangedLaunch || showEnemyWarning;
+  if (showRangedLaunch) {
+    const riftstalker = variant === "riftstalker";
+    const release = isRecovery
+      ? THREE.MathUtils.clamp(1 - actionProgress / 0.42, 0, 1)
+      : 1;
+    // Reuse the otherwise-hidden hero telegraph as one weapon-height launch
+    // streak. It lasts only through impact and the opening of recovery, so the
+    // projectile remains the directional read and abilities keep visual priority.
+    telegraph.position.y = 0.48;
+    telegraph.scale.set(riftstalker ? 0.44 : 0.38, 1, riftstalker ? 0.1 : 0.14);
+    fillMaterial.color.setHex(riftstalker ? 0xb79aff : 0xff6a32);
+    edgeMaterial.color.setHex(riftstalker ? 0xf3edff : 0xffd98a);
+    fillMaterial.opacity = (riftstalker ? 0.38 : 0.44) * release;
+    edgeMaterial.opacity = (riftstalker ? 0.85 : 0.92) * release;
+  } else if (showEnemyWarning) {
     const heavy = telegraph.userData.heavy as boolean;
     const pulse = 0.5 + Math.abs(Math.sin(elapsed * (heavy ? 7 : 10))) * 0.5;
-    const fillMaterial = telegraph.userData.fillMaterial as THREE.MeshBasicMaterial;
-    const edgeMaterial = telegraph.userData.edgeMaterial as THREE.MeshBasicMaterial;
     fillMaterial.opacity = (heavy ? 0.2 : 0.14) + actionProgress * (heavy ? 0.28 : 0.2);
     edgeMaterial.opacity = (0.3 + actionProgress * 0.55) * pulse;
     telegraph.scale.x = 0.82 + actionProgress * 0.18;
@@ -870,8 +891,9 @@ export function updateHealthBar(group: THREE.Group, ratio: number): void {
 
 export function createProjectileVisual(kind: ProjectileKind, team: "heroes" | "demons"): THREE.Object3D {
   const colors: Record<ProjectileKind, number> = {
+    repeater: 0xb79aff,
     arrow: 0xd7ecff,
-    ember: 0xff7d31,
+    ember: 0xff6a32,
     soul: 0x73e9bd,
     splitbolt: 0xb79aff,
     death_tide: 0x59d7a6,
@@ -882,17 +904,47 @@ export function createProjectileVisual(kind: ProjectileKind, team: "heroes" | "d
     map: glowTexture(hex(colors[kind])),
     color: colors[kind],
     transparent: true,
+    opacity: kind === "repeater" ? 0.34 : kind === "ember" ? 0.38 : 1,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   }));
-  glow.scale.set(kind === "death_tide" ? 4 : 1.8, kind === "death_tide" ? 4 : 1.8, 1);
+  if (kind === "repeater") glow.scale.set(0.95, 0.72, 1);
+  else if (kind === "ember") glow.scale.set(1.05, 0.84, 1);
+  else glow.scale.set(kind === "death_tide" ? 4 : 1.8, kind === "death_tide" ? 4 : 1.8, 1);
   glow.position.y = 0.65;
+  const directionalPrimary = kind === "repeater" || kind === "ember";
+  const coreSize: [number, number, number] = kind === "repeater"
+    ? [1.65, 0.16, 0.18]
+    : kind === "ember"
+      ? [1.25, 0.22, 0.26]
+      : [kind === "arrow" ? 1.6 : 0.65, 0.18, 0.22];
   const core = new THREE.Mesh(
-    new THREE.BoxGeometry(kind === "arrow" ? 1.6 : 0.65, 0.18, 0.22),
-    new THREE.MeshBasicMaterial({ color: colors[kind] }),
+    new THREE.BoxGeometry(...coreSize),
+    new THREE.MeshBasicMaterial({
+      color: kind === "repeater" ? 0xf3edff : kind === "ember" ? 0xffd58a : colors[kind],
+    }),
   );
   core.position.y = 0.65;
-  group.add(glow, core);
+  if (directionalPrimary) {
+    const tail = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        kind === "repeater" ? 1.1 : 0.85,
+        kind === "repeater" ? 0.08 : 0.12,
+        kind === "repeater" ? 0.15 : 0.22,
+      ),
+      new THREE.MeshBasicMaterial({
+        color: kind === "repeater" ? 0xb79aff : 0xff6a32,
+        transparent: true,
+        opacity: kind === "repeater" ? 0.62 : 0.68,
+        depthWrite: false,
+      }),
+    );
+    tail.position.set(kind === "repeater" ? -1 : -0.72, 0.65, 0);
+    group.add(glow, tail, core);
+    group.userData.tail = tail;
+  } else {
+    group.add(glow, core);
+  }
   group.userData.core = core;
   group.userData.team = team;
   return group;
@@ -1029,6 +1081,8 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
   const colorByKind: Record<EffectKind, number> = {
     slash: 0xeaf7ff,
     impact: 0xffb866,
+    repeater_impact: 0xf3edff,
+    ember_impact: 0xffd58a,
     shock: 0x62caff,
     fire: 0xff6638,
     meteor_warning: 0xf14d3f,
@@ -1046,7 +1100,17 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
   };
   const color = colorByKind[kind];
 
-  if (kind === "slash") {
+  if (kind === "repeater_impact") {
+    const shard = addEffectMesh(group, new THREE.BoxGeometry(1.05, 0.04, 0.14), color, 0.86);
+    shard.position.x = -0.18;
+    const cap = addEffectMesh(group, new THREE.BoxGeometry(0.12, 0.05, 0.48), 0xb79aff, 0.68);
+    cap.position.x = 0.26;
+  } else if (kind === "ember_impact") {
+    const shard = addEffectMesh(group, new THREE.BoxGeometry(1.15, 0.05, 0.24), color, 0.88);
+    shard.position.x = -0.18;
+    const cap = addEffectMesh(group, new THREE.BoxGeometry(0.16, 0.06, 0.6), 0xff6a32, 0.72);
+    cap.position.x = 0.3;
+  } else if (kind === "slash") {
     // Local +X is the strike direction; the server-provided yaw turns this arc.
     addFlatRing(group, radius * 0.42, radius, color, 0.78, -0.56, 1.12);
     addFlatRing(group, radius * 0.75, radius * 0.88, 0x8cdcff, 0.48, -0.7, 1.4);
@@ -1114,7 +1178,10 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
 export function updateEffectVisual(group: THREE.Group, remaining: number, elapsed: number): void {
   const kind = group.userData.kind as EffectKind;
   const pieces = group.userData.pieces as EffectPiece[];
-  const fade = THREE.MathUtils.clamp(remaining * 2.5, 0, 1);
+  const directionalPrimaryImpact = kind === "repeater_impact" || kind === "ember_impact";
+  const fade = directionalPrimaryImpact
+    ? THREE.MathUtils.clamp(remaining / 0.16, 0, 1)
+    : THREE.MathUtils.clamp(remaining * 2.5, 0, 1);
   const pulse = 1 + (1 - THREE.MathUtils.clamp(remaining, 0, 1)) * 0.2;
 
   if (kind === "meteor_warning") {
@@ -1127,7 +1194,9 @@ export function updateEffectVisual(group: THREE.Group, remaining: number, elapse
   for (const piece of pieces) {
     (piece.mesh.material as THREE.MeshBasicMaterial).opacity = piece.baseOpacity * fade;
   }
-  if (kind === "warden_charge") {
+  if (directionalPrimaryImpact) {
+    group.scale.setScalar(1);
+  } else if (kind === "warden_charge") {
     group.scale.z = 0.82 + Math.abs(Math.sin(elapsed * 18)) * 0.18;
   } else if (kind === "warden_wave") {
     group.scale.setScalar(pulse);

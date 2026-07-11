@@ -2,6 +2,24 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.28` — Trust the Shot
+
+**Status:** implemented and locally verified on 2026-07-11; companion site update prepared; push and live companion verification pending.
+
+- Correct the ranged-combat failure reproduced after shipped `0.1.27`: with primary-only legal input and perfect current target aim, Riftstalker lost the Nexus around `0:56` with `32` kills and Ashcaller around `0:55` with `31`. Their declared `22`/`20` range was unused, aim froze at windup start, a `0.1s` step could tunnel through enemies, and tiny travel forms disappeared beneath oversized generic impact aftermath.
+- Resolve ranged basics toward the latest server-accepted aim at release, stop them at the champion's canonical range, give only those basics an honest `0.75` collision envelope, and sweep traveled segments in deterministic nearest-first order. Keep Warden and Gravebinder committed to windup direction.
+- End ranged active and recovery occupancy before the established cooldown expires, turning the saved time into full-speed idle positioning rather than faster attacks or free movement inside commitment. Preserve Combat Stride's `15%` movement advantage during primary windup and impact.
+- Deepen the two ranged identities without making their skill kits more alike: Repeater Shot penetrates the nearest two bodies; Ember Lance keeps its full direct hit and releases a three-unit half-damage burst around first contact. Preserve basic damage, cadence, and one-target or Rift Heart output.
+- Give Repeater Shot its own projectile kind so Vaulting Blade and Execution Volley retain the established `arrow`. Replace circular travel dominance and the generic ring-plus-particle impact on ranged basics with brief champion-colored launch streaks, thin directional cores and tails, and compact yaw-aligned contact shards. Keep enemy flash, damage numbers, audio, and restrained shake.
+- Establish one legal, normal-timing, thirty-seed, 120-second all-four viability gate before the Armory is repriced. The current tree keeps all `30/30` Riftstalker and Ashcaller Nexus defenses alive while Riftstalker remains deliberately fragile: `7/30` no-down runs and `89.4` mean North-gate health versus Ashcaller's `21/30` no-down runs and `184.8` mean gate health. Both fund a 60-gold first choice in every run before `75s`, averaging `43.2s` and `43.6s` respectively.
+- Compare the shipped Ashcaller baseline and approved gameplay triptych with native `1280×720` Riftstalker and Ashcaller combat. Ordinary attacks now read as thin direction and contact beneath the champion, enemies, gate state, and major effects. The final production asset `main-6bfcf1963209c5f3.js`, `176` tests with `10,569` assertions across `25` files, production smoke, real four-client convergence, exact viewport fit, and empty warning/error diagnostics pass.
+
+**Review evidence carried forward:** exact gate durability and ranged-primary trust are now addressed. The same review still identifies overall darkness and additive effect clutter, Gravebinder sustain and Wraith Host scaling, insufficient skill differentiation, missing selling, prices that feel too cheap, and insufficient item breadth. The new all-four affordability gate makes the retained `60`-gold price and `30`-gold sellback candidate testable across the roster; catalog growth remains one ware at a time after the hardcoded four-item stat fallback is removed.
+
+**Technical risk carried forward:** generic cosmetic effect rotation still consumes the gameplay RNG stream, while the new directional ranged-primary impacts do not. Seeded wave composition can therefore shift when presentation call counts change. The final-tree gate asserts broad survival, identity, and economy floors rather than treating cross-version exact seed deltas as balance truth; separate simulation and presentation randomness before exact seeded comparisons become a long-term tuning contract.
+
+**Next-cycle nomination:** begin from the shipped `0.1.28` render and compare a legal Gravebinder full-kit run with the roster and the approved gameplay concept. Choose between the confirmed Gravebinder power/readability gap and the now-unblocked physical-shop economy as the single leading weakness; if the Armory leads, test `60`-gold wares with exact-slot `30`-gold selling at either physical shop before adding item breadth. Do not combine balance, selling, repricing, and a fifth ware into one checkpoint.
+
 ## `0.1.27` — Read the Wall
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
