@@ -14,6 +14,7 @@
   --red: #ef594f;
   --purple: #b676ff;
   --green: #75e2a2;
+  --decision-copy: 8px;
 }
 
 * {
@@ -50,8 +51,8 @@ button {
   isolation: isolate;
   cursor: crosshair;
   background:
-    radial-gradient(circle at 50% 45%, rgba(41, 65, 78, 0.18), transparent 45%),
-    #05070b;
+    radial-gradient(circle at 50% 45%, rgba(53, 78, 91, 0.24), transparent 48%),
+    #080b11;
 }
 
 #viewport,
@@ -76,15 +77,15 @@ button {
 }
 
 .screen-noise {
-  opacity: 0.035;
+  opacity: 0.018;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E");
   animation: noise-shift 0.25s steps(2) infinite;
 }
 
 .screen-vignette {
   box-shadow:
-    inset 0 0 150px 35px rgba(0, 0, 0, 0.56),
-    inset 0 -80px 120px rgba(2, 3, 7, 0.72);
+    inset 0 0 120px 20px rgba(0, 0, 0, 0.3),
+    inset 0 -64px 96px rgba(2, 3, 7, 0.36);
 }
 
 @keyframes noise-shift {
@@ -118,8 +119,8 @@ button {
 
 .panel-chrome {
   background:
-    linear-gradient(135deg, rgba(119, 160, 176, 0.08), transparent 22%),
-    linear-gradient(180deg, rgba(16, 21, 30, 0.96), rgba(6, 8, 13, 0.92));
+    linear-gradient(135deg, rgba(132, 174, 190, 0.11), transparent 24%),
+    linear-gradient(180deg, rgba(21, 28, 39, 0.95), rgba(9, 12, 19, 0.94));
   border: 1px solid var(--line);
   box-shadow:
     0 10px 35px rgba(0, 0, 0, 0.48),
@@ -223,7 +224,7 @@ button {
   z-index: 14;
   bottom: 112px;
   left: 18px;
-  width: 280px;
+  width: 330px;
   min-height: 218px;
   padding: 10px;
   pointer-events: none;
@@ -258,7 +259,7 @@ button {
 .hero-stats-header strong {
   display: block;
   overflow: hidden;
-  max-width: 175px;
+  max-width: 225px;
   color: #edf4f5;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 12px;
@@ -741,7 +742,7 @@ button.equipment-slot {
   --shop-accent: #bfa2ff;
   background:
     linear-gradient(135deg, rgba(157, 119, 239, 0.09), transparent 24%),
-    linear-gradient(180deg, rgba(13, 14, 25, 0.97), rgba(6, 8, 15, 0.94));
+    linear-gradient(180deg, rgba(20, 21, 36, 0.96), rgba(10, 12, 23, 0.94));
   border-color: rgba(170, 150, 221, 0.3);
 }
 
@@ -856,7 +857,7 @@ button.equipment-slot {
 
 .shop-replace-confirm {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px 8px;
   margin-top: 6px;
   padding: 7px;
@@ -876,7 +877,7 @@ button.equipment-slot {
   letter-spacing: 0.035em;
   line-height: 1.35;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .shop-replace-outcomes {
@@ -890,7 +891,7 @@ button.equipment-slot {
 
 .shop-replace-outcome {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: baseline;
   gap: 5px;
   min-width: 0;
@@ -913,6 +914,7 @@ button.equipment-slot {
 }
 
 .shop-replace-terms {
+  grid-column: 1 / -1;
   align-self: center;
   color: var(--shop-accent);
   font-size: 5px;
@@ -922,7 +924,9 @@ button.equipment-slot {
 }
 
 .shop-replace-actions {
+  grid-column: 1 / -1;
   display: flex;
+  justify-content: flex-end;
   gap: 4px;
 }
 
@@ -2776,6 +2780,185 @@ kbd {
   font-weight: 900;
   letter-spacing: 0.08em;
   transform: translateX(-50%);
+}
+
+/*
+ * Decision text must remain readable at the native 1280×720 play target.
+ * Tertiary shop flavor yields the space instead of making the two tactical
+ * side panels larger or allowing purchase consequences to collapse below 8px.
+ */
+.hero-stats-toggle,
+.hero-stats-close,
+.hero-stat > span,
+.hero-stat > small,
+.primary-impact-stride,
+.primary-impact-stride em,
+.ability-impact-heading kbd,
+.ability-impact-heading strong,
+.ability-impact-heading small,
+.ability-impact-result,
+.ability-impact-result em,
+.equipment-heading > span:last-child,
+.shop-loadout-meta b,
+.equipment-stack-copy strong,
+.equipment-stack-copy strong b,
+.equipment-stack-copy small,
+.equipment-stack-copy > em,
+.equipment-slot::after,
+.shop-header small,
+.shop-header button,
+.shop-replace-guide strong,
+.shop-replace-guide small,
+.shop-replace-preview,
+.shop-replace-outcome > span,
+.shop-replace-outcome > strong,
+.shop-replace-terms,
+.shop-replace-actions button,
+.shop-item-key,
+.shop-item-effect,
+.shop-item-owned,
+.shop-item-owned.is-building,
+.shop-item-owned.will-attune,
+.shop-item-projection > small,
+.shop-item-projection > em,
+.shop-item-evolution,
+.shop-item-evolution small,
+.shop-item-evolution strong,
+.shop-item-cast-preview > small,
+.shop-item-cast-return,
+.shop-item-cast-return b,
+.shop-item-projection > strong,
+.shop-item-price small,
+.lane-status,
+.lane-status-state,
+.ability-point-bank,
+.basic-readout::after,
+.ability-requirement,
+.gold-resource.is-spendable small,
+.gold-resource.is-reforge-ready small,
+.resource-readout small,
+.controls-hint,
+kbd,
+.hero-tags span,
+.name-field span,
+.ready-sub,
+.end-stat small {
+  font-size: var(--decision-copy);
+}
+
+.hero-stat > small,
+.equipment-heading > span:last-child,
+.equipment-stack-copy small,
+.shop-header button,
+.shop-replace-guide small,
+.shop-item-owned,
+.shop-item-price small,
+.lane-status-state,
+.resource-readout small {
+  color: #98a3a7;
+}
+
+.shop-header small {
+  color: #9a958b;
+}
+
+.primary-impact-stride em {
+  color: #93adb5;
+}
+
+.shop-item-description {
+  display: none;
+}
+
+.equipment-stack {
+  min-height: 36px;
+}
+
+.equipment-stack.will-attune[data-item="fleetstep_greaves"] {
+  grid-column: 1 / -1;
+}
+
+.shop-item-owned,
+.shop-item-projection > small,
+.shop-item-projection > em {
+  padding: 2px 4px;
+}
+
+.shop-item-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+}
+
+.shop-panel {
+  padding-block: 10px;
+}
+
+.shop-loadout {
+  margin-top: 7px;
+  padding-top: 5px;
+}
+
+.shop-items {
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.shop-item {
+  padding-block: 5px;
+}
+
+.shop-item-evolution {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.shop-item-cast-return b {
+  width: 14px;
+  height: 12px;
+}
+
+.hero-stat > span {
+  letter-spacing: 0.04em;
+}
+
+.hero-stat > small {
+  letter-spacing: 0.05em;
+}
+
+.equipment-stack-copy {
+  padding-inline: 4px;
+}
+
+.equipment-stack-copy strong,
+.equipment-stack-copy small,
+.equipment-stack-copy > em {
+  letter-spacing: 0.025em;
+}
+
+.lane-status {
+  padding-inline: 3px;
+  letter-spacing: 0.02em;
+}
+
+.lane-status-state {
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+
+.controls-hint,
+.controls-hint kbd {
+  font-size: 7px;
+}
+
+.controls-hint {
+  bottom: 91px;
+  gap: 6px;
+  padding: 4px 7px;
+  color: #8e999d;
+  background: rgba(5, 8, 12, 0.72);
+  border: 1px solid rgba(145, 166, 174, 0.16);
 }
 
 @keyframes critical-pulse {

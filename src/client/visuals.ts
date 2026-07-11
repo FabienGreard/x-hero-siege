@@ -1649,13 +1649,13 @@ function createGateSeal(
 export function createArena(scene: THREE.Scene): ArenaVisuals {
   const root = new THREE.Group();
   scene.add(root);
-  scene.background = new THREE.Color(0x0b1017);
-  scene.fog = new THREE.FogExp2(0x0b1017, 0.0042);
+  scene.background = new THREE.Color(0x0f1721);
+  scene.fog = new THREE.FogExp2(0x101923, 0.0037);
 
-  const ambient = new THREE.HemisphereLight(0x91b4cf, 0x261d19, 1.65);
-  const moon = new THREE.DirectionalLight(0xb8d7ef, 2.35);
+  const ambient = new THREE.HemisphereLight(0x9dbed4, 0x34261f, 1.85);
+  const moon = new THREE.DirectionalLight(0xc2def0, 2.55);
   moon.position.set(-30, 48, 25);
-  const fireFill = new THREE.DirectionalLight(0xb86f43, 0.55);
+  const fireFill = new THREE.DirectionalLight(0xc57a4a, 0.68);
   fireFill.position.set(32, 18, -28);
   scene.add(ambient, moon, fireFill);
 

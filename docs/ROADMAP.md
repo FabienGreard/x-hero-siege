@@ -2,6 +2,23 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.29` — Read the Screen
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Correct the highest-leverage weakness reproduced from shipped `0.1.28`: at native `1280×720`, the approved concept held playable stone in clear midtones while the real build crushed the world beneath strong vignette, noise, and near-black panel chrome. Decision-bearing shop and Hero Stats copy also collapsed below a practical reading floor in ordinary, evolution, Reliquary, and six-slot reforge states.
+- Raise the static world hierarchy with brighter sky and fog, modestly stronger cool and warm scene fill, and lighter noise and vignette overlays. Preserve established renderer exposure and tone mapping so a major Death Tide remains the brightest authored event and ordinary combat does not gain another effect.
+- Establish an `8px` native floor for tactical copy across Hero Stats, shops, reforge, objectives, actions, and resources. Keep only the compact controls strip deliberately subordinate at `7px`, reposition it above the resource HUD, and preserve the keyboard/mouse input reference without obscuring the action bar or an open vendor.
+- Widen Hero Stats and redistribute existing density: compact shop ownership into `×N/4`, `NEXT`, `ATTUNED`, or `STRIDE`; stack long Combat Stride and reforge outcomes; let tertiary ware flavor yield; and keep exact effects, prices, current-to-projected results, six sockets, City Watch, and accessibility descriptions intact.
+- Compare shipped calm and lobby baselines plus the approved gameplay triptych with real calm, dense combat, Gravebinder full-kit, Forge, Reliquary, Greaves evolution, and six-slot reforge states. The final `1280×720` layouts expose every targeted decision string without horizontal clipping, preserve the untouched lobby composition, and produce empty warning/error diagnostics.
+- Keep this checkpoint presentation-only: no mechanic, damage, heal, summon, enemy, objective, price, catalog, slot, Attunement, Combat Stride, protocol, RNG call, effect geometry/count, audio, control, camera, or server-authority change. The final production asset `main-3d95edab7057619a.js`, `176` tests with `10,569` assertions across `25` files, production smoke, and real four-client convergence pass.
+
+**Review evidence carried forward:** the screen now has a usable static hierarchy, but Gravebinder's Wraith contact pile remains dynamically additive and its full kit remains substantially safer and stronger than the roster. The Armory still needs selling, higher prices, and careful breadth. The retained economy candidate is `60` gold per ware with `30`-gold exact-slot selling at either physical shop; do not combine that work with Gravebinder containment or a fifth ware.
+
+**Technical risk carried forward:** Wraith Host has no owner cap and each summon can keep attacking until lifetime expiry; generic cosmetic effect rotation also consumes gameplay RNG. Bound summons without changing seeded wave truth by separating presentation randomness or using broad final-state gates before removing generic Wraith impact effects. Item diversity remains gated on replacing the hardcoded four-ware stat fallback, which currently risks treating an unknown item as Quickening.
+
+**Next-cycle nomination:** begin from the shipped `0.1.29` render and play legal Gravebinder full-kit and physical-shop routes again. Choose the single leading weakness between `Bound the Host`—exactly three strikes per Wraith, at most five active Wraiths per owner, one compact Wraith impact—and `The Armory Buys Back`—`60`-gold wares with `30`-gold exact-slot selling at either shop. Keep Soul Scythe sustain and any fifth ware as later bounded decisions.
+
 ## `0.1.28` — Trust the Shot
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.

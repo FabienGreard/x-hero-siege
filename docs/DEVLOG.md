@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — Darkness should frame the fight, not swallow it
+
+The review called the whole interface hard to read: too dark, too many effects, too difficult to understand. Playing the shipped `0.1.28` build made the first part precise. Its approved concept held the citadel floor and roads in usable midtones; the real calm frame buried them beneath near-black world values, a heavy vignette, constant noise, and equally dark panel chrome. Opening Hero Stats beside a shop exposed the same compression in type: exact effects, ownership, cast returns, Attunement, and reforge consequences were technically present but had become the smallest marks on the screen.
+
+`0.1.29` restores hierarchy before it adds anything. Sky, fog, moon, ambient light, and fire fill lift the stone and silhouettes; vignette and noise recede. The established exposure stays put, so a Death Tide still owns the brightest moment instead of every ordinary spark being tone-compressed upward. Across the decision surfaces, an eight-pixel native floor and a little redistributed space keep the useful answers readable. Flavor copy yields before effects, prices, exact projections, sockets, or objective state do. The controls legend returns as a quiet strip above the resources rather than disappearing or covering the action bar.
+
+The most demanding shop states prove the rule. Four learned Quickening casts fit; the fourth Greaves says what Combat Stride will become; a full reforge names all six choices and the exact outgoing and incoming consequences. The lobby keeps its established composition, and the battlefield remains dark fantasy rather than turning into daylight. This is a contrast and density correction, not a redesign.
+
+The Gravebinder frame is intentionally honest. A major cast reads better against the lifted world, but sustained Wraith contacts still accumulate too much moving aftermath and the class remains too safe and powerful. Selling, higher prices, and greater item diversity also remain open. The next cycle begins by playing this brighter shipped build and choosing one bounded weakness: contain the Host, or let the Armory buy back a slot while repricing its wares. Neither belongs hidden inside a screen-polish checkpoint.
+
 ## 2026-07-11 — A shot should go where it was released
 
 `0.1.27` gave the wall a voice, then the next ranged replay made the player's complaint measurable. Even with perfect current aim and nothing competing for attention except the primary attack, Riftstalker and Ashcaller both lost the Nexus before one minute. Their shots were not merely small. The server kept the aim from the beginning of the windup, ignored the range written into each champion, and checked only the projectile's new point after each update. A cursor correction could be right and still produce the wrong shot; a brief server hitch could put a demon between two collision samples.

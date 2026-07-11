@@ -7,6 +7,7 @@ import {
 } from "../shared/game-data";
 import {
   EQUIPMENT_SLOT_COUNT,
+  ITEM_ATTUNEMENT_THRESHOLD,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
   deriveAttunementProgress,
@@ -1030,9 +1031,9 @@ function renderShopCatalog(vendorId: VendorId): void {
       <span class="shop-item-key">${index + 1}</span>
       <span class="shop-item-icon" aria-hidden="true">${ITEM_SYMBOLS[itemId]}</span>
       <strong class="shop-item-name">${item.name}</strong>
-      <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">0 OWNED</small></span>
+      <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">×0</small></span>
       <small class="shop-item-description">${item.description}</small>
-      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em><span class="shop-item-evolution" data-shop-evolution hidden><small>COMBAT STRIDE</small><strong data-shop-evolution-value>—</strong></span><span class="shop-item-cast-preview" data-shop-cast-preview hidden><small>CAST RETURNS</small><span class="shop-item-cast-grid" data-shop-cast-grid></span></span></span>
+      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em><span class="shop-item-evolution" data-shop-evolution hidden><small>COMBAT STRIDE</small><strong data-shop-evolution-value>—</strong></span><span class="shop-item-cast-preview" data-shop-cast-preview hidden><small>RETURNS</small><span class="shop-item-cast-grid" data-shop-cast-grid></span></span></span>
       <span class="shop-item-price"><span>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
     button.addEventListener("click", () => buyShopItem(itemId));
     shopItems.append(button);
@@ -1309,10 +1310,13 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     if (previewCast) previewCast.hidden = learnedCooldowns.length === 0;
     if (previewCastGrid) renderLearnedCooldownProjection(previewCastGrid, learnedCooldowns);
     if (ownedLabel) {
-      const ownedProgressLabel = evolutionProgress?.visualLabel ?? attunementProgress.visualLabel;
-      ownedLabel.textContent = ownedProgressLabel
-        ? `${owned} OWNED · ${ownedProgressLabel}`
-        : `${owned} OWNED`;
+      ownedLabel.textContent = attunementProgress.state === "building"
+        ? `×${owned}/${ITEM_ATTUNEMENT_THRESHOLD}`
+        : attunementProgress.state === "next"
+          ? `×${owned}/${ITEM_ATTUNEMENT_THRESHOLD} NEXT`
+          : attunementProgress.state === "attuned"
+            ? `×${owned} ${evolutionProgress?.state === "active" ? "STRIDE" : "ATTUNED"}`
+            : `×${owned}`;
       ownedLabel.dataset.attunement = attunementProgress.state;
       ownedLabel.classList.toggle("has-items", owned > 0);
       ownedLabel.classList.toggle("is-building", attunementProgress.state === "building");

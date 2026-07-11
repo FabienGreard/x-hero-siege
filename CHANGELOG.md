@@ -2,6 +2,26 @@
 
 All notable project changes are recorded here.
 
+## [0.1.29] - 2026-07-11
+
+### Added
+
+- Added one native-play readability floor for decision-bearing Hero Stats, shop, reforge, objective, resource, and action copy, with the compact controls strip retained as a deliberate subordinate exception.
+- Added real `1280×720` before/after, dense combat, Gravebinder, both physical-shop, full-build reforge, Combat Stride evolution, and untouched-lobby evidence against the approved gameplay concept.
+- Added rendered fit checks for exact shop effects and owned counts, learned Quickening returns, the full six-slot replacement confirmation, Greaves' fourth-copy evolution, City Watch, resource HUD, and controls, with empty browser warning/error diagnostics.
+
+### Changed
+
+- Lifted playable stone and silhouettes into the concept's midtone range with brighter sky and fog, modestly stronger cool ambient/moon and warm fire fill, and substantially lighter vignette and noise overlays. Established renderer exposure and tone mapping remain unchanged so major effects keep their hierarchy.
+- Raised decision text to an `8px` native floor, widened the non-pausing Hero Stats panel, and redistributed spacing inside equipment, shops, City Watch, and resources instead of enlarging every panel or hiding the battlefield.
+- Compacted local shop ownership into `×N/4`, `NEXT`, `ATTUNED`, or `STRIDE`, stacked long evolution and reforge consequences, and yielded tertiary ware flavor so exact effects, prices, results, and six-slot choices remain readable in the densest legal layouts. Full accessible descriptions retain the complete ownership and Attunement wording.
+- Restored the existing controls legend as a quiet strip above the resource HUD so input grammar stays available without covering the open shop or action bar.
+
+### Preserved
+
+- Champion mechanics, damage, healing, summons, ability and primary timing, enemy and objective balance, shops, prices, catalog, six unrestricted slots, Attunement, Combat Stride, protocol, server authority, RNG call order, effect geometry and counts, camera, controls, art vocabulary, and audio remain established.
+- This checkpoint corrects the static hierarchy only. Gravebinder's sustained Wraith contact pile, power and summon scaling remain explicit carried-forward weaknesses rather than being hidden inside a presentation pass.
+
 ## [0.1.28] - 2026-07-11
 
 ### Added
