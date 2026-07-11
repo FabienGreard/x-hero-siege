@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A host should be a company, not an army
+
+The brighter `0.1.29` screen made the remaining Gravebinder problem easier to see. Wraith Host promised hungry spirits, but its actual rule was only a clock: every cast added three, four, or five Wraiths, every Wraith kept striking until its lifetime ended, and another cast could add another full company. Rank three could deliver roughly 2,340 base damage before Focus investment. Each touch also painted two rings and fourteen particles over the same contact, even while an idle Wraith was only orbiting its owner.
+
+`0.1.30` gives the Host a sentence the player can hold. A Wraith can strike up to three times, then fades; its old lifetime or a newer Host may release it sooner. No defender can command more than five at once. A newer cast arrives whole and the oldest spirits yield first, so the button always does what its current rank promises without letting cooldown investment build an unbounded parallel army. The Hero Stats row now says the complete consequence: rank three is `36 DMG / 5×3 HIT CAP`, not an unexplained per-touch number beside an invisible lifetime multiplier.
+
+The contact read becomes one small crossed green mark. Underneath, the server deliberately keeps the two established effect records, random draws, IDs, and order; only their client presentation changes. This avoids making a cosmetic cleanup secretly choose the next demon type or position. Major Gravebinder casts keep their larger soul language, and Wraith spawn and release still give the spirits a beginning and an end.
+
+This is a real power reduction, but not a claim that Gravebinder is now as fragile as Riftstalker. Thirty normal runs still finish with an untouched gate because Soul Scythe's baseline sustain is strong enough to carry that controller. That is useful evidence for a later bounded decision. The next cycle returns to the primary Armory arc: replay first purchase, completed build, and reforge windows, then test higher prices and exact-slot selling together without hiding a fifth ware inside the same release.
+
 ## 2026-07-11 — Darkness should frame the fight, not swallow it
 
 The review called the whole interface hard to read: too dark, too many effects, too difficult to understand. Playing the shipped `0.1.28` build made the first part precise. Its approved concept held the citadel floor and roads in usable midtones; the real calm frame buried them beneath near-black world values, a heavy vignette, constant noise, and equally dark panel chrome. Opening Hero Stats beside a shop exposed the same compression in type: exact effects, ownership, cast returns, Attunement, and reforge consequences were technically present but had become the smallest marks on the screen.

@@ -1083,6 +1083,7 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
     impact: 0xffb866,
     repeater_impact: 0xf3edff,
     ember_impact: 0xffd58a,
+    wraith_impact: 0x8ff0c8,
     shock: 0x62caff,
     fire: 0xff6638,
     meteor_warning: 0xf14d3f,
@@ -1100,7 +1101,12 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
   };
   const color = colorByKind[kind];
 
-  if (kind === "repeater_impact") {
+  if (kind === "wraith_impact") {
+    const slash = addEffectMesh(group, new THREE.BoxGeometry(0.72, 0.04, 0.1), color, 0.78);
+    slash.rotation.y = 0.48;
+    const answer = addEffectMesh(group, new THREE.BoxGeometry(0.5, 0.035, 0.08), 0xd8ffed, 0.62);
+    answer.rotation.y = -0.58;
+  } else if (kind === "repeater_impact") {
     const shard = addEffectMesh(group, new THREE.BoxGeometry(1.05, 0.04, 0.14), color, 0.86);
     shard.position.x = -0.18;
     const cap = addEffectMesh(group, new THREE.BoxGeometry(0.12, 0.05, 0.48), 0xb79aff, 0.68);
@@ -1177,9 +1183,9 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
 
 export function updateEffectVisual(group: THREE.Group, remaining: number, elapsed: number): void {
   const kind = group.userData.kind as EffectKind;
-  const pieces = group.userData.pieces as EffectPiece[];
-  const directionalPrimaryImpact = kind === "repeater_impact" || kind === "ember_impact";
-  const fade = directionalPrimaryImpact
+  const pieces = (group.userData.pieces as EffectPiece[] | undefined) ?? [];
+  const compactImpact = kind === "repeater_impact" || kind === "ember_impact" || kind === "wraith_impact";
+  const fade = compactImpact
     ? THREE.MathUtils.clamp(remaining / 0.16, 0, 1)
     : THREE.MathUtils.clamp(remaining * 2.5, 0, 1);
   const pulse = 1 + (1 - THREE.MathUtils.clamp(remaining, 0, 1)) * 0.2;
@@ -1194,7 +1200,7 @@ export function updateEffectVisual(group: THREE.Group, remaining: number, elapse
   for (const piece of pieces) {
     (piece.mesh.material as THREE.MeshBasicMaterial).opacity = piece.baseOpacity * fade;
   }
-  if (directionalPrimaryImpact) {
+  if (compactImpact) {
     group.scale.setScalar(1);
   } else if (kind === "warden_charge") {
     group.scale.z = 0.82 + Math.abs(Math.sin(elapsed * 18)) * 0.18;

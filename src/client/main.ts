@@ -23,6 +23,10 @@ import {
 import { deriveHeroStats } from "../shared/hero-stats";
 import { deriveAbilityImpactReadout } from "../shared/ability-impact";
 import { derivePrimaryImpactReadout } from "../shared/primary-impact";
+import {
+  WRAITH_HOST_MAX_STRIKES_PER_SUMMON,
+  wraithHostSummonCount,
+} from "../shared/wraith-host";
 import type {
   ActionSnapshot,
   AbilitySlot,
@@ -66,6 +70,7 @@ import {
   type LocalShopReadiness,
 } from "./shop-readiness";
 import { deriveShopReplacementOffer } from "./shop-replacement-offer";
+import { deriveWraithImpactPresentation } from "./wraith-impact";
 import {
   BUILD_SIGNATURE_COLORS,
   HERO_PRESENTATION,
@@ -763,11 +768,22 @@ function updateHeroAbilityImpact(self: PlayerSnapshot): void {
     const row = document.createElement("div");
     row.className = `ability-impact${impact.learned ? "" : " is-unlearned"}`;
     row.setAttribute("role", "listitem");
+    const wraithHost = self.heroId === "gravebinder" && slot === "ability3" && impact.learned;
     const fullMetrics = impact.metrics
       .map((metric) => `${formatHeroStat(metric.value, 1)} ${metric.label}`)
+      .concat(
+        wraithHost
+          ? [`${wraithHostSummonCount(impact.rank)} Wraiths with up to ${WRAITH_HOST_MAX_STRIKES_PER_SUMMON} strikes each; at most 5 Wraiths active`]
+          : [],
+      )
       .join(" and ");
     const compactMetrics = impact.metrics
-      .map((metric) => `${formatHeroStat(metric.value, 1)} ${ABILITY_METRIC_SHORT_LABELS[metric.label] ?? metric.label}`)
+      .map((metric) => `${formatHeroStat(metric.value, 1)} ${wraithHost ? "DMG" : (ABILITY_METRIC_SHORT_LABELS[metric.label] ?? metric.label)}`)
+      .concat(
+        wraithHost
+          ? [`${wraithHostSummonCount(impact.rank)}×${WRAITH_HOST_MAX_STRIKES_PER_SUMMON} HIT CAP`]
+          : [],
+      )
       .join("/");
     const cooldown = `${formatHeroStat(impact.cooldown, 1)}S`;
     row.setAttribute(
@@ -2116,12 +2132,20 @@ function syncEffects(effects: EffectSnapshot[]): void {
     active.add(effect.id);
     let tracked = effectVisuals.get(effect.id);
     if (!tracked) {
-      const visual = createEffectVisual(effect.kind, effect.radius, effect.rotation);
+      const presentation = deriveWraithImpactPresentation(effect);
+      const visual = presentation === "hidden-companion"
+        ? new THREE.Group()
+        : createEffectVisual(effect.kind, effect.radius, effect.rotation);
+      if (presentation === "hidden-companion") {
+        visual.userData.kind = effect.kind;
+        visual.userData.pieces = [];
+      }
       visual.position.set(effect.position.x, 0, effect.position.z);
       world.add(visual);
       tracked = { visual, snapshot: effect };
       effectVisuals.set(effect.id, tracked);
       if (
+        presentation === "default" &&
         effect.kind !== "meteor_warning" &&
         effect.kind !== "snare" &&
         effect.kind !== "repeater_impact" &&

@@ -489,7 +489,7 @@ describe("canonical four-copy item attunement", () => {
     summonPlayer.action = null;
     expect(summonGame.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
     advance(summonGame, 0.4);
-    expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [34.8, 34.8, 34.8, 42, 42, 42]);
+    expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [34.8, 34.8, 42, 42, 42]);
   });
 
   test("Attuned Edge and Greaves change real basic impact and fixed-tick displacement", () => {

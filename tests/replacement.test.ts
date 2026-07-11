@@ -439,7 +439,6 @@ describe("authoritative full-build item replacement", () => {
     expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [
       27.6,
       27.6,
-      27.6,
       24,
       24,
       24,

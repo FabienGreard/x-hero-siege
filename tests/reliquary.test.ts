@@ -316,7 +316,7 @@ describe("authoritative Veilglass Reliquary", () => {
     expectDamages(splitbolts(), [54.05, 54.05, 54.05, 61.1, 61.1, 61.1]);
   });
 
-  test("existing Wraiths keep their spawned damage while the next Host uses new Skill Power", () => {
+  test("retained Wraiths keep their spawned damage while the next bounded Host uses new Skill Power", () => {
     const game = new GameWorld();
     readyHero(game, "gravebinder");
     placeAt(game, "veilglass_reliquary");
@@ -337,7 +337,6 @@ describe("authoritative Veilglass Reliquary", () => {
     expect(game.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
     advance(game, 0.4);
     expectDamages([...internal.summons.values()].map((summon) => summon.damage), [
-      27.6,
       27.6,
       27.6,
       31.2,

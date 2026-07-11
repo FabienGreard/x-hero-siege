@@ -2,6 +2,25 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.30` — Bound the Host
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Correct the highest-leverage dynamic weakness carried from shipped `0.1.29`: Wraith Host appended `3`/`4`/`5` summons with no owner cap, and every Wraith struck every `0.72s` until a `7.25–9.75s` lifetime expired. Base lifetime output reached roughly `720`, `1,350`, and `2,340` damage by rank while every contact rendered a generic impact plus souls ring and two seven-particle bursts. Idle orbit could emit the same false contact read without damaging anything.
+- Give each server-owned Wraith a maximum of three successful strikes and dismiss it immediately after the third. Keep the short lifetime and older-spirit cap eviction as earlier exits, preserve per-strike damage and creation-time Skill Power, and never spend the budget while orbiting without an enemy or active Rift Heart.
+- Cap active Wraiths at five per owner. A new cast always raises its complete `3`/`4`/`5` rank-sized Host; if overlap would exceed the cap, deterministic insertion order dismisses the oldest owned Wraiths first. Maximum rank totals become `216`, `360`, and `540` base damage, and repeated casts cannot accumulate parallel armies.
+- Keep the two established server effect calls, RNG draws, IDs, and ordering for every real enemy or Rift contact. Tag the generic companion effect for client suppression and retag the short soul contact as `wraith_impact`, rendered once as a compact green crossed mark with no particle burst. Untagged impacts, Rift hits, and Gravebinder's major soul casts remain unchanged.
+- Make the limit visible in canonical Hero Stats: Wraith Host now reads `24/30/36 DMG / 3×3, 4×3, or 5×3 HIT CAP`, with the rank-sized Host, up-to-three limit, and five-active cap in its accessible description. The rank description states that no more than five remain and each spirit fades after its third strike.
+- Compare the shipped sustained-contact frame with controlled current contact and stats renders at native `1280×720`. The `5×3 HIT CAP` row fits without clipping, world and HUD remain exactly `1280×720`, and fresh browser warning/error diagnostics are empty.
+- Preserve viability without pretending full class parity is solved. Thirty normal current-tree Gravebinder openings remain `30/30` Nexus-alive, `30/30` no-down, and `30/30` intact-gate runs; mean kills move from `211.6` to `207.7`, 60 gold remains funded in every run at `40.7s` mean and `42.8s` latest, and minimum observed health falls from `149` to `131`. Soul Scythe sustain remains a separate candidate.
+- The final production asset `main-72fd5d2507d7224f.js`, `181` tests with `10,630` assertions across `26` files, fixed-asset smoke, and real four-client convergence pass. All clients agree on the five-Wraith cap; three peers retain the exact summon IDs during Gravebinder's disconnect reservation, and all four converge on the same IDs after resume.
+
+**Review evidence carried forward:** Wraith Host output and contact accumulation are now bounded, but Soul Scythe still makes Gravebinder unusually forgiving and the four skill kits can be differentiated further only one promised hook at a time. The Armory still lacks selling, wares remain too cheap, and catalog breadth is insufficient.
+
+**Technical risk carried forward:** generic presentation effects and gameplay still share both RNG and one ID counter. This checkpoint preserves the established two draws and IDs at every real Wraith contact and hides only tagged companions; split both streams together before treating exact cross-version seeded wave deltas as balance truth. A fifth ware remains blocked by the hardcoded four-item stat fallback, which risks treating unknown equipment as Quickening.
+
+**Next-cycle nomination:** begin from shipped `0.1.30` and play legal shop routes at the first, sixth, and post-build earning windows. If the reported economy weakness remains leading, ship `The Armory Buys Back` as one checkpoint: `60`-gold wares, `30`-gold exact-slot selling at either physical shop, and a `30`-gold net full-build reforge. Do not add a fifth item or rebalance Soul Scythe in the same cycle.
+
 ## `0.1.29` — Read the Screen
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.

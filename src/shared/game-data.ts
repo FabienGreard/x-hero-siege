@@ -110,7 +110,7 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     abilities: {
       ability1: { name: "Reap", description: "Pull prey into a lethal sweep.", cooldown: 6, maxRank: 3, unlockLevel: 1 },
       ability2: { name: "Bone Ward", description: "Raise a soul-fed barrier.", cooldown: 10, maxRank: 3, unlockLevel: 1 },
-      ability3: { name: "Wraith Host", description: "Loose hungry spirits at nearby prey.", cooldown: 12, maxRank: 3, unlockLevel: 1 },
+      ability3: { name: "Wraith Host", description: "Loose hungry spirits; at most five remain, and each fades after its third strike.", cooldown: 12, maxRank: 3, unlockLevel: 1 },
       ultimate: { name: "Death Tide", description: "Send a wide soul wave up the lane.", cooldown: 37, maxRank: 2, unlockLevel: 3 },
     },
   },

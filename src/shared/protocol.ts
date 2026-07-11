@@ -226,6 +226,7 @@ export type EffectKind =
   | "impact"
   | "repeater_impact"
   | "ember_impact"
+  | "wraith_impact"
   | "shock"
   | "fire"
   | "meteor_warning"
@@ -250,6 +251,7 @@ export interface EffectSnapshot {
   remaining: number;
   ownerId: string | null;
   lane: LaneId | null;
+  sourceSummonId?: string;
 }
 
 export type GameEventKind =

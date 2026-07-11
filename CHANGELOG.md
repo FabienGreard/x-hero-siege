@@ -2,6 +2,27 @@
 
 All notable project changes are recorded here.
 
+## [0.1.30] - 2026-07-11
+
+### Added
+
+- Added one canonical Wraith Host contract: ranks raise exactly `3`/`4`/`5` Wraiths, every Wraith can land up to three successful strikes, and each player can have at most five active Wraiths.
+- Added truthful `DMG / N×3 HIT CAP` consequences to Gravebinder Hero Stats, including full accessible wording for the rank-sized Host, per-Wraith limit, and five-active cap.
+- Added focused rank-total, idle-orbit, deterministic oldest-first cap, retained creation-time Skill Power, enemy/Rift contact, presentation, RNG-call, four-client convergence, disconnect reservation, and same-ID resume coverage.
+- Added native `1280×720` before, bounded-contact, and Hero Stats evidence for the reported Gravebinder power and readability gap.
+
+### Changed
+
+- Wraiths now fade immediately after their third successful enemy or Rift Heart strike while retaining lifetime expiry and older-spirit cap eviction as earlier exits. Rank-one through rank-three maximum base lifetime output is bounded to `216`, `360`, and `540` damage instead of roughly `720`, `1,350`, and `2,340`.
+- A new Host always raises its complete rank-sized batch, deterministically dismissing the oldest owned Wraiths first when overlap would exceed five; retained Wraiths keep the Skill Power captured when they were created.
+- Wraith contact now renders as one compact green crossed mark without the generic impact ring, Rift ring, soul ring, or either seven-particle burst. Tagged companion effects remain server-authored so each real contact preserves the established two RNG draws and effect IDs.
+- Idle Wraith orbits no longer pretend to strike or spend their budget; their established cosmetic draw and ID remain tagged but hidden until a real target exists.
+
+### Preserved
+
+- Per-strike Wraith damage and Skill Power scaling, `12s` Host cooldown, `3`/`4`/`5` rank identity, movement, targeting, short lifetime fallback, autonomous reconnect-grace behavior, Death Tide, Reap, Bone Ward, Soul Scythe, every other hero, enemy and objective balance, shops, prices, catalog, six unrestricted slots, controls, art, and audio remain established.
+- Soul Scythe sustain still leaves Gravebinder unusually safe in the normal controller. That separate balance question, selling, higher prices, and item breadth remain carried forward rather than being folded into Host containment.
+
 ## [0.1.29] - 2026-07-11
 
 ### Added

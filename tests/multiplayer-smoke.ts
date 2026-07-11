@@ -6,6 +6,7 @@ import {
 } from "../src/shared/armory-data";
 import { createGameServer } from "../src/server/index";
 import { goldToUnits } from "../src/server/economy";
+import { WRAITH_HOST_MAX_ACTIVE_PER_OWNER } from "../src/shared/wraith-host";
 import type {
   EquipmentSlots,
   GameSnapshot,
@@ -142,6 +143,73 @@ try {
     return player?.action?.kind === "ability1" && player.action.phase === "windup";
   });
   assert.equal(windingUp.players.find((player) => player.id === peers[0]!.playerId)!.action?.phase, "windup");
+
+  const gravePeer = peers[3]!;
+  const graveId = gravePeer.playerId;
+  gravePeer.send({ type: "level_ability", slot: "ability3" });
+  await gravePeer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === graveId);
+    return player?.abilityRanks.ability3 === 1 && player.skillPoints === 0;
+  });
+  const hostGame = instance.game as unknown as {
+    enemies: Map<string, unknown>;
+    spawnTimer: number;
+  };
+  hostGame.enemies.clear();
+  hostGame.spawnTimer = 9_999;
+  gravePeer.send({ type: "cast", slot: "ability3" });
+  const firstHosts = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) =>
+    snapshot.summons.length === 3 && snapshot.summons.every((summon) => summon.ownerId === graveId)
+  )));
+  const firstHostIds = firstHosts[0]!.summons.map((summon) => summon.id);
+  for (const snapshot of firstHosts) {
+    assert.deepEqual(snapshot.summons.map((summon) => summon.id), firstHostIds);
+  }
+
+  await gravePeer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === graveId);
+    return player?.action === null;
+  });
+  const graveState = instance.game.players.get(graveId)!;
+  graveState.cooldowns.ability3 = 0;
+  graveState.action = null;
+  gravePeer.send({ type: "cast", slot: "ability3" });
+  const boundedHosts = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) =>
+    snapshot.summons.length === WRAITH_HOST_MAX_ACTIVE_PER_OWNER &&
+    snapshot.summons.every((summon) => summon.ownerId === graveId)
+  )));
+  const boundedHostIds = boundedHosts[0]!.summons.map((summon) => summon.id);
+  assert.equal(boundedHostIds.includes(firstHostIds[0]!), false);
+  assert.deepEqual(boundedHostIds.slice(0, 2), firstHostIds.slice(1));
+  for (const snapshot of boundedHosts) {
+    assert.deepEqual(snapshot.summons.map((summon) => summon.id), boundedHostIds);
+  }
+
+  const graveToken = gravePeer.resumeToken;
+  const graveDisconnectCursors = peers.map((peer) => peer.messages.length);
+  gravePeer.socket.close();
+  const reservedHostSnapshots = await Promise.all(peers.slice(0, 3).map((peer, index) => peer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === graveId);
+    return player?.connected === false &&
+      snapshot.summons.length === WRAITH_HOST_MAX_ACTIVE_PER_OWNER;
+  }, graveDisconnectCursors[index])));
+  for (const snapshot of reservedHostSnapshots) {
+    assert.deepEqual(snapshot.summons.map((summon) => summon.id), boundedHostIds);
+  }
+
+  const graveRestoreCursors = peers.map((peer) => peer.messages.length);
+  const resumedGravePeer = await Peer.connect(url, graveToken);
+  assert.equal(resumedGravePeer.resumed, true);
+  assert.equal(resumedGravePeer.playerId, graveId);
+  peers[3] = resumedGravePeer;
+  const restoredHostSnapshots = await Promise.all(peers.map((peer, index) => peer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === graveId);
+    return player?.connected === true &&
+      snapshot.summons.length === WRAITH_HOST_MAX_ACTIVE_PER_OWNER;
+  }, index === 3 ? 0 : graveRestoreCursors[index])));
+  for (const snapshot of restoredHostSnapshots) {
+    assert.deepEqual(snapshot.summons.map((summon) => summon.id), boundedHostIds);
+  }
 
   const forgeThresholdBuild: EquipmentSlots = [
     "fleetstep_greaves",
@@ -414,6 +482,12 @@ try {
       combatStrideClients: strideSnapshots.length,
       resumedClients: restored.length,
       postResumeAuthorityClients: resumedAuthority.length,
+    },
+    wraithHost: {
+      convergedClients: boundedHosts.length,
+      maxActive: boundedHostIds.length,
+      reservedClients: reservedHostSnapshots.length,
+      resumedClients: restoredHostSnapshots.length,
     },
   }));
 } finally {

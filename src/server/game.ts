@@ -16,6 +16,11 @@ import {
 import { GRAVEBINDER_BASIC_HEAL_PER_TARGET } from "../shared/primary-impact";
 import { actionMoveRetention } from "../shared/combat-movement";
 import {
+  WRAITH_HOST_MAX_ACTIVE_PER_OWNER,
+  WRAITH_HOST_MAX_STRIKES_PER_SUMMON,
+  wraithHostSummonCount,
+} from "../shared/wraith-host";
+import {
   ASHCALLER_BASIC_BURST_DAMAGE_RATIO,
   ASHCALLER_BASIC_BURST_RADIUS,
   ASHCALLER_BASIC_RECOVERY_INTERVAL_RATIO,
@@ -140,6 +145,7 @@ interface SummonState extends SummonSnapshot {
   damage: number;
   speed: number;
   strikeCooldown: number;
+  strikesRemaining: number;
   orbitOffset: number;
 }
 
@@ -468,10 +474,10 @@ export class GameWorld {
     if (this.nexus.hp <= 0 && this.phase !== "lobby") this.setPhase("defeat");
   }
 
-  damageRiftHeart(amount: number): void {
+  damageRiftHeart(amount: number, sourceSummonId: string | null = null): void {
     if (!this.riftHeart.active || this.phase !== "push") return;
     this.riftHeart.hp = Math.max(0, this.riftHeart.hp - Math.max(0, amount));
-    this.effect("rift_hit", WORLD_LAYOUT.riftHeart, 8, null);
+    this.effect("rift_hit", WORLD_LAYOUT.riftHeart, 8, null, 0.35, null, undefined, sourceSummonId);
     if (this.riftHeart.hp <= 0) this.setPhase("victory");
   }
 
@@ -565,7 +571,7 @@ export class GameWorld {
       players: [...this.players.values()].map((player) => this.playerSnapshot(player)),
       enemies: [...this.enemies.values()].map((enemy) => this.enemySnapshot(enemy)),
       projectiles: [...this.projectiles.values()].map(({ damage: _d, pierce: _p, hitIds: _h, ...projectile }) => projectile),
-      summons: [...this.summons.values()].map(({ damage: _d, speed: _s, strikeCooldown: _c, orbitOffset: _o, ...summon }) => summon),
+      summons: [...this.summons.values()].map(({ damage: _d, speed: _s, strikeCooldown: _c, strikesRemaining: _r, orbitOffset: _o, ...summon }) => summon),
       pickups: [...this.pickups.values()],
       effects: [...this.effects.values()],
       events: this.recentEvents.slice(-12),
@@ -1105,7 +1111,10 @@ export class GameWorld {
   }
 
   private raiseWraithHost(player: PlayerState, rank: number): void {
-    const count = 2 + rank;
+    const count = wraithHostSummonCount(rank);
+    const ownedWraiths = [...this.summons.values()].filter((summon) => summon.ownerId === player.id);
+    const overflow = Math.max(0, ownedWraiths.length + count - WRAITH_HOST_MAX_ACTIVE_PER_OWNER);
+    for (const summon of ownedWraiths.slice(0, overflow)) this.summons.delete(summon.id);
     for (let index = 0; index < count; index += 1) {
       const angle = (index / count) * Math.PI * 2;
       const summon: SummonState = {
@@ -1124,6 +1133,7 @@ export class GameWorld {
         damage: this.abilityMagnitude(player, "ability3", rank),
         speed: 14.5 + rank,
         strikeCooldown: index * 0.12,
+        strikesRemaining: WRAITH_HOST_MAX_STRIKES_PER_SUMMON,
         orbitOffset: angle,
       };
       this.summons.set(summon.id, summon);
@@ -1175,12 +1185,19 @@ export class GameWorld {
         if (summon.strikeCooldown <= 0) {
           summon.strikeCooldown = 0.72;
           if (target) {
-            this.damageEnemy(target, summon.damage, owner);
+            this.damageEnemy(target, summon.damage, owner, "impact", undefined, summon.id);
             if (!this.enemies.has(target.id)) summon.targetId = null;
           } else if (riftTarget) {
-            this.damageRiftHeart(summon.damage);
+            this.damageRiftHeart(summon.damage, summon.id);
+          } else {
+            // Preserve the established idle-orbit effect draw and ID without
+            // rendering a false contact or spending a strike.
+            this.effect("souls", summon.position, 1.8, owner.id, 0.22, null, undefined, summon.id);
+            continue;
           }
-          this.effect("souls", summon.position, 1.8, owner.id, 0.22);
+          this.effect("wraith_impact", summon.position, 1.2, owner.id, 0.16, null, undefined, summon.id);
+          summon.strikesRemaining -= 1;
+          if (summon.strikesRemaining <= 0) this.summons.delete(summon.id);
         }
       }
     }
@@ -1497,6 +1514,7 @@ export class GameWorld {
     source: PlayerState,
     impactKind: EffectKind | null = "impact",
     impactRotation?: number,
+    sourceSummonId: string | null = null,
   ): void {
     enemy.hp -= baseDamage;
     if (impactKind) {
@@ -1508,6 +1526,7 @@ export class GameWorld {
         0.16,
         null,
         impactRotation ?? this.random() * Math.PI * 2,
+        sourceSummonId,
       );
     }
     if (enemy.hp <= 0) this.killEnemy(enemy, source);
@@ -1758,8 +1777,19 @@ export class GameWorld {
     remaining = 0.35,
     lane: LaneId | null = null,
     rotation = this.random() * Math.PI * 2,
+    sourceSummonId: string | null = null,
   ): void {
-    const effect: EffectState = { id: this.id("effect"), kind, position: copy(position), radius, rotation, remaining, ownerId, lane };
+    const effect: EffectState = {
+      id: this.id("effect"),
+      kind,
+      position: copy(position),
+      radius,
+      rotation,
+      remaining,
+      ownerId,
+      lane,
+      ...(sourceSummonId ? { sourceSummonId } : {}),
+    };
     this.effects.set(effect.id, effect);
   }
 
