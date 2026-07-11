@@ -1,4 +1,5 @@
 import {
+  deriveItemEvolutionProgress,
   effectiveStackCopies,
   ITEM_DEFINITIONS,
 } from "./armory-data";
@@ -10,6 +11,7 @@ export const HERO_LEVEL_MAX_HP_GAIN = 8;
 const UNCLAIMED_HERO_STATS: HeroStatsSnapshot = {
   maxHp: 100,
   moveSpeed: 0,
+  basicMoveRetention: 0,
   basicDamage: 0,
   basicAttackInterval: 1,
   abilityPower: 1,
@@ -48,6 +50,7 @@ export function deriveHeroStats(
   return {
     maxHp: definition.maxHp + completedLevels * HERO_LEVEL_MAX_HP_GAIN,
     moveSpeed: definition.speed * (1 + moveSpeedPercent),
+    basicMoveRetention: deriveItemEvolutionProgress("fleetstep_greaves", greavesCount)?.moveRetention ?? 0,
     basicDamage: definition.basicDamage * (1 + basicDamagePercent),
     basicAttackInterval: definition.basicCooldown,
     abilityPower: 1 + abilityPowerPercent,

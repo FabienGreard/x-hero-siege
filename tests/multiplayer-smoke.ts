@@ -133,11 +133,11 @@ try {
   assert.equal(windingUp.players.find((player) => player.id === peers[0]!.playerId)!.action?.phase, "windup");
 
   const forgeThresholdBuild: EquipmentSlots = [
-    "tempered_edge",
-    "tempered_edge",
-    "tempered_edge",
-    "runebound_focus",
     "fleetstep_greaves",
+    "fleetstep_greaves",
+    "fleetstep_greaves",
+    "runebound_focus",
+    "tempered_edge",
     "quickening_sigil",
   ];
   const reliquaryThresholdBuild: EquipmentSlots = [
@@ -160,7 +160,7 @@ try {
   peers[0]!.send({
     type: "replace_item",
     vendorId: "ironbound_forge",
-    itemId: "tempered_edge",
+    itemId: "fleetstep_greaves",
     slotIndex: 3,
     expectedItemId: "runebound_focus",
   });
@@ -190,7 +190,7 @@ try {
   const authoritativeAttunementEvents = attunementEvents[0]!;
   for (const events of attunementEvents) assert.deepEqual(events, authoritativeAttunementEvents);
   assert.deepEqual(authoritativeAttunementEvents.gained.attunementTransition, {
-    itemId: "tempered_edge",
+    itemId: "fleetstep_greaves",
     change: "gained",
     fromCount: 3,
     toCount: 4,
@@ -205,7 +205,7 @@ try {
   const replacements = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) => {
     const forge = snapshot.players.find((player) => player.id === peers[0]!.playerId);
     const reliquary = snapshot.players.find((player) => player.id === peers[1]!.playerId);
-    return forge?.equipment[3] === "tempered_edge" &&
+    return forge?.equipment[3] === "fleetstep_greaves" &&
       forge.gold === 0 &&
       reliquary?.equipment[3] === "quickening_sigil" &&
       reliquary.gold === 0;
@@ -227,23 +227,24 @@ try {
   const authoritativeForgeBuyer = authoritativePlayers.find((player) => player.id === peers[0]!.playerId)!;
   const authoritativeReliquaryBuyer = authoritativePlayers.find((player) => player.id === peers[1]!.playerId)!;
   assert.deepEqual(authoritativeForgeBuyer.equipment, [
-    "tempered_edge",
-    "tempered_edge",
-    "tempered_edge",
-    "tempered_edge",
     "fleetstep_greaves",
+    "fleetstep_greaves",
+    "fleetstep_greaves",
+    "fleetstep_greaves",
+    "tempered_edge",
     "quickening_sigil",
   ]);
   assertHeroStats(authoritativeForgeBuyer.stats, {
     maxHp: 190,
-    moveSpeed: 11.55,
-    basicDamage: 60,
+    moveSpeed: 15.75,
+    basicMoveRetention: 0.15,
+    basicDamage: 36,
     basicAttackInterval: 0.52,
     abilityPower: 1,
     cooldownRecovery: 1.15,
   });
   assert.deepEqual(dominantEquipmentStack(authoritativeForgeBuyer.equipment), {
-    itemId: "tempered_edge",
+    itemId: "fleetstep_greaves",
     count: 4,
     attuned: true,
   });
@@ -258,6 +259,7 @@ try {
   assertHeroStats(authoritativeReliquaryBuyer.stats, {
     maxHp: 125,
     moveSpeed: 13.75,
+    basicMoveRetention: 0,
     basicDamage: 22.8,
     basicAttackInterval: 0.28,
     abilityPower: 1.45,
@@ -274,6 +276,46 @@ try {
     assert.deepEqual(untouched.equipment, [null, null, null, null, null, null]);
   }
 
+  await peers[0]!.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === peers[0]!.playerId);
+    return player?.action === null;
+  });
+  peers[0]!.send({
+    type: "input",
+    seq: 1,
+    move: { x: 1, z: 0 },
+    aim: { x: 1, z: 0 },
+    attacking: true,
+  });
+  const strideAuthority = await peers[0]!.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === peers[0]!.playerId);
+    return player?.action?.kind === "basic" &&
+      player.action.phase === "windup" &&
+      player.velocity.x > 0 &&
+      player.stats.basicMoveRetention === 0.15;
+  });
+  const strideTick = strideAuthority.tick;
+  const strideSnapshots = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) => snapshot.tick === strideTick)));
+  const authoritativeStride = strideAuthority.players.find((player) => player.id === peers[0]!.playerId)!;
+  for (const snapshot of strideSnapshots) {
+    const observed = snapshot.players.find((player) => player.id === peers[0]!.playerId)!;
+    assert.ok(Math.abs(observed.velocity.x - 2.3625) < 1e-9);
+    assert.equal(observed.velocity.z, 0);
+    assert.deepEqual({
+      equipment: observed.equipment,
+      stats: observed.stats,
+      action: observed.action,
+      velocity: observed.velocity,
+      position: observed.position,
+    }, {
+      equipment: authoritativeStride.equipment,
+      stats: authoritativeStride.stats,
+      action: authoritativeStride.action,
+      velocity: authoritativeStride.velocity,
+      position: authoritativeStride.position,
+    });
+  }
+
   console.log(JSON.stringify({
     ok: true,
     clients: peers.length,
@@ -286,6 +328,7 @@ try {
       convergedClients: replacements.length,
       forgeAttunedCopies: 4,
       reliquaryAttunedCopies: 0,
+      combatStrideClients: strideSnapshots.length,
     },
   }));
 } finally {

@@ -14,6 +14,7 @@ import {
   type AbilityImpactMetricId,
 } from "../shared/ability-impact";
 import { GRAVEBINDER_BASIC_HEAL_PER_TARGET } from "../shared/primary-impact";
+import { actionMoveRetention } from "../shared/combat-movement";
 import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
   DEBUG_TIMINGS,
@@ -833,8 +834,14 @@ export class GameWorld {
       if (!hero) continue;
       const stats = this.heroStats(player);
       this.updatePlayerAction(player, dt);
+      if (
+        stats.basicMoveRetention > 0 &&
+        player.attacking &&
+        !player.action &&
+        player.cooldowns.basic <= 0
+      ) this.startBasicAttack(player);
       const movement = length(player.move) > 1 ? normalize(player.move) : player.move;
-      const movementScale = !player.action ? 1 : player.action.phase === "recovery" ? 0.45 : 0;
+      const movementScale = actionMoveRetention(player.action, stats);
       player.velocity = { x: movement.x * stats.moveSpeed * movementScale, z: movement.z * stats.moveSpeed * movementScale };
       player.position.x += player.velocity.x * dt;
       player.position.z += player.velocity.z * dt;

@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — Speed should survive the swing
+
+The Armory had learned to explain commitment, but replaying `0.1.22` made one ware feel shallower than the others. Four Fleetstep Greaves gave the Warden `15.8` Move Speed and a clear Attuned silhouette. Iron Cleave still read exactly as it did without them, and holding the primary discarded all of that movement during its windup. Edge changed the named strike, Focus changed named casts, and Quickening changed their return. Greaves still ended at a faster number between actions.
+
+`0.1.23` lets the fourth Greaves carry a little of that speed into the attack. Combat Stride retains `15%` of the champion's current authoritative Move Speed during primary windup and impact. That is `2.4 WORLD/S` for the four-Greaves Warden and `2.8` for the faster Riftstalker—not enough to turn commitment into full-speed kiting, but enough for positioning to survive the swing. Recovery keeps its established `45%`, idle remains full speed, and abilities gain no input movement from the effect.
+
+This is the first ware-specific evolution, not the first row in a checklist. It uses the fourth-copy threshold, cyan language, six unrestricted sockets, and physical hero motion that Fleetstep already owns. The shop names the exact rate before purchase, Hero Stats joins it to the champion's `LMB`, and the accepted build moves at that rate from its first Attuned attack tick. A regression gate caught an early implementation that altered every non-Attuned opening step; the shipped version scopes the ordering change to Combat Stride and leaves the established routes and attacks intact.
+
 ## 2026-07-11 — A trade must have somewhere to go
 
 `0.1.21` made investment readable from the first copy, then a completed specialization exposed a small but absolute lie. A Warden wearing six Tempered Edges could click the matching Forge card because it still promised `REPLACE ITEM`. The next step displayed all six sockets as disabled. Nothing could be sacrificed for another Edge because every possible outcome was the same build, yet the shop had invited the player into the flow anyway.

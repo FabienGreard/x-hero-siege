@@ -21,6 +21,8 @@ export interface PrimaryImpactReadout {
   metrics: PrimaryImpactMetric[];
   attackInterval: number;
   attacksPerSecond: number;
+  moveRetention: number;
+  moveSpeedDuringWindupImpact: number;
 }
 
 /** Current authoritative primary-attack consequences without projections or pack totals. */
@@ -44,11 +46,16 @@ export function derivePrimaryImpactReadout(
       value: GRAVEBINDER_BASIC_HEAL_PER_TARGET,
     });
   }
+  const moveRetention = Number.isFinite(stats.basicMoveRetention)
+    ? Math.max(0, stats.basicMoveRetention)
+    : 0;
   return {
     heroId,
     name: HERO_DEFINITIONS[heroId].basicName,
     metrics,
     attackInterval,
     attacksPerSecond: attackInterval > 0 ? 1 / attackInterval : 0,
+    moveRetention,
+    moveSpeedDuringWindupImpact: Math.max(0, stats.moveSpeed) * moveRetention,
   };
 }

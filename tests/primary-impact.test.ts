@@ -111,7 +111,7 @@ describe("canonical current-build primary impact", () => {
     }
   });
 
-  test("Greaves, Focus, and Sigil never alter primary damage or cadence", () => {
+  test("Greaves expose only Combat Stride while Focus and Sigil leave the primary unchanged", () => {
     for (const heroId of HERO_IDS) {
       const game = new GameWorld();
       readyHero(game, heroId);
@@ -123,6 +123,15 @@ describe("canonical current-build primary impact", () => {
         expect(readout.metrics).toEqual(baseline.metrics);
         expect(readout.attackInterval).toBe(baseline.attackInterval);
         expect(readout.attacksPerSecond).toBe(baseline.attacksPerSecond);
+        if (itemId === "fleetstep_greaves") {
+          expect(readout.moveRetention).toBe(0.15);
+          expect(readout.moveSpeedDuringWindupImpact).toBeCloseTo(
+            game.getSnapshot().players[0]!.stats.moveSpeed * 0.15,
+          );
+        } else {
+          expect(readout.moveRetention).toBe(0);
+          expect(readout.moveSpeedDuringWindupImpact).toBe(0);
+        }
       }
     }
   });

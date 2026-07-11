@@ -20,6 +20,7 @@ describe("authoritative hero stats", () => {
     for (const [heroId, expected] of Object.entries(BASELINE_STATS) as Array<[HeroId, (typeof BASELINE_STATS)[HeroId]]>) {
       expect(deriveHeroStats(heroId, 1)).toEqual({
         ...expected,
+        basicMoveRetention: 0,
         abilityPower: 1,
         cooldownRecovery: 1,
       });

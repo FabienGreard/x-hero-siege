@@ -77,7 +77,47 @@ describe("ordinary shop purchase previews", () => {
         attunes: true,
       });
       expect(preview?.accessibleResult).toContain("and the stack Attunes");
+      if (itemId === "fleetstep_greaves") {
+        expect(preview?.combatStride).toMatchObject({
+          currentValue: "0",
+          projectedValue: "2.4",
+          resultText: "COMBAT STRIDE · 2.4 WORLD/S DURING LMB",
+        });
+        expect(preview?.accessibleResult).toContain("does not apply to abilities");
+      } else {
+        expect(preview?.combatStride).toBeNull();
+      }
     }
+  });
+
+  test("later Greaves copies preview the exact current champion stride rate", () => {
+    expect([3, 4, 5].map((count) => {
+      const stride = projectOrdinaryPurchasePreview(
+        source("warden", 1, equipmentOf("fleetstep_greaves", count)),
+        "fleetstep_greaves",
+      )?.combatStride;
+      return stride && {
+        currentValue: stride.currentValue,
+        projectedValue: stride.projectedValue,
+        resultText: stride.resultText,
+      };
+    })).toEqual([
+      {
+        currentValue: "0",
+        projectedValue: "2.4",
+        resultText: "COMBAT STRIDE · 2.4 WORLD/S DURING LMB",
+      },
+      {
+        currentValue: "2.4",
+        projectedValue: "2.5",
+        resultText: "COMBAT STRIDE 2.4 → 2.5 WORLD/S",
+      },
+      {
+        currentValue: "2.5",
+        projectedValue: "2.7",
+        resultText: "COMBAT STRIDE 2.5 → 2.7 WORLD/S",
+      },
+    ]);
   });
 
   test("every hero, ware, level, and ordinary copy count matches the authoritative purchase", () => {
@@ -116,9 +156,15 @@ describe("ordinary shop purchase previews", () => {
             expect(preview!.resultText).toBe(
               `${preview!.statLabel.toUpperCase()} ${expectedCurrentValue} → ${expectedProjectedValue}`,
             );
-            expect(preview!.accessibleResult).toBe(
-              `${preview!.statLabel} ${expectedCurrentValue} to ${expectedProjectedValue}${count === 3 ? ", and the stack Attunes" : ""}.`,
-            );
+            const expectedAccessible = `${preview!.statLabel} ${expectedCurrentValue} to ${expectedProjectedValue}${count === 3 ? ", and the stack Attunes" : ""}.`;
+            expect(preview!.accessibleResult.startsWith(expectedAccessible)).toBe(true);
+            if (itemId === "fleetstep_greaves" && count >= 3) {
+              expect(preview!.combatStride).not.toBeNull();
+              expect(preview!.accessibleResult).toContain("Combat Stride");
+            } else {
+              expect(preview!.combatStride).toBeNull();
+              expect(preview!.accessibleResult).toBe(expectedAccessible);
+            }
             expect(preview!.projectedCount).toBe(count + 1);
             expect(preview!.attunes).toBe(count === 3);
           }
@@ -226,5 +272,15 @@ describe("accepted purchase impact receipts", () => {
         );
       }
     }
+  });
+
+  test("the fourth Greaves receipt names the unlocked current champion stride", () => {
+    const equipment = equipmentOf("fleetstep_greaves", 3);
+    expect(projectAcceptedPurchaseImpact(source("warden", 4, equipment), "fleetstep_greaves")).toMatchObject({
+      statKey: "moveSpeed",
+      currentValue: "13.7",
+      projectedValue: "15.8",
+      resultText: "MOVE SPEED 13.7 → 15.8 · COMBAT STRIDE · 2.4 WORLD/S DURING LMB",
+    });
   });
 });

@@ -18,6 +18,7 @@ export const EQUIPMENT_STAT_FIELDS = [
   { key: "moveSpeed", label: "Move Speed" },
   { key: "abilityPower", label: "Skill Power" },
   { key: "cooldownRecovery", label: "Cooldown Speed" },
+  { key: "basicMoveRetention", label: "LMB Stride" },
 ] as const satisfies ReadonlyArray<{ key: keyof HeroStatsSnapshot; label: string }>;
 
 export type EquipmentStatKey = (typeof EQUIPMENT_STAT_FIELDS)[number]["key"];
@@ -43,10 +44,51 @@ function formatNumber(value: number, decimals = 0): string {
 
 export function formatEquipmentStat(key: EquipmentStatKey, value: number): string {
   if (key === "moveSpeed") return formatNumber(value, 1);
-  if (key === "abilityPower" || key === "cooldownRecovery") {
+  if (key === "abilityPower" || key === "cooldownRecovery" || key === "basicMoveRetention") {
     return `${formatNumber(value * 100)}%`;
   }
   return formatNumber(value, 1);
+}
+
+export interface CombatStridePreview {
+  currentSpeed: number;
+  projectedSpeed: number;
+  currentValue: string;
+  projectedValue: string;
+  resultText: string;
+  accessibleResult: string;
+}
+
+function projectCombatStride(
+  current: HeroStatsSnapshot,
+  projected: HeroStatsSnapshot,
+): CombatStridePreview | null {
+  const currentSpeed = current.moveSpeed * current.basicMoveRetention;
+  const projectedSpeed = projected.moveSpeed * projected.basicMoveRetention;
+  if (Math.abs(currentSpeed - projectedSpeed) <= 1e-9) return null;
+  const currentValue = formatNumber(currentSpeed, 1);
+  const projectedValue = formatNumber(projectedSpeed, 1);
+  return {
+    currentSpeed,
+    projectedSpeed,
+    currentValue,
+    projectedValue,
+    resultText: currentSpeed <= 0
+      ? `COMBAT STRIDE · ${projectedValue} WORLD/S DURING LMB`
+      : `COMBAT STRIDE ${currentValue} → ${projectedValue} WORLD/S`,
+    accessibleResult: `Combat Stride changes from ${currentSpeed <= 0 ? "locked" : `${currentValue} world units per second`} to ${projectedValue} world units per second during LMB windup and impact. It retains ${formatNumber(projected.basicMoveRetention * 100)} percent Move Speed and does not apply to abilities.`,
+  };
+}
+
+function appendCombatStrideResult<
+  T extends Pick<OrdinaryPurchasePreview, "resultText" | "accessibleResult">,
+>(formatted: T, combatStride: CombatStridePreview | null): T {
+  if (!combatStride) return formatted;
+  return {
+    ...formatted,
+    resultText: `${formatted.resultText} · ${combatStride.resultText}`,
+    accessibleResult: `${formatted.accessibleResult} ${combatStride.accessibleResult}`,
+  };
 }
 
 export interface OrdinaryPurchasePreviewSource {
@@ -70,6 +112,7 @@ export interface OrdinaryPurchasePreview {
   projectedCount: number;
   effectiveProjectedCount: number;
   attunes: boolean;
+  combatStride: CombatStridePreview | null;
 }
 
 export interface AcceptedPurchaseImpact {
@@ -120,6 +163,7 @@ export function projectOrdinaryPurchasePreview(
   const currentCount = equipmentCopyCount(source.equipment, itemId);
   const projectedCount = equipmentCopyCount(projection.equipment, itemId);
   const attunes = !isStackAttuned(currentCount) && isStackAttuned(projectedCount);
+  const combatStride = projectCombatStride(source.stats, projectedStats);
   const formatted = formatOrdinaryPurchaseResult(
     field.key,
     field.label,
@@ -138,6 +182,10 @@ export function projectOrdinaryPurchasePreview(
     projectedCount,
     effectiveProjectedCount: effectiveStackCopies(projectedCount),
     attunes,
+    combatStride,
+    accessibleResult: combatStride
+      ? `${formatted.accessibleResult} ${combatStride.accessibleResult}`
+      : formatted.accessibleResult,
   };
 }
 
@@ -165,11 +213,14 @@ export function projectAcceptedPurchaseImpact(
     equipment: projection.equipment,
     statKey: field.key,
     statLabel: field.label,
-    ...formatOrdinaryPurchaseResult(
-      field.key,
-      field.label,
-      source.stats[field.key],
-      projectedStats[field.key],
+    ...appendCombatStrideResult(
+      formatOrdinaryPurchaseResult(
+        field.key,
+        field.label,
+        source.stats[field.key],
+        projectedStats[field.key],
+      ),
+      projectCombatStride(source.stats, projectedStats),
     ),
   };
 }

@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.23` — Carry the Step
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Correct the item-depth weakness exposed by replaying shipped `0.1.22`: four Greaves raised a Warden to `15.8` Move Speed and visibly Attuned, but the named Iron Cleave consequence remained identical and every primary windup still discarded that movement. Edge, Focus, and Quickening already reached champion-specific actions; Greaves alone stopped at a scalar.
+- Give Fleetstep Greaves the first earned ware evolution at its existing fourth-copy threshold. Combat Stride retains `15%` of current authoritative Move Speed during primary windup and impact, including the established Greaves scalar; idle remains `100%`, every recovery remains `45%`, and abilities receive no Combat Stride movement.
+- Derive the effect from raw authoritative equipment, name it in the grouped equipment summary, and expose its exact current-champion `WORLD/S` rate in the fourth-, fifth-, and sixth-copy shop previews, accepted receipt, and named `LMB` row. Keep the existing cyan vocabulary, Attunement ceremony, and physical movement as the payoff rather than adding another panel, meter, sound, or effect system.
+- Preserve all non-Attuned movement and attack ordering, damage, cadence, impact origin, aim, projectile and melee geometry, ability displacement, price, slots, routes, economy, and catalog. One evolution deepens one established ware; it does not establish an obligation to add parallel evolutions by checklist.
+- Prove raw counts zero through six for all four champions, real action phase transitions, purchase and reforge gain/loss, run reset, normal-timing Warden and high-cadence Riftstalker pressure, the existing 518-route safety gate, exact four-client action/velocity/position convergence, native `1280×720` shop/Stats fit, accessible truth, clean diagnostics, typecheck, authoritative suite, and production build.
+
+**Next-cycle nomination:** replay shipped `0.1.23` at normal timing and choose the next highest-leverage shop, item, or champion-stat weakness from actual use. Prefer making one existing choice or current-champion consequence more concrete; do not give every ware a parallel evolution merely to complete a set.
+
 ## `0.1.22` — Every Trade Must Change
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.

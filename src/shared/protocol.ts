@@ -112,6 +112,8 @@ export interface RiftHeartSnapshot {
 export interface HeroStatsSnapshot {
   maxHp: number;
   moveSpeed: number;
+  /** Fraction of current Move Speed retained during primary windup and impact. */
+  basicMoveRetention: number;
   basicDamage: number;
   basicAttackInterval: number;
   abilityPower: number;

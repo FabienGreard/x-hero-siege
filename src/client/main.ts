@@ -10,6 +10,7 @@ import {
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
   deriveAttunementProgress,
+  deriveItemEvolutionProgress,
   dominantEquipmentStack,
   effectiveStackCopies,
   equipmentCopyCount,
@@ -514,7 +515,13 @@ function updateHeroPrimaryImpact(self: PlayerSnapshot): void {
     delete heroPrimaryImpact.dataset.impact;
     return;
   }
-  const key = [self.heroId, self.stats.basicDamage, self.stats.basicAttackInterval].join("|");
+  const key = [
+    self.heroId,
+    self.stats.basicDamage,
+    self.stats.basicAttackInterval,
+    self.stats.moveSpeed,
+    self.stats.basicMoveRetention,
+  ].join("|");
   if (heroPrimaryImpact.dataset.impact === key) return;
   heroPrimaryImpact.dataset.impact = key;
   const impact = derivePrimaryImpactReadout(self.heroId, self.stats);
@@ -525,13 +532,20 @@ function updateHeroPrimaryImpact(self: PlayerSnapshot): void {
     .map((metric) => `${formatHeroStat(metric.value, 1)} ${PRIMARY_METRIC_SHORT_LABELS[metric.label] ?? metric.label}`)
     .join(" / ");
   const attacksPerSecond = `${formatHeroStat(impact.attacksPerSecond, 2)}/S`;
+  const strideDescription = impact.moveRetention > 0
+    ? ` Combat Stride moves at ${formatHeroStat(impact.moveSpeedDuringWindupImpact, 1)} world units per second during windup and impact, retaining ${formatHeroStat(impact.moveRetention * 100)} percent Move Speed. It does not apply to abilities.`
+    : "";
+  const strideLine = impact.moveRetention > 0
+    ? `<div class="primary-impact-stride"><strong>COMBAT STRIDE</strong><span>${formatHeroStat(impact.moveSpeedDuringWindupImpact, 1)} WORLD/S</span><em>WINDUP + IMPACT</em></div>`
+    : "";
   heroPrimaryImpact.setAttribute(
     "aria-label",
-    `LMB, ${impact.name}. ${fullMetrics}. ${formatHeroStat(impact.attacksPerSecond, 2)} attacks per second.`,
+    `LMB, ${impact.name}. ${fullMetrics}. ${formatHeroStat(impact.attacksPerSecond, 2)} attacks per second.${strideDescription}`,
   );
   heroPrimaryImpact.innerHTML = `
     <div class="ability-impact-heading"><kbd>LMB</kbd><strong>${impact.name}</strong><small>PRIMARY</small></div>
-    <div class="ability-impact-result"><span>${compactMetrics}</span><em>${attacksPerSecond}</em></div>`;
+    <div class="ability-impact-result"><span>${compactMetrics}</span><em>${attacksPerSecond}</em></div>
+    ${strideLine}`;
 }
 
 function updateHeroAbilityImpact(self: PlayerSnapshot): void {
@@ -604,10 +618,16 @@ function replacementStackPreview(
 }
 
 function replacementStatsPreview(current: HeroStatsSnapshot, projected: HeroStatsSnapshot): string {
-  return EQUIPMENT_STAT_FIELDS
-    .filter(({ key }) => Math.abs(current[key] - projected[key]) > 1e-9)
-    .map(({ key, label }) => `${label} ${formatEquipmentStat(key, current[key])} → ${formatEquipmentStat(key, projected[key])}`)
-    .join(" · ");
+  const changes = EQUIPMENT_STAT_FIELDS
+    .filter(({ key }) => key !== "basicMoveRetention" && Math.abs(current[key] - projected[key]) > 1e-9)
+    .map(({ key, label }) => `${label} ${formatEquipmentStat(key, current[key])} → ${formatEquipmentStat(key, projected[key])}`);
+  const currentStride = current.moveSpeed * current.basicMoveRetention;
+  const projectedStride = projected.moveSpeed * projected.basicMoveRetention;
+  if (Math.abs(currentStride - projectedStride) > 1e-9) {
+    const strideValue = (speed: number) => speed > 0 ? `${formatHeroStat(speed, 1)} WORLD/S` : "LOCKED";
+    changes.push(`Combat Stride ${strideValue(currentStride)} → ${strideValue(projectedStride)}`);
+  }
+  return changes.join(" · ");
 }
 
 function replacementSignaturePreview(
@@ -731,13 +751,16 @@ function renderEquipmentSummary(equipment: PlayerSnapshot["equipment"]): void {
       .map(({ itemId, count, totalEffectLabel }) => {
         const copyLabel = `${count} equipped ${count === 1 ? "copy" : "copies"}`;
         const progress = deriveAttunementProgress(count);
-        return `${ITEM_DEFINITIONS[itemId].name}, ${copyLabel}, ${progress.accessibleDescription} ${totalEffectLabel}`;
+        const evolution = deriveItemEvolutionProgress(itemId, count);
+        return `${ITEM_DEFINITIONS[itemId].name}, ${copyLabel}, ${progress.accessibleDescription}${evolution ? ` ${evolution.accessibleDescription}` : ""} ${totalEffectLabel}`;
       })
       .join("; "),
   );
   for (const { itemId, count, attuned, totalEffectLabel } of stacks) {
     const item = ITEM_DEFINITIONS[itemId];
     const progress = deriveAttunementProgress(count);
+    const evolution = deriveItemEvolutionProgress(itemId, count);
+    const progressLabel = evolution?.visualLabel ?? progress.visualLabel;
     const stack = document.createElement("div");
     stack.className = "equipment-stack";
     stack.dataset.item = itemId;
@@ -750,7 +773,7 @@ function renderEquipmentSummary(equipment: PlayerSnapshot["equipment"]): void {
       <span class="equipment-stack-copy">
         <strong><span>${item.name}</span><b>×${count}</b></strong>
         <small>${totalEffectLabel}</small>
-        <em>${progress.visualLabel}</em>
+        <em>${progressLabel}</em>
       </span>`;
     heroEquipmentSummary.append(stack);
   }
@@ -782,7 +805,7 @@ function renderShopCatalog(vendorId: VendorId): void {
       <strong class="shop-item-name">${item.name}</strong>
       <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">0 OWNED</small></span>
       <small class="shop-item-description">${item.description}</small>
-      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em></span>
+      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em><span class="shop-item-evolution" data-shop-evolution hidden><small>COMBAT STRIDE</small><strong data-shop-evolution-value>—</strong></span></span>
       <span class="shop-item-price"><span>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
     button.addEventListener("click", () => buyShopItem(itemId));
     shopItems.append(button);
@@ -1011,6 +1034,7 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
     const owned = equipmentCopyCount(self.equipment, itemId);
     const attunementProgress = deriveAttunementProgress(owned);
+    const evolutionProgress = deriveItemEvolutionProgress(itemId, owned);
     const attuned = attunementProgress.state === "attuned";
     const nextCopyAttunes = attunementProgress.state === "next";
     const ownedLabel = button.querySelector<HTMLElement>("[data-shop-owned]");
@@ -1028,13 +1052,26 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const preview = button.querySelector<HTMLElement>("[data-shop-projection]");
     const previewValue = button.querySelector<HTMLElement>("[data-shop-projection-value]");
     const previewAttunement = button.querySelector<HTMLElement>("[data-shop-projection-attunement]");
+    const previewEvolution = button.querySelector<HTMLElement>("[data-shop-evolution]");
+    const previewEvolutionValue = button.querySelector<HTMLElement>("[data-shop-evolution-value]");
     button.classList.toggle("has-purchase-preview", purchasePreview !== null);
+    button.classList.toggle("has-evolution-preview", purchasePreview?.combatStride !== null && purchasePreview?.combatStride !== undefined);
     if (preview) preview.hidden = purchasePreview === null;
     if (previewValue) previewValue.textContent = purchasePreview?.resultText ?? "—";
     if (previewAttunement) previewAttunement.hidden = !purchasePreview?.attunes;
+    if (previewEvolution) previewEvolution.hidden = !purchasePreview?.combatStride;
+    if (previewEvolutionValue) {
+      const stride = purchasePreview?.combatStride;
+      previewEvolutionValue.textContent = stride
+        ? stride.currentSpeed <= 0
+          ? `${stride.projectedValue} WORLD/S DURING LMB`
+          : `${stride.currentValue} → ${stride.projectedValue} WORLD/S`
+        : "—";
+    }
     if (ownedLabel) {
-      ownedLabel.textContent = attunementProgress.visualLabel
-        ? `${owned} OWNED · ${attunementProgress.visualLabel}`
+      const ownedProgressLabel = evolutionProgress?.visualLabel ?? attunementProgress.visualLabel;
+      ownedLabel.textContent = ownedProgressLabel
+        ? `${owned} OWNED · ${ownedProgressLabel}`
         : `${owned} OWNED`;
       ownedLabel.dataset.attunement = attunementProgress.state;
       ownedLabel.classList.toggle("has-items", owned > 0);
@@ -1082,7 +1119,7 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
                     ? "BUY & EQUIP"
                     : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
     if (status) status.textContent = statusLabel;
-    const attunementDescription = ` ${attunementProgress.accessibleDescription}`;
+    const attunementDescription = ` ${attunementProgress.accessibleDescription}${evolutionProgress ? ` ${evolutionProgress.accessibleDescription}` : ""}`;
     const previewDescription = purchasePreview
       ? ` Next Hero Stat result: ${purchasePreview.accessibleResult}`
       : "";
@@ -1253,7 +1290,7 @@ function pulsePurchasedStat(itemId: ItemId | undefined): void {
   const stat = value?.closest<HTMLElement>(".hero-stat");
   const targets = [
     ...(stat ? [stat] : []),
-    ...(itemId === "tempered_edge" ? [heroPrimaryImpact] : []),
+    ...(itemId === "tempered_edge" || itemId === "fleetstep_greaves" ? [heroPrimaryImpact] : []),
     ...(itemId === "runebound_focus" || itemId === "quickening_sigil" ? [abilityImpactReadout] : []),
   ];
   if (targets.length === 0) return;
@@ -1435,6 +1472,7 @@ const PURCHASE_STAT_SHORT_LABELS = {
   moveSpeed: "MOVE",
   abilityPower: "SKILL",
   cooldownRecovery: "COOLDOWN",
+  basicMoveRetention: "STRIDE",
 } as const;
 
 function playWareReceipt(event: GameEvent): ReturnType<typeof projectAcceptedPurchaseImpact> {
@@ -1504,8 +1542,11 @@ function handleEvent(event: GameEvent, playTransient = false): void {
       }
       if (!delivery.playLocalPurchaseFeedback) return;
       const itemName = transition ? ITEM_DEFINITIONS[transition.itemId].name : null;
+      const evolved = transition?.change === "gained"
+        ? deriveItemEvolutionProgress(transition.itemId, transition.toCount)?.state === "active"
+        : false;
       const transitionToast = transition?.change === "gained"
-        ? `${itemName} Attuned · ×${transition.fromCount} → ×${transition.toCount} · effective ×${effectiveStackCopies(transition.toCount)}`
+        ? `${itemName} Attuned · ×${transition.fromCount} → ×${transition.toCount} · effective ×${effectiveStackCopies(transition.toCount)}${evolved ? " · Combat Stride unlocked" : ""}`
         : transition?.change === "lost"
           ? `${itemName} Attunement lost · ×${transition.fromCount} → ×${transition.toCount}`
           : purchaseImpact

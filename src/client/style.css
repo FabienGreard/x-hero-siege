@@ -343,6 +343,31 @@ button {
   margin-bottom: 4px;
 }
 
+.primary-impact-stride {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding-top: 4px;
+  color: #9eeaff;
+  border-top: 1px solid rgba(104, 216, 255, 0.16);
+  font-size: 5px;
+  font-weight: 950;
+  letter-spacing: 0.045em;
+}
+
+.primary-impact-stride span {
+  color: #e6fbff;
+}
+
+.primary-impact-stride em {
+  margin-left: auto;
+  color: #7599a3;
+  font-size: 4.75px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 .ability-impact {
   min-width: 0;
   min-height: 34px;
@@ -950,6 +975,10 @@ button.equipment-slot {
   min-height: 75px;
 }
 
+.shop-item.has-evolution-preview {
+  min-height: 84px;
+}
+
 .shop-panel[data-vendor="veilglass_reliquary"] .shop-item {
   background:
     linear-gradient(100deg, rgba(157, 119, 239, 0.075), transparent 43%),
@@ -1115,6 +1144,7 @@ button.equipment-slot {
   min-width: 0;
   gap: 3px;
   margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 .shop-item-projection[hidden] {
@@ -1133,6 +1163,38 @@ button.equipment-slot {
   font-weight: 950;
   letter-spacing: 0.07em;
   line-height: 1.2;
+}
+
+.shop-item-evolution {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 2px;
+  color: #9eeaff;
+  font-size: 4.75px;
+  font-weight: 950;
+  letter-spacing: 0.055em;
+}
+
+.shop-item-evolution[hidden] {
+  display: none;
+}
+
+.shop-item-evolution small {
+  flex: none;
+  color: #9eeaff;
+  font-size: 4.75px;
+}
+
+.shop-item-evolution strong {
+  overflow: hidden;
+  min-width: 0;
+  color: #dff9ff;
+  font-size: 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shop-item-projection > strong {

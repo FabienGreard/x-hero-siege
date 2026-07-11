@@ -3,6 +3,7 @@ import type { EquipmentSlotIndex, EquipmentSlots, ItemId, VendorId, Vec2 } from 
 export const EQUIPMENT_SLOT_COUNT = 6;
 export const ARMORY_WARE_PRICE = 30;
 export const ITEM_ATTUNEMENT_THRESHOLD = 4;
+export const FLEETSTEP_COMBAT_STRIDE_RETENTION = 0.15;
 
 export interface ItemDefinition {
   id: ItemId;
@@ -39,6 +40,16 @@ export interface AttunementProgress {
   effectiveCount: number;
   state: AttunementProgressState;
   visualLabel: string | null;
+  accessibleDescription: string;
+}
+
+export type ItemEvolutionState = "building" | "next" | "active";
+
+export interface ItemEvolutionProgress {
+  name: "Combat Stride";
+  state: ItemEvolutionState;
+  moveRetention: number;
+  visualLabel: "UNLOCKS COMBAT STRIDE" | "COMBAT STRIDE" | null;
   accessibleDescription: string;
 }
 
@@ -173,6 +184,41 @@ export function deriveAttunementProgress(count: number): AttunementProgress {
     state: "attuned",
     visualLabel: "ATTUNED",
     accessibleDescription: `Attuned: the fourth copy contributes twice its normal effect, so ${copyCount} equipped copies count as ${effectiveCount} copies.`,
+  };
+}
+
+/** The first earned ware evolution: Fleetstep becomes active at the existing Attunement threshold. */
+export function deriveItemEvolutionProgress(
+  itemId: ItemId,
+  count: number,
+): ItemEvolutionProgress | null {
+  if (itemId !== "fleetstep_greaves") return null;
+  const copyCount = normalizedStackCount(count);
+  const effect = `retain ${FLEETSTEP_COMBAT_STRIDE_RETENTION * 100}% Move Speed during primary windup and impact; Combat Stride does not apply to abilities`;
+  if (copyCount >= ITEM_ATTUNEMENT_THRESHOLD) {
+    return {
+      name: "Combat Stride",
+      state: "active",
+      moveRetention: FLEETSTEP_COMBAT_STRIDE_RETENTION,
+      visualLabel: "COMBAT STRIDE",
+      accessibleDescription: `Combat Stride active: ${effect}.`,
+    };
+  }
+  if (copyCount === ITEM_ATTUNEMENT_THRESHOLD - 1) {
+    return {
+      name: "Combat Stride",
+      state: "next",
+      moveRetention: 0,
+      visualLabel: "UNLOCKS COMBAT STRIDE",
+      accessibleDescription: `The next matching copy unlocks Combat Stride: ${effect}.`,
+    };
+  }
+  return {
+    name: "Combat Stride",
+    state: "building",
+    moveRetention: 0,
+    visualLabel: null,
+    accessibleDescription: `Combat Stride unlocks at four matching copies: ${effect}.`,
   };
 }
 

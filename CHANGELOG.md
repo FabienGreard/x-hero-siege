@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.23] - 2026-07-11
+
+### Added
+
+- Added Combat Stride as the first ware-specific evolution, earned by Fleetstep Greaves at the established fourth-copy Attunement threshold.
+- Added one authoritative movement consequence to Hero Stats and the named `LMB` impact row, plus exact current-champion `WORLD/S` previews for the unlocking, fifth, and sixth Greaves copies.
+- Added real action-cycle, purchase/reforge/reset, normal-timing Warden and Riftstalker balance, route-safety, and four-client convergence coverage for the evolution.
+
+### Changed
+
+- Attuned Greaves now retain `15%` of the champion's current Move Speed during primary windup and impact; idle movement remains `100%`, every recovery remains `45%`, and Combat Stride does not apply to abilities.
+- Give the earned effect its own restrained cyan shop, equipment, and Action Impact language while preserving the existing Attunement ceremony and doubled fourth-copy scalar.
+- Scope first-tick movement ordering to the unlocked evolution so Combat Stride begins immediately without changing established non-Attuned route or attack behavior.
+
+### Preserved
+
+- Primary damage, cadence, aim, impact geometry, projectiles, ability movement, recovery movement, Greaves price and scalar power, Attunement arithmetic, six unrestricted slots, both physical shops, routes, economy, controls, art, audio, and server authority.
+- No new ware, vendor, stat panel, proc, active skill, slot type, currency, permanent progression, or catalog breadth was added.
+
 ## [0.1.22] - 2026-07-11
 
 ### Added
