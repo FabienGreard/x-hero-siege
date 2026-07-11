@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.26` — Read the Time
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending release proof; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Correct the pre-purchase comprehension weakness exposed by legal normal-timing `0.1.25` play: the Warden reached the Reliquary at `29.304s` with level `3`, `153` HP, `31` gold, `31` kills, empty equipment, rank-three `E`, North `260`, and the Nexus `800`, but Quickening still answered only `Cooldown Speed 100% → 115%`. A rendered Ashcaller could already read `Q 6S`, `E 9S`, `R 12S`, and `F 38S` in Hero Stats, yet the ware never connected its price to those learned casts before commitment.
 - Keep the aggregate Quickening result and add one subordinate `CAST RETURNS` treatment derived from the same canonical `deriveAbilityImpactReadout` used by current Hero Stats. Show only learned casts: zero adds no heading or reserved space, one names only that key, and four form a compact ordered `Q`/`E`/`R`/`F` grid.
