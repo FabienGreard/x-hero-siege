@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.22` — Every Trade Must Change
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
 
 - Correct the player-visible dead end exposed by replaying shipped `0.1.21`: at six identical wares, the matching local card still promised `REPLACE ITEM`, then opened a socket picker in which all six targets were disabled.
 - Derive the legal full-build targets from the canonical equipment projection. If no socket can produce a different build, expose a disabled `FULL STACK` card and an exact no-change explanation instead of beginning a reforge.
