@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.32` — Choose to Endure
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion Pages deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Resume from shipped `0.1.31` and replay its real production Forge before changing it. The higher price and buyback made each slot consequential, but the warm physical shop still offered only two scalar answers—more Basic Damage or more Move Speed—while the approved concept made a major acquisition read as a distinct choice around the hero. Item breadth remained the highest-leverage player-visible weakness.
 - Remove the technical blocker before adding content. Define one canonical exhaustive item-ID set and let each ware own its primary stat and modifiers so a fifth or unknown ID can never fall through to Quickening Sigil and silently receive Cooldown Speed behavior.
