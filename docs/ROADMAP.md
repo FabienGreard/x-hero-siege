@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.30` — Bound the Host
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Correct the highest-leverage dynamic weakness carried from shipped `0.1.29`: Wraith Host appended `3`/`4`/`5` summons with no owner cap, and every Wraith struck every `0.72s` until a `7.25–9.75s` lifetime expired. Base lifetime output reached roughly `720`, `1,350`, and `2,340` damage by rank while every contact rendered a generic impact plus souls ring and two seven-particle bursts. Idle orbit could emit the same false contact read without damaging anything.
 - Give each server-owned Wraith a maximum of three successful strikes and dismiss it immediately after the third. Keep the short lifetime and older-spirit cap eviction as earlier exits, preserve per-strike damage and creation-time Skill Power, and never spend the budget while orbiting without an enemy or active Rift Heart.
