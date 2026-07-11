@@ -1,7 +1,13 @@
 import type { EquipmentSlotIndex, EquipmentSlots, ItemId, VendorId, Vec2 } from "./protocol";
 
 export const EQUIPMENT_SLOT_COUNT = 6;
-export const ARMORY_WARE_PRICE = 30;
+export const ARMORY_WARE_PRICE = 60;
+export const ARMORY_SELL_VALUE = 30;
+export function armoryReforgeNetCost(itemPrice: number): number {
+  const normalizedPrice = Number.isFinite(itemPrice) ? Math.max(0, itemPrice) : 0;
+  return Math.max(0, normalizedPrice - ARMORY_SELL_VALUE);
+}
+export const ARMORY_REFORGE_NET_COST = armoryReforgeNetCost(ARMORY_WARE_PRICE);
 export const ITEM_ATTUNEMENT_THRESHOLD = 4;
 export const FLEETSTEP_COMBAT_STRIDE_RETENTION = 0.15;
 
@@ -63,6 +69,12 @@ export interface EquipmentChangeProjection {
   equipment: EquipmentSlots;
   slotIndex: EquipmentSlotIndex;
   replacedItemId: ItemId | null;
+}
+
+export interface EquipmentRemovalProjection {
+  equipment: EquipmentSlots;
+  slotIndex: EquipmentSlotIndex;
+  removedItemId: ItemId;
 }
 
 export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
@@ -248,6 +260,20 @@ export function projectEquipmentChange(
   const nextEquipment = [...equipment] as EquipmentSlots;
   nextEquipment[slotIndex] = incomingItemId;
   return { equipment: nextEquipment, slotIndex, replacedItemId };
+}
+
+/** Mirrors an exact-slot sale without spending or changing authoritative state. */
+export function projectEquipmentRemoval(
+  equipment: EquipmentSlots,
+  slotIndex: EquipmentSlotIndex,
+  expectedItemId: ItemId | null = null,
+): EquipmentRemovalProjection | null {
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= EQUIPMENT_SLOT_COUNT) return null;
+  const removedItemId = equipment[slotIndex];
+  if (!removedItemId || (expectedItemId !== null && removedItemId !== expectedItemId)) return null;
+  const nextEquipment = [...equipment] as EquipmentSlots;
+  nextEquipment[slotIndex] = null;
+  return { equipment: nextEquipment, slotIndex, removedItemId };
 }
 
 /** Every authoritative full-build target that would produce a real equipment change. */

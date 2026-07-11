@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { itemPurchaseDeliveryPolicy } from "../src/client/event-delivery";
+import { itemPurchaseDeliveryPolicy, itemSaleDeliveryPolicy } from "../src/client/event-delivery";
 import type { GameEvent } from "../src/shared/protocol";
 
 const ordinaryPurchase: GameEvent = {
@@ -20,6 +20,17 @@ const attunementPurchase: GameEvent = {
     fromCount: 3,
     toCount: 4,
   },
+};
+
+const itemSale: GameEvent = {
+  id: "sale",
+  kind: "item_sold",
+  text: "Warden sold Tempered Edge.",
+  at: 2,
+  playerId: "local",
+  itemId: "tempered_edge",
+  slotIndex: 0,
+  goldDelta: 30,
 };
 
 describe("item-purchase delivery policy", () => {
@@ -84,5 +95,49 @@ describe("item-purchase delivery policy", () => {
       playLocalPurchaseFeedback: false,
       playWareReceiptTransient: false,
     });
+  });
+});
+
+describe("item-sale delivery policy", () => {
+  test("a direct local sale acknowledges once and plays only local sale feedback", () => {
+    expect(itemSaleDeliveryPolicy(itemSale, "local", true)).toEqual({
+      acknowledgeLocalSale: true,
+      playAttunementTransient: false,
+      playLocalSaleFeedback: true,
+    });
+  });
+
+  test("a replayed local sale reconciles without replaying feedback", () => {
+    expect(itemSaleDeliveryPolicy(itemSale, "local", false)).toEqual({
+      acknowledgeLocalSale: true,
+      playAttunementTransient: false,
+      playLocalSaleFeedback: false,
+    });
+  });
+
+  test("an ally sale never opens local UI or feedback", () => {
+    expect(itemSaleDeliveryPolicy(itemSale, "ally", true)).toEqual({
+      acknowledgeLocalSale: false,
+      playAttunementTransient: false,
+      playLocalSaleFeedback: false,
+    });
+  });
+
+  test("an Attunement-losing sale keeps its direct world transition", () => {
+    const transitionSale: GameEvent = {
+      ...itemSale,
+      attunementTransition: {
+        itemId: "tempered_edge",
+        change: "lost",
+        fromCount: 4,
+        toCount: 3,
+      },
+    };
+    expect(itemSaleDeliveryPolicy(transitionSale, "ally", true)).toEqual({
+      acknowledgeLocalSale: false,
+      playAttunementTransient: true,
+      playLocalSaleFeedback: false,
+    });
+    expect(itemSaleDeliveryPolicy(transitionSale, "local", false).playAttunementTransient).toBe(false);
   });
 });

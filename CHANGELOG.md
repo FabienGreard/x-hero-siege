@@ -2,6 +2,28 @@
 
 All notable project changes are recorded here.
 
+## [0.1.31] - 2026-07-11
+
+### Added
+
+- Added explicit exact-slot selling at either physical shop: press `X`, choose one occupied unrestricted slot by mouse or `1`–`6`, review the complete consequence, and confirm for `30` personal gold.
+- Added canonical equipment-removal projection, strict stale-slot protocol validation, a dedicated authoritative `item_sold` receipt, replay-safe local delivery, and four-client reconnect persistence.
+- Added focused price-boundary, cross-vendor, stale-replay, phase/range, personal ownership, Attunement, Combat Stride, active-cooldown, created-effect, shop-route, economy-pacing, and rendered interaction proof.
+- Added native `1280×720` evidence for exact sale confirmation, accepted cross-vendor sale, and the atomic full-build net reforge.
+
+### Changed
+
+- Every established ware now costs `60` gold instead of `30`; either shop buys any equipped ware for `30`, while incoming wares remain restricted to that shop's distinct stock.
+- Full six-slot reshaping remains one atomic transaction but now charges the truthful `30`-gold net difference: `BUY 60 − TRADE-IN 30`. The build never exposes an intermediate empty slot.
+- Shop readiness now distinguishes a `60`-gold ordinary purchase from a legal `30`-gold full-build reforge. Catalog cards show `60` before six slots and `30 NET` at `6/6`.
+- The opening still guarantees one meaningful ware, but completing and repeatedly reshaping a build now requires sustained, performance-dependent defense instead of arriving as checklist progression.
+
+### Preserved
+
+- Both physical local shops, their distinct two-ware inventories, the four established item effects, exactly six unrestricted duplicate-capable run-only slots, Attunement, Combat Stride, champion stats, cooldown-progress semantics, personal co-op ownership, and server authority remain established.
+- There is no remote catalog, bulk sale, drag inventory, typed slot, permanent ownership, fifth ware, reward increase, Soul Scythe rebalance, champion-kit rewrite, new effect, or new audio cue in this checkpoint.
+- Item breadth and further champion differentiation remain carried forward one bounded concept at a time; a fifth ware is still gated on removing the hardcoded four-item derived-stat fallback safely.
+
 ## [0.1.30] - 2026-07-11
 
 ### Added

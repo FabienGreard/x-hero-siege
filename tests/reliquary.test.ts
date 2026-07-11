@@ -176,6 +176,7 @@ describe("authoritative Veilglass Reliquary", () => {
 
       if (withFocus) {
         placeAt(game, "veilglass_reliquary");
+        fund(game, ARMORY_WARE_PRICE);
         expect(buy(game, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
       }
       const rift = game.getSnapshot().riftHeart;

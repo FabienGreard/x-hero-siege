@@ -6,10 +6,12 @@ import {
   WORLD_LAYOUT,
 } from "../shared/game-data";
 import {
+  ARMORY_SELL_VALUE,
   EQUIPMENT_SLOT_COUNT,
   ITEM_ATTUNEMENT_THRESHOLD,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
+  armoryReforgeNetCost,
   deriveAttunementProgress,
   deriveItemEvolutionProgress,
   dominantEquipmentStack,
@@ -18,6 +20,7 @@ import {
   isStackAttuned,
   legalEquipmentReplacementSlots,
   projectEquipmentChange,
+  projectEquipmentRemoval,
   summarizeEquipment,
 } from "../shared/armory-data";
 import { deriveHeroStats } from "../shared/hero-stats";
@@ -49,7 +52,7 @@ import type {
   Vec2,
   VendorId,
 } from "../shared/protocol";
-import { itemPurchaseDeliveryPolicy } from "./event-delivery";
+import { itemPurchaseDeliveryPolicy, itemSaleDeliveryPolicy } from "./event-delivery";
 import { deriveGateReadout } from "./gate-readout";
 import {
   beginOrdinaryPurchaseRequest,
@@ -139,6 +142,7 @@ const shopGold = requiredElement<HTMLElement>("shop-gold");
 const shopEquipmentCount = requiredElement<HTMLElement>("shop-equipment-count");
 const shopEquipmentSlots = requiredElement<HTMLDivElement>("shop-equipment-slots");
 const shopLoadoutLabel = requiredElement<HTMLElement>("shop-loadout-label");
+const shopSellToggle = requiredElement<HTMLButtonElement>("shop-sell-toggle");
 const shopReplaceGuide = requiredElement<HTMLElement>("shop-replace-guide");
 const shopReplaceItem = requiredElement<HTMLElement>("shop-replace-item");
 const shopReplaceConfirm = requiredElement<HTMLElement>("shop-replace-confirm");
@@ -294,6 +298,10 @@ let replacementItemId: ItemId | null = null;
 let replacementSlotIndex: EquipmentSlotIndex | null = null;
 let replacementExpectedItemId: ItemId | null = null;
 let replacementRequestPending = false;
+let saleMode = false;
+let saleSlotIndex: EquipmentSlotIndex | null = null;
+let saleExpectedItemId: ItemId | null = null;
+let saleRequestPending = false;
 let ordinaryPurchaseRequest: OrdinaryPurchaseRequest | null = null;
 const keys = new Set<string>();
 const pointer = new THREE.Vector2(0, 0);
@@ -501,12 +509,16 @@ function suspendTransactionalUi(): void {
   attacking = false;
   ordinaryPurchaseRequest = null;
   replacementRequestPending = false;
+  saleRequestPending = false;
   if (shopOpen) {
     setShopOpen(false);
   } else {
     replacementItemId = null;
     replacementSlotIndex = null;
     replacementExpectedItemId = null;
+    saleMode = false;
+    saleSlotIndex = null;
+    saleExpectedItemId = null;
   }
 }
 
@@ -627,28 +639,37 @@ function connect(): void {
         currentSocket.close(1000, message.code);
         return;
       }
-      const replacementError = new Set([
+      const tradeError = new Set([
         "EQUIPMENT_CHANGED",
+        "EMPTY_EQUIPMENT_SLOT",
         "REPLACEMENT_NOT_REQUIRED",
         "INVALID_EQUIPMENT_SLOT",
         "SAME_ITEM",
+        "ITEM_UNKNOWN",
         "ITEM_NOT_STOCKED",
         "INSUFFICIENT_GOLD",
+        "VENDOR_UNKNOWN",
         "OUT_OF_RANGE",
         "PLAYER_DOWNED",
         "RUN_INACTIVE",
       ]).has(message.code);
-      if (replacementRequestPending && replacementError) {
+      if (replacementRequestPending && tradeError) {
         replacementRequestPending = false;
         if (message.code === "EQUIPMENT_CHANGED") clearReplacementSlot();
-        else refreshReplacementState();
+        else refreshShopTradeState();
         shopAnnouncement.textContent = `${message.message} No gold was spent.`;
+      }
+      if (saleRequestPending && tradeError) {
+        saleRequestPending = false;
+        if (message.code === "EQUIPMENT_CHANGED" || message.code === "EMPTY_EQUIPMENT_SLOT") clearSaleSlot();
+        else refreshShopTradeState();
+        shopAnnouncement.textContent = `${message.message} No item was sold and no gold was credited.`;
       }
       const pendingOrdinaryPurchase = ordinaryPurchaseRequest;
       ordinaryPurchaseRequest = ordinaryPurchaseRequestAfterError(ordinaryPurchaseRequest, message.code);
       if (pendingOrdinaryPurchase && !ordinaryPurchaseRequest) {
         const self = currentPlayer();
-        if (shopOpen && self) updateShopCards(self);
+        if (shopOpen && self) refreshShopTradeState(self);
       }
       toast(message.message, "warning");
       setTextIfChanged(lobbyNote, message.message);
@@ -821,6 +842,18 @@ function replacementStackPreview(
     .join(" · ");
 }
 
+function saleStackPreview(
+  current: PlayerSnapshot["equipment"],
+  projected: PlayerSnapshot["equipment"],
+  outgoingItemId: ItemId,
+): string {
+  const currentCount = equipmentCopyCount(current, outgoingItemId);
+  const projectedCount = equipmentCopyCount(projected, outgoingItemId);
+  const currentAttuned = isStackAttuned(currentCount);
+  const projectedAttuned = isStackAttuned(projectedCount);
+  return `${REFORGE_ITEM_NAMES[outgoingItemId]} ×${currentCount}${currentAttuned ? " ATTUNED" : ""} → ×${projectedCount}${projectedAttuned ? " ATTUNED" : ""}`;
+}
+
 function replacementStatsPreview(
   current: HeroStatsSnapshot,
   projected: HeroStatsSnapshot,
@@ -911,8 +944,9 @@ function renderEquipmentSlots(
   equipment: PlayerSnapshot["equipment"],
   incomingItemId: ItemId | null = null,
   selectedSlotIndex: EquipmentSlotIndex | null = null,
+  selling = false,
 ): void {
-  const key = `${equipment.map((itemId) => itemId ?? "empty").join("|")}|${incomingItemId ?? "read-only"}|${selectedSlotIndex ?? "none"}|${replacementRequestPending ? "pending" : "ready"}`;
+  const key = `${equipment.map((itemId) => itemId ?? "empty").join("|")}|${selling ? "sell" : incomingItemId ?? "read-only"}|${selectedSlotIndex ?? "none"}|${replacementRequestPending || saleRequestPending ? "pending" : "ready"}`;
   if (container.dataset.equipment === key) return;
   container.dataset.equipment = key;
   container.replaceChildren();
@@ -921,18 +955,23 @@ function renderEquipmentSlots(
     : null;
   for (let index = 0; index < EQUIPMENT_SLOT_COUNT; index += 1) {
     const itemId = equipment[index] ?? null;
-    const interactive = Boolean(incomingItemId);
+    const interactive = Boolean(incomingItemId || selling);
     const slot = interactive ? document.createElement("button") : document.createElement("span");
     slot.className = `equipment-slot${itemId ? " has-item" : ""}`;
     slot.dataset.slot = String(index + 1);
     if (interactive && slot instanceof HTMLButtonElement) {
       slot.type = "button";
       const unchanged = itemId === incomingItemId;
-      slot.classList.add("is-replace-target");
-      slot.classList.toggle("is-unchanged", unchanged);
+      slot.classList.add(selling ? "is-sale-target" : "is-replace-target");
+      slot.classList.toggle("is-unchanged", !selling && unchanged);
       slot.classList.toggle("is-selected", index === selectedSlotIndex);
-      slot.disabled = !legalReplacementSlots?.has(index as EquipmentSlotIndex) || replacementRequestPending;
-      slot.addEventListener("click", () => selectReplacementSlot(index as EquipmentSlotIndex));
+      slot.disabled = selling
+        ? !itemId || saleRequestPending
+        : !legalReplacementSlots?.has(index as EquipmentSlotIndex) || replacementRequestPending;
+      slot.addEventListener("click", () => {
+        if (selling) selectSaleSlot(index as EquipmentSlotIndex);
+        else selectReplacementSlot(index as EquipmentSlotIndex);
+      });
     }
     if (itemId) {
       const item = ITEM_DEFINITIONS[itemId];
@@ -942,14 +981,18 @@ function renderEquipmentSlots(
       const incoming = incomingItemId ? ITEM_DEFINITIONS[incomingItemId] : null;
       slot.setAttribute(
         "aria-label",
-        incoming
+        selling
+          ? `Slot ${index + 1}: ${item.name}, ${item.effectLabel}. Select to sell for ${ARMORY_SELL_VALUE} gold.`
+          : incoming
           ? itemId === incomingItemId
             ? `Slot ${index + 1}: ${item.name}. Already equipped here; choose another slot.`
-            : `Slot ${index + 1}: replace ${item.name}, ${item.effectLabel}, with ${incoming.name}, ${incoming.effectLabel}, for ${incoming.price} gold.`
+            : `Slot ${index + 1}: trade in ${item.name}, ${item.effectLabel}, for ${ARMORY_SELL_VALUE} gold and buy ${incoming.name}, ${incoming.effectLabel}, for ${incoming.price} gold; ${armoryReforgeNetCost(incoming.price)} gold net.`
           : `Slot ${index + 1}: ${item.name}, ${item.effectLabel}`,
       );
     } else {
-      slot.setAttribute("aria-label", `Slot ${index + 1}: empty`);
+      slot.setAttribute("aria-label", selling
+        ? `Slot ${index + 1}: empty. Nothing to sell.`
+        : `Slot ${index + 1}: empty`);
     }
     container.append(slot);
   }
@@ -1008,7 +1051,13 @@ function updateEquipmentReadouts(self: PlayerSnapshot): void {
   shopGold.textContent = `${Math.floor(self.gold)} GOLD`;
   renderEquipmentSlots(heroEquipmentSlots, self.equipment);
   renderEquipmentSummary(self.equipment);
-  renderEquipmentSlots(shopEquipmentSlots, self.equipment, replacementItemId, replacementSlotIndex);
+  renderEquipmentSlots(
+    shopEquipmentSlots,
+    self.equipment,
+    saleMode ? null : replacementItemId,
+    saleMode ? saleSlotIndex : replacementSlotIndex,
+    saleMode,
+  );
 }
 
 function renderLearnedCooldownProjection(
@@ -1050,7 +1099,7 @@ function renderShopCatalog(vendorId: VendorId): void {
       <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">×0</small></span>
       <small class="shop-item-description">${item.description}</small>
       <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em><span class="shop-item-evolution" data-shop-evolution hidden><small>COMBAT STRIDE</small><strong data-shop-evolution-value>—</strong></span><span class="shop-item-cast-preview" data-shop-cast-preview hidden><small>RETURNS</small><span class="shop-item-cast-grid" data-shop-cast-grid></span></span></span>
-      <span class="shop-item-price"><span>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
+      <span class="shop-item-price"><span data-shop-price>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
     button.addEventListener("click", () => buyShopItem(itemId));
     shopItems.append(button);
     shopItemButtons.set(itemId, button);
@@ -1067,34 +1116,62 @@ function updateShopPresentation(vendorId: VendorId, name: string): void {
   renderShopCatalog(vendorId);
 }
 
-function refreshReplacementState(self: PlayerSnapshot | undefined = currentPlayer()): void {
+function refreshShopTradeState(self: PlayerSnapshot | undefined = currentPlayer()): void {
   const selectedItem = replacementItemId ? ITEM_DEFINITIONS[replacementItemId] : null;
+  const selectedReforgeCost = selectedItem ? armoryReforgeNetCost(selectedItem.price) : 0;
   const selectedOutgoingId = replacementSlotIndex !== null ? self?.equipment[replacementSlotIndex] ?? null : null;
   const selectedOutgoing = selectedOutgoingId ? ITEM_DEFINITIONS[selectedOutgoingId] : null;
-  const confirming = Boolean(selectedItem && selectedOutgoing && replacementExpectedItemId === selectedOutgoingId);
+  const replacementConfirming = Boolean(selectedItem && selectedOutgoing && replacementExpectedItemId === selectedOutgoingId);
+  const saleOutgoingId = saleSlotIndex !== null ? self?.equipment[saleSlotIndex] ?? null : null;
+  const saleOutgoing = saleOutgoingId ? ITEM_DEFINITIONS[saleOutgoingId] : null;
+  const saleConfirming = Boolean(saleMode && saleOutgoing && saleExpectedItemId === saleOutgoingId);
+  const confirming = replacementConfirming || saleConfirming;
+  const hasSaleItems = Boolean(self?.equipment.some((itemId) => itemId !== null));
   if (!confirming && shopReplaceConfirm.contains(document.activeElement)) {
     (shopOpen ? shopClose : heroStatsToggle).focus();
   }
   shopPanel.classList.toggle("is-replacing", Boolean(selectedItem));
+  shopPanel.classList.toggle("is-selling", saleMode);
   shopPanel.classList.toggle("is-confirming", confirming);
-  shopLoadoutLabel.textContent = confirming ? "CONFIRM THE REFORGE" : selectedItem ? "CHOOSE A SLOT TO DISCARD" : "YOUR LOADOUT";
-  shopReplaceGuide.classList.toggle("is-hidden", !selectedItem || confirming);
-  shopReplaceGuide.setAttribute("aria-hidden", String(!selectedItem || confirming));
+  shopLoadoutLabel.textContent = saleConfirming
+    ? "CONFIRM THE SALE"
+    : saleMode
+      ? "CHOOSE A SLOT TO SELL"
+      : replacementConfirming
+        ? "CONFIRM THE REFORGE"
+        : selectedItem
+          ? "CHOOSE A SLOT TO TRADE IN"
+          : "YOUR LOADOUT";
+  const guideVisible = Boolean((selectedItem || saleMode) && !confirming);
+  shopReplaceGuide.classList.toggle("is-hidden", !guideVisible);
+  shopReplaceGuide.setAttribute("aria-hidden", String(!guideVisible));
   shopReplaceConfirm.classList.toggle("is-hidden", !confirming);
   shopReplaceConfirm.setAttribute("aria-hidden", String(!confirming));
+  shopSellToggle.classList.toggle("is-hidden", saleMode || Boolean(selectedItem) || !hasSaleItems);
+  shopSellToggle.disabled = !hasSaleItems || replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest !== null;
+  shopSellToggle.setAttribute(
+    "aria-label",
+    hasSaleItems
+      ? `Sell one equipped item for ${ARMORY_SELL_VALUE} gold. Press X.`
+      : "No equipped item is available to sell.",
+  );
   shopReplaceStacks.textContent = "—";
   shopReplaceStats.textContent = "—";
   shopReplaceSignature.textContent = "—";
   shopReplaceConfirm.removeAttribute("aria-label");
-  if (selectedItem) {
+  if (saleMode) {
+    shopReplaceItem.textContent = saleRequestPending
+      ? "VERIFYING SALE…"
+      : `SELL ONE ITEM · +${ARMORY_SELL_VALUE} GOLD`;
+  } else if (selectedItem) {
     shopReplaceItem.textContent = replacementRequestPending
       ? `REFORGING ${selectedItem.name.toUpperCase()}…`
-      : `${ITEM_SYMBOLS[selectedItem.id]} ${selectedItem.name.toUpperCase()} · ${selectedItem.price} GOLD`;
+      : `${ITEM_SYMBOLS[selectedItem.id]} ${selectedItem.name.toUpperCase()} · ${selectedReforgeCost} GOLD NET`;
   }
   let previewReady = false;
-  if (confirming && selectedItem && selectedOutgoing && self?.heroId && replacementSlotIndex !== null) {
+  if (replacementConfirming && selectedItem && selectedOutgoing && self?.heroId && replacementSlotIndex !== null) {
     shopReplacePreview.textContent = `OUT ${REFORGE_ITEM_NAMES[selectedOutgoing.id].toUpperCase()} ${selectedOutgoing.effectLabel} → IN ${REFORGE_ITEM_NAMES[selectedItem.id].toUpperCase()} ${selectedItem.effectLabel}`;
-    shopReplaceTerms.textContent = `${selectedItem.price} GOLD · OLD ITEM DISCARDED`;
+    shopReplaceTerms.textContent = `BUY ${selectedItem.price} − TRADE-IN ${ARMORY_SELL_VALUE} = ${selectedReforgeCost} GOLD NET`;
     const projection = projectEquipmentChange(self.equipment, selectedItem.id, replacementSlotIndex);
     if (projection?.replacedItemId === selectedOutgoing.id) {
       const projectedStats = deriveHeroStats(self.heroId, self.level, projection.equipment);
@@ -1117,12 +1194,41 @@ function refreshReplacementState(self: PlayerSnapshot | undefined = currentPlaye
       );
       previewReady = true;
     }
+  } else if (saleConfirming && saleOutgoing && self?.heroId && saleSlotIndex !== null) {
+    const projection = projectEquipmentRemoval(self.equipment, saleSlotIndex, saleOutgoing.id);
+    shopReplacePreview.textContent = `SELL SLOT ${saleSlotIndex + 1} — ${saleOutgoing.name.toUpperCase()} ${saleOutgoing.effectLabel}`;
+    if (projection?.removedItemId === saleOutgoing.id) {
+      const projectedStats = deriveHeroStats(self.heroId, self.level, projection.equipment);
+      shopReplaceStacks.textContent = saleStackPreview(self.equipment, projection.equipment, saleOutgoing.id);
+      shopReplaceStats.textContent = replacementStatsPreview(
+        self.stats,
+        projectedStats,
+        self.heroId,
+        self.abilityRanks,
+      ) || "No Hero Stat change";
+      shopReplaceSignature.textContent = replacementSignaturePreview(self.equipment, projection.equipment);
+      shopReplaceTerms.textContent = `GOLD ${formatHeroStat(self.gold, 1)} → ${formatHeroStat(self.gold + ARMORY_SELL_VALUE, 1)} · +${ARMORY_SELL_VALUE} · SLOT ${saleSlotIndex + 1} BECOMES EMPTY`;
+      shopReplaceConfirm.setAttribute(
+        "aria-label",
+        `${shopReplacePreview.textContent}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${shopReplaceTerms.textContent}.`,
+      );
+      previewReady = true;
+    }
   }
-  shopReplaceSubmit.disabled = !confirming || !previewReady || replacementRequestPending;
-  shopReplaceCancel.disabled = replacementRequestPending;
-  shopReplaceSubmit.innerHTML = replacementRequestPending ? "REFORGING…" : "BUY &amp; REPLACE <kbd>ENTER</kbd>";
+  const requestPending = replacementRequestPending || saleRequestPending;
+  shopReplaceSubmit.disabled = !confirming || !previewReady || requestPending;
+  shopReplaceCancel.disabled = requestPending;
+  shopReplaceSubmit.innerHTML = saleMode
+    ? saleRequestPending ? "SELLING…" : `SELL ITEM · +${ARMORY_SELL_VALUE} <kbd>ENTER</kbd>`
+    : replacementRequestPending ? "REFORGING…" : "BUY &amp; REPLACE <kbd>ENTER</kbd>";
   if (self) {
-    renderEquipmentSlots(shopEquipmentSlots, self.equipment, replacementItemId, replacementSlotIndex);
+    renderEquipmentSlots(
+      shopEquipmentSlots,
+      self.equipment,
+      saleMode ? null : replacementItemId,
+      saleMode ? saleSlotIndex : replacementSlotIndex,
+      saleMode,
+    );
     if (shopOpen) updateShopCards(self);
   }
 }
@@ -1133,7 +1239,7 @@ function clearReplacementSelection(announce = false): void {
   replacementSlotIndex = null;
   replacementExpectedItemId = null;
   replacementRequestPending = false;
-  refreshReplacementState();
+  refreshShopTradeState();
   if (announce) shopAnnouncement.textContent = "Replacement cancelled. Choose a ware or close the shop.";
 }
 
@@ -1141,7 +1247,7 @@ function clearReplacementSlot(announce = false): void {
   if (replacementSlotIndex === null && !replacementExpectedItemId) return;
   replacementSlotIndex = null;
   replacementExpectedItemId = null;
-  refreshReplacementState();
+  refreshShopTradeState();
   if (announce && replacementItemId) {
     const item = ITEM_DEFINITIONS[replacementItemId];
     shopAnnouncement.textContent = `${item.name} remains selected. Choose equipment slot 1 through 6, or press Escape again to cancel.`;
@@ -1149,8 +1255,129 @@ function clearReplacementSlot(announce = false): void {
   }
 }
 
+function clearSaleSelection(announce = false): void {
+  if (!saleMode && saleSlotIndex === null && !saleRequestPending) return;
+  saleMode = false;
+  saleSlotIndex = null;
+  saleExpectedItemId = null;
+  saleRequestPending = false;
+  refreshShopTradeState();
+  if (announce) {
+    shopAnnouncement.textContent = "Sale cancelled. Browse wares, sell another item, or close the shop.";
+    requestAnimationFrame(() => shopSellToggle.focus());
+  }
+}
+
+function clearSaleSlot(announce = false): void {
+  if (saleSlotIndex === null && !saleExpectedItemId) return;
+  saleSlotIndex = null;
+  saleExpectedItemId = null;
+  saleRequestPending = false;
+  refreshShopTradeState();
+  if (announce) {
+    shopAnnouncement.textContent = `Sale mode remains open. Choose equipment slot 1 through 6, press X, or press Escape again to cancel.`;
+  }
+}
+
+function toggleSaleMode(): void {
+  if (!shopOpen) return;
+  if (replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest) {
+    shopAnnouncement.textContent = "The current trade is already being verified by the server.";
+    return;
+  }
+  if (saleMode) {
+    clearSaleSelection(true);
+    return;
+  }
+  const self = currentPlayer();
+  if (!self?.equipment.some((itemId) => itemId !== null)) {
+    shopAnnouncement.textContent = "No equipped item is available to sell.";
+    toast("Equip a ware before trying to sell.", "warning");
+    return;
+  }
+  replacementItemId = null;
+  replacementSlotIndex = null;
+  replacementExpectedItemId = null;
+  saleMode = true;
+  saleSlotIndex = null;
+  saleExpectedItemId = null;
+  refreshShopTradeState(self);
+  shopAnnouncement.textContent = `Sell mode opened. Choose one occupied equipment slot with the mouse or keys 1 through 6. Every item sells for ${ARMORY_SELL_VALUE} gold at either Citadel shop. Press X or Escape to cancel.`;
+}
+
+function selectSaleSlot(slotIndex: EquipmentSlotIndex): void {
+  const self = currentPlayer();
+  if (!shopOpen || !saleMode || !self || !activeVendorId || saleRequestPending) return;
+  const vendor = vendorSnapshot(activeVendorId);
+  if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
+    clearSaleSelection();
+    toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
+    return;
+  }
+  const outgoingItemId = self.equipment[slotIndex];
+  if (!outgoingItemId) {
+    toast(`Slot ${slotIndex + 1} is empty.`, "warning");
+    return;
+  }
+  const projection = projectEquipmentRemoval(self.equipment, slotIndex, outgoingItemId);
+  if (!projection) {
+    toast("That item can no longer be sold.", "warning");
+    return;
+  }
+  saleSlotIndex = slotIndex;
+  saleExpectedItemId = outgoingItemId;
+  refreshShopTradeState(self);
+  const outgoing = ITEM_DEFINITIONS[outgoingItemId];
+  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Sell ${outgoing.name}, ${outgoing.effectLabel}, for ${ARMORY_SELL_VALUE} gold. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. Wallet: ${formatHeroStat(self.gold, 1)} to ${formatHeroStat(self.gold + ARMORY_SELL_VALUE, 1)} gold. Press Enter or choose Sell Item to confirm, or Escape to go back.`;
+  requestAnimationFrame(() => shopReplaceSubmit.focus());
+}
+
+function confirmSale(): void {
+  if (!connectionReady) return;
+  const self = currentPlayer();
+  if (
+    !shopOpen ||
+    !saleMode ||
+    !self ||
+    !activeVendorId ||
+    saleSlotIndex === null ||
+    !saleExpectedItemId ||
+    saleRequestPending
+  ) return;
+  const vendor = vendorSnapshot(activeVendorId);
+  if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
+    clearSaleSelection();
+    toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
+    return;
+  }
+  const currentItemId = self.equipment[saleSlotIndex];
+  if (currentItemId !== saleExpectedItemId) {
+    clearSaleSlot();
+    toast("That equipment slot changed. Choose it again.", "warning");
+    shopAnnouncement.textContent = "Equipment changed before confirmation. No item was sold; choose a slot again.";
+    return;
+  }
+  const projection = projectEquipmentRemoval(self.equipment, saleSlotIndex, saleExpectedItemId);
+  if (!projection) {
+    clearSaleSlot();
+    toast("That sale can no longer be previewed.", "warning");
+    return;
+  }
+  saleRequestPending = true;
+  refreshShopTradeState(self);
+  shopAnnouncement.textContent = `Selling slot ${saleSlotIndex + 1}: ${ITEM_DEFINITIONS[saleExpectedItemId].name} for ${ARMORY_SELL_VALUE} gold.`;
+  audio.unlock();
+  send({
+    type: "sell_item",
+    vendorId: activeVendorId,
+    slotIndex: saleSlotIndex,
+    expectedItemId: saleExpectedItemId,
+  });
+}
+
 function selectReplacementItem(itemId: ItemId): void {
-  if (replacementRequestPending) return;
+  if (replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest) return;
+  if (saleMode) clearSaleSelection();
   if (replacementItemId === itemId) {
     clearReplacementSelection(true);
     return;
@@ -1169,15 +1396,17 @@ function selectReplacementItem(itemId: ItemId): void {
   replacementSlotIndex = null;
   replacementExpectedItemId = null;
   const item = ITEM_DEFINITIONS[itemId];
-  refreshReplacementState();
-  shopAnnouncement.textContent = `${item.name} selected for ${item.price} gold. Choose equipment slot 1 through 6 to replace, or press Escape to cancel.`;
+  const reforgeCost = armoryReforgeNetCost(item.price);
+  refreshShopTradeState();
+  shopAnnouncement.textContent = `${item.name} selected for a ${reforgeCost}-gold net reforge: buy for ${item.price}, trade in the chosen slot for ${ARMORY_SELL_VALUE}. Choose equipment slot 1 through 6, or press Escape to cancel.`;
 }
 
 function selectReplacementSlot(slotIndex: EquipmentSlotIndex): void {
   const self = currentPlayer();
-  if (!shopOpen || !self || !activeVendorId || !replacementItemId || replacementRequestPending) return;
+  if (!shopOpen || !self || !activeVendorId || !replacementItemId || replacementRequestPending || saleRequestPending) return;
   const vendor = vendorSnapshot(activeVendorId);
   const incoming = ITEM_DEFINITIONS[replacementItemId];
+  const reforgeCost = armoryReforgeNetCost(incoming.price);
   const outgoingItemId = self.equipment[slotIndex];
   if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
     toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
@@ -1196,15 +1425,15 @@ function selectReplacementSlot(slotIndex: EquipmentSlotIndex): void {
     toast(`${incoming.name} is already in slot ${slotIndex + 1}.`, "warning");
     return;
   }
-  if (self.gold < incoming.price) {
-    toast(`Need ${Math.max(1, Math.ceil(incoming.price - self.gold))} more gold.`, "warning");
+  if (self.gold < reforgeCost) {
+    toast(`Need ${Math.max(1, Math.ceil(reforgeCost - self.gold))} more gold.`, "warning");
     return;
   }
   const outgoing = ITEM_DEFINITIONS[outgoingItemId];
   replacementSlotIndex = slotIndex;
   replacementExpectedItemId = outgoingItemId;
-  refreshReplacementState(self);
-  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Out ${outgoing.name}, ${outgoing.effectLabel}; in ${incoming.name}, ${incoming.effectLabel}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${incoming.price} gold; old item discarded. Press Enter or choose Buy and Replace to confirm, or Escape to go back.`;
+  refreshShopTradeState(self);
+  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Out ${outgoing.name}, ${outgoing.effectLabel}; in ${incoming.name}, ${incoming.effectLabel}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. Buy ${incoming.price}, trade in for ${ARMORY_SELL_VALUE}, ${reforgeCost} gold net. Press Enter or choose Buy and Replace to confirm, or Escape to go back.`;
   requestAnimationFrame(() => shopReplaceSubmit.focus());
 }
 
@@ -1218,10 +1447,12 @@ function confirmReplacement(): void {
     !replacementItemId ||
     replacementSlotIndex === null ||
     !replacementExpectedItemId ||
-    replacementRequestPending
+    replacementRequestPending ||
+    saleRequestPending
   ) return;
   const vendor = vendorSnapshot(activeVendorId);
   const incoming = ITEM_DEFINITIONS[replacementItemId];
+  const reforgeCost = armoryReforgeNetCost(incoming.price);
   if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
     clearReplacementSelection();
     toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
@@ -1251,13 +1482,13 @@ function confirmReplacement(): void {
     shopAnnouncement.textContent = "The projected equipment change is no longer available. No gold was spent; choose a slot again.";
     return;
   }
-  if (self.gold < incoming.price) {
-    toast(`Need ${Math.max(1, Math.ceil(incoming.price - self.gold))} more gold.`, "warning");
+  if (self.gold < reforgeCost) {
+    toast(`Need ${Math.max(1, Math.ceil(reforgeCost - self.gold))} more gold.`, "warning");
     return;
   }
   const outgoing = ITEM_DEFINITIONS[currentOutgoingItemId];
   replacementRequestPending = true;
-  refreshReplacementState(self);
+  refreshShopTradeState(self);
   shopAnnouncement.textContent = `Reforging slot ${replacementSlotIndex + 1}: ${outgoing.name} into ${incoming.name}.`;
   audio.unlock();
   send({
@@ -1274,14 +1505,18 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
   const vendorName = vendorSnapshot(activeVendorId)?.name ?? "vendor";
   for (const [itemId, button] of shopItemButtons) {
     const item = ITEM_DEFINITIONS[itemId];
-    const affordable = self.gold >= item.price;
+    const reforgeCost = armoryReforgeNetCost(item.price);
+    const transactionCost = slotsFull ? reforgeCost : item.price;
+    const affordable = self.gold >= transactionCost;
     const selected = replacementItemId === itemId;
     const purchasePending = ordinaryPurchaseRequest !== null;
     const pendingThisItem = ordinaryPurchaseRequest?.itemId === itemId;
     const replacementOffer = deriveShopReplacementOffer(self.equipment, itemId);
     const fullStack = replacementOffer.state === "full-stack";
-    const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending && !purchasePending && !fullStack;
+    const canBuy = !saleMode && !self.downed && withinPurchaseRange && affordable && !replacementRequestPending && !saleRequestPending && !purchasePending && !fullStack;
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
+    const price = button.querySelector<HTMLElement>("[data-shop-price]");
+    if (price) price.textContent = slotsFull ? `● ${reforgeCost} NET` : `● ${item.price}`;
     const owned = equipmentCopyCount(self.equipment, itemId);
     const attunementProgress = deriveAttunementProgress(owned);
     const evolutionProgress = deriveItemEvolutionProgress(itemId, owned);
@@ -1346,38 +1581,46 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     button.classList.toggle("is-full-stack", fullStack);
     const actionLabel = purchasePending
       ? pendingThisItem ? "Purchase request pending." : "Another purchase request is pending."
-      : fullStack
-        ? replacementOffer.actionLabel!
-        : !withinPurchaseRange
-          ? `Move closer to ${vendorName}.`
-          : replacementRequestPending && selected
-            ? "Replacement request pending."
-            : slotsFull && selected && replacementSlotIndex !== null
-              ? "Selected. Confirm the exact replacement below."
-              : slotsFull && selected
-                ? "Selected. Choose equipment slot 1 through 6 to replace."
-                : slotsFull && affordable
-                  ? replacementOffer.actionLabel!
-                  : affordable
-                    ? "Buy and equip."
-                    : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`;
+      : saleMode
+        ? "Sale mode is open; choose an occupied equipment slot."
+        : fullStack
+          ? replacementOffer.actionLabel!
+          : !withinPurchaseRange
+            ? `Move closer to ${vendorName}.`
+            : saleRequestPending
+              ? "Sale request pending."
+              : replacementRequestPending && selected
+                ? "Replacement request pending."
+                : slotsFull && selected && replacementSlotIndex !== null
+                  ? "Selected. Confirm the exact replacement below."
+                  : slotsFull && selected
+                    ? "Selected. Choose equipment slot 1 through 6 to replace."
+                    : slotsFull && affordable
+                      ? replacementOffer.actionLabel!
+                      : affordable
+                        ? "Buy and equip."
+                        : `Need ${Math.max(1, Math.ceil(transactionCost - self.gold))} more gold.`;
     const statusLabel = purchasePending
       ? pendingThisItem ? "PURCHASING" : "WAIT"
-      : fullStack
-        ? replacementOffer.statusLabel!
-        : !withinPurchaseRange
-          ? "MOVE CLOSER"
-          : replacementRequestPending && selected
-            ? "REFORGING"
-            : slotsFull && selected && replacementSlotIndex !== null
-              ? "CONFIRM BELOW"
-              : slotsFull && selected
-                ? "SELECT SLOT"
-                : slotsFull
-                  ? replacementOffer.statusLabel!
-                  : affordable
-                    ? "BUY & EQUIP"
-                    : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
+      : saleMode
+        ? "SELL MODE"
+        : fullStack
+          ? replacementOffer.statusLabel!
+          : !withinPurchaseRange
+            ? "MOVE CLOSER"
+            : saleRequestPending
+              ? "SELLING"
+              : replacementRequestPending && selected
+                ? "REFORGING"
+                : slotsFull && selected && replacementSlotIndex !== null
+                  ? "CONFIRM BELOW"
+                  : slotsFull && selected
+                    ? "SELECT SLOT"
+                    : slotsFull
+                      ? replacementOffer.statusLabel!
+                      : affordable
+                        ? "BUY & EQUIP"
+                        : `NEED ${Math.max(1, Math.ceil(transactionCost - self.gold))}`;
     if (status) status.textContent = statusLabel;
     const attunementDescription = ` ${attunementProgress.accessibleDescription}${evolutionProgress ? ` ${evolutionProgress.accessibleDescription}` : ""}`;
     const previewDescription = purchasePreview
@@ -1385,7 +1628,7 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
       : "";
     button.setAttribute(
       "aria-label",
-      `${item.name}, ${item.effectLabel}, ${item.price} gold. You own ${owned} ${owned === 1 ? "copy" : "copies"}.${attunementDescription}${previewDescription} ${actionLabel}`,
+      `${item.name}, ${item.effectLabel}, ${item.price} gold${slotsFull ? `; full-build reforge costs ${reforgeCost} gold after a ${ARMORY_SELL_VALUE}-gold trade-in` : ""}. You own ${owned} ${owned === 1 ? "copy" : "copies"}.${attunementDescription}${previewDescription} ${actionLabel}`,
     );
   }
 }
@@ -1419,10 +1662,14 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
     replacementSlotIndex = null;
     replacementExpectedItemId = null;
     replacementRequestPending = false;
+    saleMode = false;
+    saleSlotIndex = null;
+    saleExpectedItemId = null;
+    saleRequestPending = false;
     const vendor = vendorSnapshot(activeVendorId, state);
     if (activeVendorId && vendor) {
       updateShopPresentation(activeVendorId, vendor.name);
-      shopAnnouncement.textContent = `${vendor.name} opened. ${vendor.itemIds.map((itemId) => ITEM_DEFINITIONS[itemId].name).join(" and ")} available.`;
+      shopAnnouncement.textContent = `${vendor.name} opened. ${vendor.itemIds.map((itemId) => ITEM_DEFINITIONS[itemId].name).join(" and ")} available for ${ITEM_DEFINITIONS[vendor.itemIds[0]!].price} gold; any equipped item sells here for ${ARMORY_SELL_VALUE}.`;
     }
     setHeroStatsOpen(true);
     interactionPrompt.classList.add("is-hidden");
@@ -1434,18 +1681,22 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
     replacementSlotIndex = null;
     replacementExpectedItemId = null;
     replacementRequestPending = false;
+    saleMode = false;
+    saleSlotIndex = null;
+    saleExpectedItemId = null;
+    saleRequestPending = false;
     shopAnnouncement.textContent = "Shop closed.";
     setHeroStatsOpen(restoreStats);
   }
   shopPanel.classList.toggle("is-hidden", !shopOpen);
   shopPanel.setAttribute("aria-hidden", String(!shopOpen));
-  refreshReplacementState(self);
+  refreshShopTradeState(self);
 }
 
 function buyShopItem(itemId: ItemId): void {
   if (!connectionReady) return;
   const self = currentPlayer();
-  if (!shopOpen || !self || !activeVendorId) return;
+  if (!shopOpen || !self || !activeVendorId || saleMode || saleRequestPending || replacementRequestPending) return;
   const vendor = vendorSnapshot(activeVendorId);
   if (!vendor || distanceBetween(self.position, vendor.position) > vendor.interactionRadius) {
     toast(`Move closer to ${vendor?.name ?? "the vendor"}.`, "warning");
@@ -1458,12 +1709,17 @@ function buyShopItem(itemId: ItemId): void {
     toast(`${item.name} already fills all six slots.`, "warning");
     return;
   }
-  if (self.gold < item.price) {
-    toast(`Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`, "warning");
+  if (equipmentIsFull(self.equipment)) {
+    const reforgeCost = armoryReforgeNetCost(item.price);
+    if (self.gold < reforgeCost) {
+      toast(`Need ${Math.max(1, Math.ceil(reforgeCost - self.gold))} more gold.`, "warning");
+      return;
+    }
+    selectReplacementItem(itemId);
     return;
   }
-  if (equipmentIsFull(self.equipment)) {
-    selectReplacementItem(itemId);
+  if (self.gold < item.price) {
+    toast(`Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`, "warning");
     return;
   }
   const projection = projectEquipmentChange(self.equipment, itemId);
@@ -1478,7 +1734,7 @@ function buyShopItem(itemId: ItemId): void {
   if (!request.shouldSend) return;
   clearReplacementSelection();
   ordinaryPurchaseRequest = request.request;
-  updateShopCards(self);
+  refreshShopTradeState(self);
   audio.unlock();
   send({ type: "buy_item", vendorId: activeVendorId, itemId });
 }
@@ -1495,6 +1751,21 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
     self.equipment,
     isHeroStatsPhase(state.phase),
   );
+  if (
+    saleMode &&
+    saleSlotIndex !== null &&
+    saleExpectedItemId &&
+    self.equipment[saleSlotIndex] !== saleExpectedItemId
+  ) {
+    const saleWasPending = saleRequestPending;
+    const completedSaleSlot = saleSlotIndex;
+    const soldItem = ITEM_DEFINITIONS[saleExpectedItemId];
+    if (saleWasPending) clearSaleSelection();
+    else clearSaleSlot();
+    shopAnnouncement.textContent = saleWasPending
+      ? `${soldItem.name} sale verified. Slot ${completedSaleSlot + 1} is open and ${ARMORY_SELL_VALUE} gold was credited.`
+      : "Equipment changed before confirmation. No item was sold; choose a slot again.";
+  }
   if (replacementItemId && !equipmentIsFull(self.equipment)) clearReplacementSelection();
   if (
     replacementItemId &&
@@ -1535,7 +1806,7 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
   }
   const activeVendor = vendorSnapshot(activeVendorId, state);
   if (shopOpen && activeVendor) {
-    if (replacementItemId) refreshReplacementState(self);
+    refreshShopTradeState(self);
     updateShopCards(self, distanceBetween(self.position, activeVendor.position) <= activeVendor.interactionRadius);
   }
 }
@@ -1826,6 +2097,18 @@ function handleEvent(event: GameEvent, playTransient = false): void {
       if (!transition && !delivery.playWareReceiptTransient) spawnBurst(position, 0xf1c56f, 13, 1.15);
       pulsePurchasedStat(event.itemId);
       if (event.replacedItemId) pulsePurchasedStat(event.replacedItemId);
+    }
+  } else if (event.kind === "item_sold") {
+    const transition = event.attunementTransition;
+    const delivery = itemSaleDeliveryPolicy(event, localPlayerId, playTransient);
+    if (transition && delivery.playAttunementTransient) playAttunementTransition(event, transition);
+    if (delivery.acknowledgeLocalSale) {
+      if (saleMode) clearSaleSelection();
+      shopAnnouncement.textContent = `${event.text} The selected equipment slot is now open.`;
+      if (!delivery.playLocalSaleFeedback) return;
+      toast(event.text, "loot");
+      audio.play(transition ? "unattune" : "loot");
+      pulsePurchasedStat(event.itemId);
     }
   } else if (event.kind === "rift_exposed") {
     showBanner("THE BARRIER RISES", "COUNTERATTACK", "DESTROY THE RIFT HEART");
@@ -2581,14 +2864,25 @@ function cast(slot: AbilitySlot): void {
 }
 
 heroStatsToggle.addEventListener("click", () => setHeroStatsOpen(!heroStatsOpen));
-shopClose.addEventListener("click", () => setShopOpen(false));
-shopReplaceSubmit.addEventListener("click", confirmReplacement);
-shopReplaceCancel.addEventListener("click", () => {
-  if (replacementRequestPending) {
-    shopAnnouncement.textContent = "The reforge is already being verified by the server.";
+shopClose.addEventListener("click", () => {
+  if (replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest) {
+    shopAnnouncement.textContent = "The current trade is already being verified by the server.";
     return;
   }
-  clearReplacementSlot(true);
+  setShopOpen(false);
+});
+shopSellToggle.addEventListener("click", toggleSaleMode);
+shopReplaceSubmit.addEventListener("click", () => {
+  if (saleMode) confirmSale();
+  else confirmReplacement();
+});
+shopReplaceCancel.addEventListener("click", () => {
+  if (replacementRequestPending || saleRequestPending) {
+    shopAnnouncement.textContent = "The current trade is already being verified by the server.";
+    return;
+  }
+  if (saleMode) clearSaleSlot(true);
+  else clearReplacementSlot(true);
 });
 
 window.addEventListener("keydown", (event) => {
@@ -2597,15 +2891,28 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "KeyB" && unmodified) {
     if (!event.repeat) {
       event.preventDefault();
-      setShopOpen(!shopOpen);
+      if (shopOpen && (replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest)) {
+        shopAnnouncement.textContent = "The current trade is already being verified by the server.";
+      } else {
+        setShopOpen(!shopOpen);
+      }
     }
     return;
   }
   if (shopOpen && unmodified && !event.repeat) {
+    if (event.code === "KeyX") {
+      event.preventDefault();
+      toggleSaleMode();
+      return;
+    }
     if (event.code === "Escape") {
       event.preventDefault();
-      if (replacementRequestPending) {
-        shopAnnouncement.textContent = "The reforge is already being verified by the server.";
+      if (replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest) {
+        shopAnnouncement.textContent = "The current trade is already being verified by the server.";
+      } else if (saleSlotIndex !== null) {
+        clearSaleSlot(true);
+      } else if (saleMode) {
+        clearSaleSelection(true);
       } else if (replacementSlotIndex !== null) {
         clearReplacementSlot(true);
       } else if (replacementItemId) {
@@ -2617,12 +2924,14 @@ window.addEventListener("keydown", (event) => {
     }
     if (
       event.code === "Enter" &&
-      replacementSlotIndex !== null &&
+      (replacementSlotIndex !== null || saleSlotIndex !== null) &&
       (!(event.target instanceof HTMLButtonElement) || event.target === shopReplaceSubmit)
     ) {
       event.preventDefault();
-      if (replacementRequestPending) {
-        shopAnnouncement.textContent = "The reforge is already being verified by the server.";
+      if (replacementRequestPending || saleRequestPending) {
+        shopAnnouncement.textContent = "The current trade is already being verified by the server.";
+      } else if (saleMode) {
+        confirmSale();
       } else {
         confirmReplacement();
       }
@@ -2631,6 +2940,11 @@ window.addEventListener("keydown", (event) => {
     const number = /^Digit[1-6]$/.test(event.code) || /^Numpad[1-6]$/.test(event.code)
       ? Number(event.code.at(-1))
       : 0;
+    if (saleMode && number >= 1 && number <= EQUIPMENT_SLOT_COUNT) {
+      event.preventDefault();
+      selectSaleSlot((number - 1) as EquipmentSlotIndex);
+      return;
+    }
     if (replacementItemId && number >= 1 && number <= EQUIPMENT_SLOT_COUNT) {
       event.preventDefault();
       selectReplacementSlot((number - 1) as EquipmentSlotIndex);

@@ -1,12 +1,15 @@
 import {
+  ARMORY_SELL_VALUE,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
+  armoryReforgeNetCost,
   createEmptyEquipment,
   equipmentCopyCount,
   isItemId,
   isStackAttuned,
   isVendorId,
   projectEquipmentChange,
+  projectEquipmentRemoval,
 } from "../shared/armory-data";
 import {
   ABILITY_IMPACT_DEFINITIONS,
@@ -429,6 +432,7 @@ export class GameWorld {
       case "level_ability": return isAbilitySlot(message.slot) ? this.levelAbility(playerId, message.slot) : this.failure("INVALID_ABILITY", "Unknown ability.");
       case "buy_item": return this.buyItem(playerId, message.vendorId, message.itemId);
       case "replace_item": return this.replaceItem(playerId, message.vendorId, message.itemId, message.slotIndex, message.expectedItemId);
+      case "sell_item": return this.sellItem(playerId, message.vendorId, message.slotIndex, message.expectedItemId);
       case "input": return this.setInput(playerId, message.seq, message.move, message.aim, message.attacking);
       case "ping": return { ok: true, pong: { sentAt: message.sentAt, serverTime: Date.now() } };
     }
@@ -646,6 +650,38 @@ export class GameWorld {
     return this.purchaseItem(playerId, vendorId, itemId, null);
   }
 
+  private tradeContext(
+    playerId: string,
+    vendorId: VendorId,
+  ): { player: PlayerState; vendor: (typeof VENDOR_DEFINITIONS)[VendorId] } | { error: GameActionResult } {
+    const player = this.players.get(playerId);
+    if (!player) return { error: this.failure("PLAYER_UNKNOWN", "Player is not connected.") };
+    if (!player.heroId || (this.phase !== "defense" && this.phase !== "breach" && this.phase !== "push")) {
+      return { error: this.failure("RUN_INACTIVE", "Citadel vendors only trade during an active siege.") };
+    }
+    if (player.downedFor > 0) return { error: this.failure("PLAYER_DOWNED", "A downed hero cannot trade.") };
+    if (!isVendorId(vendorId)) return { error: this.failure("VENDOR_UNKNOWN", "That vendor does not exist.") };
+    const vendor = VENDOR_DEFINITIONS[vendorId];
+    return { player, vendor };
+  }
+
+  private cooldownsAfterEquipmentChange(
+    player: PlayerState,
+    nextEquipment: EquipmentSlots,
+  ): Record<ActionSlot, number> {
+    if (!player.heroId) return { ...player.cooldowns };
+    const previousRecovery = this.heroStats(player).cooldownRecovery;
+    const nextRecovery = deriveHeroStats(player.heroId, player.level, nextEquipment).cooldownRecovery;
+    const nextCooldowns = { ...player.cooldowns };
+    if (nextRecovery !== previousRecovery) {
+      const progressScale = previousRecovery / nextRecovery;
+      for (const slot of ["ability1", "ability2", "ability3", "ultimate"] as const) {
+        nextCooldowns[slot] *= progressScale;
+      }
+    }
+    return nextCooldowns;
+  }
+
   private replaceItem(
     playerId: string,
     vendorId: VendorId,
@@ -656,6 +692,63 @@ export class GameWorld {
     return this.purchaseItem(playerId, vendorId, itemId, slotIndex, expectedItemId);
   }
 
+  private sellItem(
+    playerId: string,
+    vendorId: VendorId,
+    slotIndex: EquipmentSlotIndex,
+    expectedItemId: ItemId,
+  ): GameActionResult {
+    const context = this.tradeContext(playerId, vendorId);
+    if ("error" in context) return context.error;
+    const { player, vendor } = context;
+    if (!isEquipmentSlotIndex(slotIndex)) {
+      return this.failure("INVALID_EQUIPMENT_SLOT", "Choose one of the six equipment slots.");
+    }
+    if (!isItemId(expectedItemId)) {
+      return this.failure("ITEM_UNKNOWN", "The expected equipment item does not exist.");
+    }
+    if (distance(player.position, vendor.position) > vendor.interactionRadius) {
+      return this.failure("OUT_OF_RANGE", `Move closer to ${vendor.name} to trade.`);
+    }
+    const currentItemId = player.equipment[slotIndex];
+    if (!currentItemId) return this.failure("EMPTY_EQUIPMENT_SLOT", "Choose an occupied equipment slot to sell.");
+    if (currentItemId !== expectedItemId) {
+      return this.failure("EQUIPMENT_CHANGED", "That equipment slot changed before the sale was confirmed.");
+    }
+    const projection = projectEquipmentRemoval(player.equipment, slotIndex, expectedItemId);
+    if (!projection) return this.failure("EQUIPMENT_CHANGED", "The equipment sale is no longer available.");
+
+    const beforeCount = equipmentCopyCount(player.equipment, expectedItemId);
+    const afterCount = equipmentCopyCount(projection.equipment, expectedItemId);
+    const lostAttunement = isStackAttuned(beforeCount) && !isStackAttuned(afterCount);
+    const attunementTransition: GameEvent["attunementTransition"] = lostAttunement
+      ? {
+          itemId: expectedItemId,
+          change: "lost",
+          fromCount: beforeCount,
+          toCount: afterCount,
+        }
+      : undefined;
+    const nextCooldowns = this.cooldownsAfterEquipmentChange(player, projection.equipment);
+    player.goldUnits += goldToUnits(ARMORY_SELL_VALUE);
+    player.equipment = projection.equipment;
+    player.cooldowns = nextCooldowns;
+    this.emit(
+      "item_sold",
+      `${player.name} sold ${ITEM_DEFINITIONS[expectedItemId].name} at ${vendor.name} for ${ARMORY_SELL_VALUE} gold.`,
+      {
+        playerId,
+        vendorId,
+        itemId: expectedItemId,
+        slotIndex,
+        goldDelta: ARMORY_SELL_VALUE,
+        ...(attunementTransition ? { attunementTransition } : {}),
+        position: vendor.position,
+      },
+    );
+    return { ok: true };
+  }
+
   private purchaseItem(
     playerId: string,
     vendorId: VendorId,
@@ -663,16 +756,10 @@ export class GameWorld {
     replacementSlotIndex: EquipmentSlotIndex | null,
     expectedItemId: ItemId | null = null,
   ): GameActionResult {
-    const player = this.players.get(playerId);
-    if (!player) return this.failure("PLAYER_UNKNOWN", "Player is not connected.");
-    if (!player.heroId || (this.phase !== "defense" && this.phase !== "breach" && this.phase !== "push")) {
-      return this.failure("RUN_INACTIVE", "Citadel vendors only trade during an active siege.");
-    }
-    if (player.downedFor > 0) return this.failure("PLAYER_DOWNED", "A downed hero cannot trade.");
-    if (!isVendorId(vendorId)) return this.failure("VENDOR_UNKNOWN", "That vendor does not exist.");
+    const context = this.tradeContext(playerId, vendorId);
+    if ("error" in context) return context.error;
+    const { player, vendor } = context;
     if (!isItemId(itemId)) return this.failure("ITEM_UNKNOWN", "That item does not exist.");
-
-    const vendor = VENDOR_DEFINITIONS[vendorId];
     if (!vendor.itemIds.includes(itemId)) return this.failure("ITEM_NOT_STOCKED", `${vendor.name} does not stock that item.`);
     if (distance(player.position, vendor.position) > vendor.interactionRadius) {
       return this.failure("OUT_OF_RANGE", `Move closer to ${vendor.name} to trade.`);
@@ -703,8 +790,16 @@ export class GameWorld {
     }
 
     const item = ITEM_DEFINITIONS[itemId];
-    const priceUnits = goldToUnits(item.price);
-    if (player.goldUnits < priceUnits) return this.failure("INSUFFICIENT_GOLD", `${item.name} costs ${item.price} gold.`);
+    const price = replacementSlotIndex === null ? item.price : armoryReforgeNetCost(item.price);
+    const priceUnits = goldToUnits(price);
+    if (player.goldUnits < priceUnits) {
+      return this.failure(
+        "INSUFFICIENT_GOLD",
+        replacementSlotIndex === null
+          ? `${item.name} costs ${item.price} gold.`
+          : `Reforging ${item.name} costs ${price} gold after the ${ARMORY_SELL_VALUE}-gold trade-in.`,
+      );
+    }
     if (slotIndex === null) {
       const emptySlotIndex = player.equipment.indexOf(null);
       if (!isEquipmentSlotIndex(emptySlotIndex)) return this.failure("EQUIPMENT_FULL", "All six equipment slots are full.");
@@ -714,7 +809,6 @@ export class GameWorld {
     const projection = projectEquipmentChange(player.equipment, itemId, replacementSlotIndex);
     if (!projection) return this.failure("EQUIPMENT_CHANGED", "The equipment change is no longer available.");
     slotIndex = projection.slotIndex;
-    const previousRecovery = this.heroStats(player).cooldownRecovery;
     const nextEquipment = projection.equipment;
     const incomingBeforeCount = equipmentCopyCount(player.equipment, itemId);
     const incomingAfterCount = equipmentCopyCount(nextEquipment, itemId);
@@ -746,14 +840,7 @@ export class GameWorld {
             toCount: outgoingAfterCount,
           }
         : undefined;
-    const nextRecovery = deriveHeroStats(player.heroId, player.level, nextEquipment).cooldownRecovery;
-    const nextCooldowns = { ...player.cooldowns };
-    if (nextRecovery !== previousRecovery) {
-      const progressScale = previousRecovery / nextRecovery;
-      for (const slot of ["ability1", "ability2", "ability3", "ultimate"] as const) {
-        nextCooldowns[slot] *= progressScale;
-      }
-    }
+    const nextCooldowns = this.cooldownsAfterEquipmentChange(player, nextEquipment);
     player.goldUnits -= priceUnits;
     player.equipment = nextEquipment;
     player.cooldowns = nextCooldowns;
@@ -770,6 +857,7 @@ export class GameWorld {
       vendorId,
       itemId,
       slotIndex,
+      goldDelta: -price,
       ...(replacedItemId ? { replacedItemId } : {}),
       ...(attunementTransition ? { attunementTransition } : {}),
       position: vendor.position,

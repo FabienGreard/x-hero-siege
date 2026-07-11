@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ARMORY_REFORGE_NET_COST,
   ARMORY_WARE_PRICE,
-  EQUIPMENT_SLOT_COUNT,
   VENDOR_DEFINITIONS,
 } from "../src/shared/armory-data";
 import type { EquipmentSlots, Vec2 } from "../src/shared/protocol";
@@ -11,11 +11,12 @@ import { GameWorld } from "../src/server/game";
 const DT = 1 / 60;
 const MIDPOINT_CHECK_SECONDS = 85;
 const PACING_WINDOW_END_SECONDS = 120;
-const FULL_BUILD_GOLD = EQUIPMENT_SLOT_COUNT * ARMORY_WARE_PRICE;
+const THREE_WARE_GOLD = 3 * ARMORY_WARE_PRICE;
 
 interface EconomyPacingResult {
   goldAtMidpoint: number;
-  fullBuildAffordableElapsed: number;
+  firstWareAffordableElapsed: number;
+  threeWaresAffordableElapsed: number;
 }
 
 function normalize(vector: Vec2): Vec2 {
@@ -39,7 +40,8 @@ function runNormalDefenseBudget(seed: number): EconomyPacingResult {
   let sequence = 0;
   let elapsed = 0;
   let goldAtMidpoint: number | null = null;
-  let fullBuildAffordableElapsed: number | null = null;
+  let firstWareAffordableElapsed: number | null = null;
+  let threeWaresAffordableElapsed: number | null = null;
 
   expect(game.addPlayer(playerId, "Pacing Warden").ok).toBe(true);
   expect(game.claimHero(playerId, "warden").ok).toBe(true);
@@ -54,9 +56,8 @@ function runNormalDefenseBudget(seed: number): EconomyPacingResult {
     if (goldAtMidpoint === null && elapsed >= MIDPOINT_CHECK_SECONDS) {
       goldAtMidpoint = player.gold;
     }
-    if (fullBuildAffordableElapsed === null && player.gold >= FULL_BUILD_GOLD) {
-      fullBuildAffordableElapsed = elapsed;
-    }
+    if (firstWareAffordableElapsed === null && player.gold >= ARMORY_WARE_PRICE) firstWareAffordableElapsed = elapsed;
+    if (threeWaresAffordableElapsed === null && player.gold >= THREE_WARE_GOLD) threeWaresAffordableElapsed = elapsed;
 
     if (player.skillPoints > 0) game.levelAbility(playerId, "ability2");
 
@@ -94,19 +95,19 @@ function runNormalDefenseBudget(seed: number): EconomyPacingResult {
   }
 
   if (goldAtMidpoint === null) throw new Error(`Seed ${seed} never reached the midpoint check.`);
-  if (fullBuildAffordableElapsed === null) {
-    throw new Error(`Seed ${seed} did not reach six-ware purchasing power within 120 seconds.`);
-  }
-  return { goldAtMidpoint, fullBuildAffordableElapsed };
+  if (firstWareAffordableElapsed === null) throw new Error(`Seed ${seed} never funded its first 60-gold ware.`);
+  if (threeWaresAffordableElapsed === null) throw new Error(`Seed ${seed} never banked three 60-gold wares within 120 seconds.`);
+  return { goldAtMidpoint, firstWareAffordableElapsed, threeWaresAffordableElapsed };
 }
 
 describe("normal-timing economy pacing", () => {
-  test("100 Warden defenses leave the build incomplete at 85 seconds and fund six wares from 105 to 120", () => {
+  test("100 Warden defenses fund one 60-gold choice early but only three wares late", () => {
     const results = Array.from({ length: 100 }, (_, index) => runNormalDefenseBudget(index + 1));
 
-    expect(results.every((result) => result.goldAtMidpoint < 5 * ARMORY_WARE_PRICE)).toBe(true);
-    expect(results.every((result) => result.fullBuildAffordableElapsed >= 105)).toBe(true);
-    expect(results.every((result) => result.fullBuildAffordableElapsed <= 120)).toBe(true);
+    expect(results.every((result) => result.goldAtMidpoint < THREE_WARE_GOLD)).toBe(true);
+    expect(results.every((result) => result.firstWareAffordableElapsed <= 45)).toBe(true);
+    expect(results.every((result) => result.threeWaresAffordableElapsed >= 90)).toBe(true);
+    expect(results.every((result) => result.threeWaresAffordableElapsed <= 120)).toBe(true);
   }, { timeout: 20_000 });
 
   test("a full build needs one fresh 30-gold earning window before replacement", () => {
@@ -128,7 +129,7 @@ describe("normal-timing economy pacing", () => {
     ];
     player.equipment = [...fullBuild] as EquipmentSlots;
     player.position = { ...VENDOR_DEFINITIONS.ironbound_forge.position };
-    player.goldUnits = goldToUnits(ARMORY_WARE_PRICE - 1);
+    player.goldUnits = goldToUnits(ARMORY_REFORGE_NET_COST) - 1;
     game.takePendingEvents();
 
     const replacement = () => game.handleMessage(playerId, {
@@ -143,7 +144,7 @@ describe("normal-timing economy pacing", () => {
     expect(game.getSnapshot().players[0]!.equipment).toEqual(fullBuild);
     expect(game.takePendingEvents().filter((event) => event.kind === "item_purchased")).toHaveLength(0);
 
-    player.goldUnits += goldToUnits(1);
+    player.goldUnits += 1;
     expect(replacement().ok).toBe(true);
     const replaced = game.getSnapshot().players[0]!;
     expect(replaced.gold).toBe(0);

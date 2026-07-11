@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — The Armory should buy back what it forged
+
+The first shop route after `0.1.30` made the economy problem concrete. A card still asked only 30 gold, a full build could be reshaped for the same price, and an equipped choice had no path back at all. The six unrestricted sockets created a build, but the Armory treated each decision as cheap and disposable while making an actual mistake permanent.
+
+`0.1.31` gives the trade a clear exchange rate. A new ware costs 60 gold. Either physical shop will buy one exact equipped slot for 30. A complete build can put that same value directly toward local stock, so reforge confirmation says the whole sentence: buy for 60, trade in for 30, pay 30 net. The server performs that reforge at once; the player never has to create a dangerous hole simply to change a full build.
+
+Selling uses the same deliberate grammar as reshaping. `X` turns the six visible sockets into choices, one slot opens a final review, and the review names the stack, Attunement, Hero Stat, signature, wallet, and empty socket that will result. It works at either shop because the outgoing object is already the player's; the incoming catalog remains different on each side of the Citadel. There is still no remote market, inventory grid, drag gesture, or bulk liquidation.
+
+The higher price does not arrive with higher rewards. Every champion can still earn one defining ware in the opening, but a full six-piece build becomes a strong run rather than an automatic checklist. Repeated reshaping asks for another honest combat window. This addresses price and reversibility together while leaving catalog breadth for the next played comparison; adding several wares now would hide whether the stronger economy actually made the four existing choices deeper.
+
 ## 2026-07-11 — A host should be a company, not an army
 
 The brighter `0.1.29` screen made the remaining Gravebinder problem easier to see. Wraith Host promised hungry spirits, but its actual rule was only a clock: every cast added three, four, or five Wraiths, every Wraith kept striking until its lifetime ended, and another cast could add another full company. Rank three could deliver roughly 2,340 base damage before Focus investment. Each touch also painted two rings and fourteen particles over the same contact, even while an idle Wraith was only orbiting its owner.

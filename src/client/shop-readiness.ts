@@ -1,4 +1,8 @@
-import { ITEM_DEFINITIONS } from "../shared/armory-data";
+import {
+  ITEM_DEFINITIONS,
+  armoryReforgeNetCost,
+  legalEquipmentReplacementSlots,
+} from "../shared/armory-data";
 import type {
   EquipmentSlots,
   GamePhase,
@@ -44,13 +48,16 @@ export function deriveLocalShopReadiness(
     !player.downed &&
     ACTIVE_TRADE_PHASES.has(state.phase),
   );
+  const fullBuild = Boolean(player?.equipment.every((itemId) => itemId !== null));
   const affordableVendors = canTrade && player
     ? state.vendors.filter((vendor) =>
-        vendor.itemIds.some((itemId) => player.gold >= ITEM_DEFINITIONS[itemId].price))
+        vendor.itemIds.some((itemId) => fullBuild
+          ? player.gold >= armoryReforgeNetCost(ITEM_DEFINITIONS[itemId].price) && legalEquipmentReplacementSlots(player.equipment, itemId).length > 0
+          : player.gold >= ITEM_DEFINITIONS[itemId].price))
     : [];
   const ready = affordableVendors.length > 0;
   const mode = ready
-    ? player!.equipment.every((itemId) => itemId !== null) ? "reforge" : "ware"
+    ? fullBuild ? "reforge" : "ware"
     : null;
   const label = mode === "reforge" ? "REFORGE READY" : mode === "ware" ? "WARE READY" : "GOLD";
   const vendorNames = affordableVendors.map((vendor) => vendor.name);

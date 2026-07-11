@@ -5,7 +5,11 @@ import {
   goldRewardShareUnits,
   goldToUnits,
 } from "../src/server/economy";
-import { ARMORY_WARE_PRICE } from "../src/shared/armory-data";
+import {
+  ARMORY_REFORGE_NET_COST,
+  ARMORY_SELL_VALUE,
+  ARMORY_WARE_PRICE,
+} from "../src/shared/armory-data";
 import { HERO_IDS } from "../src/shared/game-data";
 import { GameWorld } from "../src/server/game";
 
@@ -40,10 +44,14 @@ describe("authoritative run economy", () => {
     }
   });
 
-  test("thirty synchronized common-lane batches fund exactly one ware for every party size", () => {
-    expect(ARMORY_WARE_PRICE).toBe(30);
+  test("sixty common-lane batches fund one ware while thirty fund one sellback-sized reforge", () => {
+    expect(ARMORY_WARE_PRICE).toBe(60);
+    expect(ARMORY_SELL_VALUE).toBe(30);
+    expect(ARMORY_REFORGE_NET_COST).toBe(30);
     for (const playerCount of [1, 2, 3, 4]) {
       const unitsPerPlayerPerBatch = goldRewardShareUnits(ENEMY_GOLD_REWARDS.imp, playerCount) * playerCount;
+      expect(goldFromUnits(unitsPerPlayerPerBatch * (ARMORY_REFORGE_NET_COST - 1))).toBe(ARMORY_REFORGE_NET_COST - 1);
+      expect(goldFromUnits(unitsPerPlayerPerBatch * ARMORY_REFORGE_NET_COST)).toBe(ARMORY_REFORGE_NET_COST);
       expect(goldFromUnits(unitsPerPlayerPerBatch * (ARMORY_WARE_PRICE - 1))).toBe(ARMORY_WARE_PRICE - 1);
       expect(goldFromUnits(unitsPerPlayerPerBatch * ARMORY_WARE_PRICE)).toBe(ARMORY_WARE_PRICE);
     }

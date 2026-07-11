@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { deriveShopReplacementOffer } from "../src/client/shop-replacement-offer";
-import { ITEM_DEFINITIONS } from "../src/shared/armory-data";
+import {
+  ARMORY_REFORGE_NET_COST,
+  ARMORY_SELL_VALUE,
+  ITEM_DEFINITIONS,
+} from "../src/shared/armory-data";
 import type { EquipmentSlots, ItemId } from "../src/shared/protocol";
 
 const ITEM_IDS = [
@@ -53,7 +57,7 @@ describe("full-build shop replacement offers", () => {
         state: "replace",
         legalSlotIndices: [5],
         statusLabel: "REPLACE ITEM",
-        actionLabel: "Select this ware, then choose an occupied equipment slot to replace.",
+        actionLabel: `Select this ware, then trade in an occupied slot for ${ARMORY_SELL_VALUE} gold; the reforge costs ${ARMORY_REFORGE_NET_COST} gold net.`,
       });
     }
   });

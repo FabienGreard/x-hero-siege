@@ -2,6 +2,27 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.31` — The Armory Buys Back
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Resume from shipped `0.1.30` and replay the real physical-shop economy before changing it. The rendered Forge still priced every decision at `30`, offered no way to undo an equipped choice, and destroyed an outgoing full-build ware without value; legal normal timing also funded a complete build and repeated reshaping too predictably.
+- Raise every established ware to `60` gold without increasing rewards. Preserve a guaranteed first defining choice across all four champions, but move the third ware, full build, and repeated reshaping into later performance-dependent defense windows.
+- Let either existing physical shop buy any equipped ware for exactly `30` gold while preserving its distinct incoming inventory. `X` opens a non-pausing sell mode, mouse or `1`–`6` chooses one exact occupied unrestricted slot, and `Enter` confirms only after the complete consequence is visible.
+- Make the sale preview name the outgoing ware, exact slot, stack and Attunement change, affected Hero Stats, dominant signature, open socket, and wallet arithmetic. Empty slots remain disabled, `Escape` backs out, and accepted or rejected requests return to truthful current state without a bulk, drag, or remote inventory surface.
+- Keep six-slot reshaping atomic: a local stocked ware still replaces one reviewed occupied slot in one server transaction, now for `BUY 60 − TRADE-IN 30 = 30 GOLD NET`. The build never exposes an intermediate hole, and same-ware, stale-slot, remote, inactive, downed, or underfunded requests remain non-mutating.
+- Preserve active `Q`/`E`/`R`/`F` cooldown percentage when Quickening enters or leaves, never touch LMB cadence or current action timing, never rewrite already-created Focus-scaled effects, and release Attunement or Combat Stride only when the resulting raw stack falls below four.
+- Keep global purchasing-power cues honest: an incomplete build needs `60` for `WARE READY`; a complete build needs `30` and a legal stocked change for `REFORGE READY`. Selling remains a deliberate local action and does not make both shops glow remotely.
+- One hundred normal-timing Warden defenses fund the first `60` by `42.6s` at latest, reach `180` at `116.8s` at latest, and finish with `286`/`383`/`411` minimum/median/maximum gold. Only `78/100` reach the `360` needed for six ordinary wares before defense ends, and only `40/100` reach `390` for a subsequent reforge.
+- All `518` stratified current-tree `60`-gold Reliquary routes remain viable: affordability lands at `38.833`/`40.306`/`42.033`/`43.617s` minimum/mean/p95/maximum; return-gate health is `146`/`227.990`/`260` minimum/mean/p95 with an untouched `800` Nexus, no downs, and at worst `-14` player HP across the route.
+- Native `1280×720` sale confirmation, accepted cross-vendor sale, and full-build reforge renders expose `60`, `+30`, and `30 NET` without clipping, viewport overflow, warning, or error diagnostics. The final production asset `main-6015af4b11019435.js` is `636,176` bytes; typecheck, `193` tests with `10,903` assertions across `27` files, fixed-asset smoke, and real four-client sale/reforge/reconnect convergence pass.
+
+**Review evidence carried forward:** selling and higher prices are now addressed without weakening local-shop strategy or the six unrestricted slots. The catalog still has only four wares, Soul Scythe still makes Gravebinder unusually safe, and the four kits can gain stronger identities only through one champion promise at a time rather than parallel ability rewrites.
+
+**Technical risk carried forward:** the four current wares still feed a hardcoded derived-stat fallback that treats the final known branch as Quickening. Adding a fifth ware before replacing that fallback with exhaustive item-owned modifiers risks silently granting the wrong stat. Generic presentation effects and gameplay also continue sharing RNG and one ID stream.
+
+**Next-cycle nomination:** begin from shipped `0.1.31` and play the four current item routes and complete-build choices. If catalog repetition remains the highest-leverage visible weakness, first make item stat derivation exhaustive, then compare the approved shop concepts with the rendered two-card vendors and ship one identity-bearing fifth ware at one physical shop. Do not add several items, another slot system, Soul Scythe tuning, or parallel champion-kit changes in that checkpoint.
+
 ## `0.1.30` — Bound the Host
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.

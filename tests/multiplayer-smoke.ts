@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
-  ARMORY_WARE_PRICE,
+  ARMORY_REFORGE_NET_COST,
+  ARMORY_SELL_VALUE,
   VENDOR_DEFINITIONS,
   dominantEquipmentStack,
 } from "../src/shared/armory-data";
@@ -230,10 +231,10 @@ try {
   const forgeBuyer = instance.game.players.get(peers[0]!.playerId)!;
   const reliquaryBuyer = instance.game.players.get(peers[1]!.playerId)!;
   forgeBuyer.equipment = [...forgeThresholdBuild] as EquipmentSlots;
-  forgeBuyer.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
+  forgeBuyer.goldUnits = goldToUnits(ARMORY_REFORGE_NET_COST);
   forgeBuyer.position = { ...VENDOR_DEFINITIONS.ironbound_forge.position };
   reliquaryBuyer.equipment = [...reliquaryThresholdBuild] as EquipmentSlots;
-  reliquaryBuyer.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
+  reliquaryBuyer.goldUnits = goldToUnits(ARMORY_REFORGE_NET_COST);
   reliquaryBuyer.position = { ...VENDOR_DEFINITIONS.veilglass_reliquary.position };
 
   peers[0]!.send({
@@ -289,13 +290,40 @@ try {
       reliquary?.equipment[3] === "quickening_sigil" &&
       reliquary.gold === 0;
   })));
-  const authoritativePlayers = replacements[0]!.players.map((player) => ({
+
+  const saleCursors = peers.map((peer) => peer.messages.length);
+  peers[0]!.send({
+    type: "sell_item",
+    vendorId: "ironbound_forge",
+    slotIndex: 5,
+    expectedItemId: "quickening_sigil",
+  });
+  const saleEvents = await Promise.all(peers.map(async (peer, index) => {
+    const message = await peer.waitFor((candidate) =>
+      candidate.type === "event" &&
+      candidate.event.kind === "item_sold" &&
+      candidate.event.playerId === peers[0]!.playerId,
+    saleCursors[index]);
+    assert.equal(message.type, "event");
+    return message.event;
+  }));
+  for (const event of saleEvents) assert.deepEqual(event, saleEvents[0]);
+  assert.equal(saleEvents[0]!.itemId, "quickening_sigil");
+  assert.equal(saleEvents[0]!.slotIndex, 5);
+  assert.equal(saleEvents[0]!.vendorId, "ironbound_forge");
+  assert.equal(saleEvents[0]!.goldDelta, ARMORY_SELL_VALUE);
+
+  const sales = await Promise.all(peers.map((peer) => peer.snapshot((snapshot) => {
+    const forge = snapshot.players.find((player) => player.id === peers[0]!.playerId);
+    return forge?.equipment[5] === null && forge.gold === ARMORY_SELL_VALUE;
+  })));
+  const authoritativePlayers = sales[0]!.players.map((player) => ({
     id: player.id,
     gold: player.gold,
     equipment: player.equipment,
     stats: player.stats,
   }));
-  for (const snapshot of replacements) {
+  for (const snapshot of sales) {
     assert.deepEqual(snapshot.players.map((player) => ({
       id: player.id,
       gold: player.gold,
@@ -311,7 +339,7 @@ try {
     "fleetstep_greaves",
     "fleetstep_greaves",
     "tempered_edge",
-    "quickening_sigil",
+    null,
   ]);
   assertHeroStats(authoritativeForgeBuyer.stats, {
     maxHp: 190,
@@ -320,7 +348,7 @@ try {
     basicDamage: 36,
     basicAttackInterval: 0.52,
     abilityPower: 1,
-    cooldownRecovery: 1.15,
+    cooldownRecovery: 1,
   });
   assert.deepEqual(dominantEquipmentStack(authoritativeForgeBuyer.equipment), {
     itemId: "fleetstep_greaves",
@@ -407,6 +435,7 @@ try {
   const reserved = reservedSnapshots[0]!;
   const reservedPlayer = reserved.players.find((player) => player.id === departingId)!;
   assert.equal(reservedPlayer.connected, false);
+  assert.equal(reservedPlayer.gold, ARMORY_SELL_VALUE);
   assert.deepEqual(reservedPlayer.equipment, authoritativeForgeBuyer.equipment);
   assertHeroStats(reservedPlayer.stats, authoritativeForgeBuyer.stats);
 
@@ -423,6 +452,7 @@ try {
   for (const snapshot of restored) {
     const player = snapshot.players.find((candidate) => candidate.id === departingId)!;
     assert.equal(player.connected, true);
+    assert.equal(player.gold, ARMORY_SELL_VALUE);
     assert.deepEqual(player.equipment, authoritativeForgeBuyer.equipment);
     assertHeroStats(player.stats, authoritativeForgeBuyer.stats);
   }
@@ -482,6 +512,12 @@ try {
       combatStrideClients: strideSnapshots.length,
       resumedClients: restored.length,
       postResumeAuthorityClients: resumedAuthority.length,
+    },
+    selling: {
+      convergedClients: sales.length,
+      eventClients: saleEvents.length,
+      gold: ARMORY_SELL_VALUE,
+      slot: 5,
     },
     wraithHost: {
       convergedClients: boundedHosts.length,

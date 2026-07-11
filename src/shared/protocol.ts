@@ -71,6 +71,12 @@ export type ClientMessage =
       slotIndex: EquipmentSlotIndex;
       expectedItemId: ItemId;
     }
+  | {
+      type: "sell_item";
+      vendorId: VendorId;
+      slotIndex: EquipmentSlotIndex;
+      expectedItemId: ItemId;
+    }
   | { type: "ping"; sentAt: number };
 
 export interface LobbySnapshot {
@@ -264,6 +270,7 @@ export type GameEventKind =
   | "player_downed"
   | "player_revived"
   | "item_purchased"
+  | "item_sold"
   | "rift_exposed"
   | "victory"
   | "defeat";
@@ -280,6 +287,7 @@ export interface GameEvent {
   itemId?: ItemId;
   slotIndex?: EquipmentSlotIndex;
   replacedItemId?: ItemId;
+  goldDelta?: number;
   attunementTransition?: {
     itemId: ItemId;
     change: "gained" | "lost";
@@ -408,6 +416,17 @@ export function parseClientMessage(raw: string): ClientMessage | null {
             type: "replace_item",
             vendorId: message.vendorId,
             itemId: message.itemId,
+            slotIndex: message.slotIndex,
+            expectedItemId: message.expectedItemId,
+          }
+        : null;
+    case "sell_item":
+      return isVendorId(message.vendorId) &&
+        isItemId(message.expectedItemId) &&
+        isEquipmentSlotIndex(message.slotIndex)
+        ? {
+            type: "sell_item",
+            vendorId: message.vendorId,
             slotIndex: message.slotIndex,
             expectedItemId: message.expectedItemId,
           }

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { VENDOR_DEFINITIONS } from "../src/shared/armory-data";
+import {
+  ARMORY_REFORGE_NET_COST,
+  ARMORY_WARE_PRICE,
+  VENDOR_DEFINITIONS,
+} from "../src/shared/armory-data";
 import {
   deriveLocalShopReadiness,
   type ShopReadinessPlayer,
@@ -33,19 +37,19 @@ function player(overrides: Partial<ShopReadinessPlayer> = {}): ShopReadinessPlay
 
 describe("local shop readiness", () => {
   test("the canonical affordability edge is exact", () => {
-    expect(deriveLocalShopReadiness(state, player({ gold: 29.99 }))).toMatchObject({
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_WARE_PRICE - 0.01 }))).toMatchObject({
       ready: false,
       mode: null,
       label: "GOLD",
       vendorIds: [],
-      gold: 29,
+      gold: 59,
     });
-    expect(deriveLocalShopReadiness(state, player({ gold: 30 }))).toMatchObject({
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_WARE_PRICE }))).toMatchObject({
       ready: true,
       mode: "ware",
       label: "WARE READY",
       vendorIds: ["ironbound_forge", "veilglass_reliquary"],
-      gold: 30,
+      gold: ARMORY_WARE_PRICE,
     });
   });
 
@@ -60,23 +64,41 @@ describe("local shop readiness", () => {
   });
 
   test("a full six-slot build truthfully changes the funded action to reforge", () => {
-    expect(deriveLocalShopReadiness(state, player({ gold: 30, equipment: full }))).toMatchObject({
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_REFORGE_NET_COST - 0.01, equipment: full }))).toMatchObject({
+      ready: false,
+      mode: null,
+      label: "GOLD",
+    });
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_REFORGE_NET_COST, equipment: full }))).toMatchObject({
       ready: true,
       mode: "reforge",
       label: "REFORGE READY",
     });
+
+    const allEdges = Array.from({ length: 6 }, () => "tempered_edge" as const) as EquipmentSlots;
+    const edgeOnlyState: ShopReadinessState = {
+      phase: "defense",
+      vendors: [{ id: "ironbound_forge", name: "Ironbound Forge", itemIds: ["tempered_edge"] }],
+    };
+    expect(deriveLocalShopReadiness(edgeOnlyState, player({ gold: ARMORY_REFORGE_NET_COST, equipment: allEdges }))).toMatchObject({
+      ready: false,
+      mode: null,
+      vendorIds: [],
+    });
   });
 
-  test("spending from sixty to thirty remains ready while spending below price clears it", () => {
-    expect(deriveLocalShopReadiness(state, player({ gold: 60 })).ready).toBe(true);
-    expect(deriveLocalShopReadiness(state, player({ gold: 30 })).ready).toBe(true);
+  test("a partial build needs 60 while a full build needs only the 30-gold net cost", () => {
+    expect(deriveLocalShopReadiness(state, player({ gold: 2 * ARMORY_WARE_PRICE })).ready).toBe(true);
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_WARE_PRICE })).ready).toBe(true);
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_REFORGE_NET_COST })).ready).toBe(false);
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_REFORGE_NET_COST, equipment: full })).ready).toBe(true);
     expect(deriveLocalShopReadiness(state, player({ gold: 0 })).ready).toBe(false);
   });
 
   test("inactive, downed, unclaimed, and disconnected heroes never receive a retreat cue", () => {
-    expect(deriveLocalShopReadiness({ ...state, phase: "lobby" }, player({ gold: 30 })).ready).toBe(false);
-    expect(deriveLocalShopReadiness(state, player({ gold: 30, downed: true })).ready).toBe(false);
-    expect(deriveLocalShopReadiness(state, player({ gold: 30, heroId: null })).ready).toBe(false);
+    expect(deriveLocalShopReadiness({ ...state, phase: "lobby" }, player({ gold: ARMORY_WARE_PRICE })).ready).toBe(false);
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_WARE_PRICE, downed: true })).ready).toBe(false);
+    expect(deriveLocalShopReadiness(state, player({ gold: ARMORY_WARE_PRICE, heroId: null })).ready).toBe(false);
     expect(deriveLocalShopReadiness(state, undefined)).toEqual({
       ready: false,
       mode: null,

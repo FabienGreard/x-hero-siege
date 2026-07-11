@@ -698,13 +698,16 @@ button.equipment-slot {
   padding: 0;
 }
 
-.equipment-slot.is-replace-target {
+.equipment-slot.is-replace-target,
+.equipment-slot.is-sale-target {
   cursor: pointer;
   transition: border-color 120ms ease, box-shadow 120ms ease, filter 120ms ease, transform 120ms ease;
 }
 
 .equipment-slot.is-replace-target:hover:not(:disabled),
-.equipment-slot.is-replace-target:focus-visible {
+.equipment-slot.is-replace-target:focus-visible,
+.equipment-slot.is-sale-target:hover:not(:disabled),
+.equipment-slot.is-sale-target:focus-visible {
   z-index: 1;
   outline: none;
   border-color: var(--shop-accent);
@@ -719,7 +722,8 @@ button.equipment-slot {
   opacity: 0.58;
 }
 
-.equipment-slot.is-replace-target.is-selected {
+.equipment-slot.is-replace-target.is-selected,
+.equipment-slot.is-sale-target.is-selected {
   border-color: #fff0bd;
   box-shadow: inset 0 0 12px color-mix(in srgb, var(--shop-accent) 25%, transparent), 0 0 12px color-mix(in srgb, var(--shop-accent) 50%, transparent);
   filter: brightness(1.3);
@@ -746,7 +750,8 @@ button.equipment-slot {
   border-color: rgba(170, 150, 221, 0.3);
 }
 
-.shop-panel.is-confirming .shop-items {
+.shop-panel.is-confirming .shop-items,
+.shop-panel.is-selling .shop-items {
   display: none;
 }
 
@@ -825,6 +830,54 @@ button.equipment-slot {
 .shop-loadout {
   margin-top: 9px;
   padding-top: 6px;
+}
+
+.shop-sell-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 5px;
+  padding: 4px 7px;
+  cursor: pointer;
+  color: #d9dedc;
+  background: rgba(5, 7, 9, 0.82);
+  border: 1px solid rgba(233, 186, 99, 0.25);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+}
+
+.shop-sell-toggle span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.shop-sell-toggle small {
+  color: #e9ba63;
+  font-size: inherit;
+  font-weight: 950;
+}
+
+.shop-panel[data-vendor="veilglass_reliquary"] .shop-sell-toggle {
+  border-color: rgba(191, 162, 255, 0.28);
+}
+
+.shop-panel[data-vendor="veilglass_reliquary"] .shop-sell-toggle small {
+  color: #bfa2ff;
+}
+
+.shop-sell-toggle:hover:not(:disabled),
+.shop-sell-toggle:focus-visible {
+  outline: none;
+  border-color: var(--shop-accent);
+  filter: brightness(1.18);
+}
+
+.shop-sell-toggle:disabled {
+  cursor: wait;
+  opacity: 0.52;
 }
 
 .shop-replace-guide {
@@ -2807,6 +2860,8 @@ kbd {
 .equipment-slot::after,
 .shop-header small,
 .shop-header button,
+.shop-sell-toggle,
+.shop-sell-toggle small,
 .shop-replace-guide strong,
 .shop-replace-guide small,
 .shop-replace-preview,

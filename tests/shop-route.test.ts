@@ -203,10 +203,10 @@ describe("normal-timing local shop route", () => {
     const averageDeparture = departureTimes.reduce((sum, value) => sum + value, 0) / departureTimes.length;
 
     expect(results.every((result) => result.firstAffordableElapsed <= result.departureElapsed)).toBe(true);
-    expect(results.every((result) => result.firstAffordableElapsed <= 28)).toBe(true);
+    expect(results.every((result) => result.firstAffordableElapsed <= 44)).toBe(true);
     expect(results.every((result) => result.departureElapsed <= 50)).toBe(true);
-    expect(averageDeparture).toBeLessThanOrEqual(27);
-    expect(percentile(departureTimes, 0.95)).toBeLessThanOrEqual(35);
+    expect(averageDeparture).toBeLessThanOrEqual(41);
+    expect(percentile(departureTimes, 0.95)).toBeLessThanOrEqual(43);
     expect(results.every((result) => result.departureGold >= RELIQUARY_WARE_PRICE)).toBe(true);
     expect(results.every((result) => result.departureGateHp === 260)).toBe(true);
     expect(results.every((result) => result.nearestThreatDistance >= 35)).toBe(true);
@@ -215,7 +215,7 @@ describe("normal-timing local shop route", () => {
     expect(averageGateHealth).toBeGreaterThanOrEqual(215);
     expect(results.every((result) => result.returnNexusHp === 800)).toBe(true);
     expect(results.every((result) => !result.downed)).toBe(true);
-    expect(results.every((result) => result.returnPlayerHp - result.departurePlayerHp >= -7)).toBe(true);
+    expect(results.every((result) => result.returnPlayerHp - result.departurePlayerHp >= -15)).toBe(true);
     expect(results.every((result) => result.returnGold === result.departureGold - RELIQUARY_WARE_PRICE)).toBe(true);
     expect(results.every((result) => result.equipment[0] === "runebound_focus")).toBe(true);
   }, { timeout: 30_000 });

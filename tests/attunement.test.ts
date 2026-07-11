@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ARMORY_REFORGE_NET_COST,
   ARMORY_WARE_PRICE,
   ITEM_ATTUNEMENT_THRESHOLD,
   VENDOR_DEFINITIONS,
@@ -308,7 +309,7 @@ describe("canonical four-copy item attunement", () => {
       "quickening_sigil",
     ];
     game.players.get("p1")!.equipment = [...initial] as EquipmentSlots;
-    fund(game, 2 * ARMORY_WARE_PRICE);
+    fund(game, 2 * ARMORY_REFORGE_NET_COST);
     game.takePendingEvents();
 
     placeAt(game, "ironbound_forge");

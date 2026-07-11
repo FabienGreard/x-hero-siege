@@ -1,5 +1,7 @@
 import {
+  ARMORY_SELL_VALUE,
   ITEM_DEFINITIONS,
+  armoryReforgeNetCost,
   legalEquipmentReplacementSlots,
 } from "../shared/armory-data";
 import type { EquipmentSlotIndex, EquipmentSlots, ItemId } from "../shared/protocol";
@@ -29,11 +31,12 @@ export function deriveShopReplacementOffer(
 
   const legalSlotIndices = legalEquipmentReplacementSlots(equipment, itemId);
   if (legalSlotIndices.length > 0) {
+    const item = ITEM_DEFINITIONS[itemId];
     return {
       state: "replace",
       legalSlotIndices,
       statusLabel: "REPLACE ITEM",
-      actionLabel: "Select this ware, then choose an occupied equipment slot to replace.",
+      actionLabel: `Select this ware, then trade in an occupied slot for ${ARMORY_SELL_VALUE} gold; the reforge costs ${armoryReforgeNetCost(item.price)} gold net.`,
     };
   }
 

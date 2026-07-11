@@ -7,6 +7,12 @@ export interface ItemPurchaseDeliveryPolicy {
   playWareReceiptTransient: boolean;
 }
 
+export interface ItemSaleDeliveryPolicy {
+  acknowledgeLocalSale: boolean;
+  playAttunementTransient: boolean;
+  playLocalSaleFeedback: boolean;
+}
+
 export function itemPurchaseDeliveryPolicy(
   event: GameEvent,
   localPlayerId: string | null,
@@ -19,5 +25,18 @@ export function itemPurchaseDeliveryPolicy(
     playAttunementTransient: transition && direct,
     playLocalPurchaseFeedback: local && (!transition || direct),
     playWareReceiptTransient: local && !transition && direct,
+  };
+}
+
+export function itemSaleDeliveryPolicy(
+  event: GameEvent,
+  localPlayerId: string | null,
+  direct: boolean,
+): ItemSaleDeliveryPolicy {
+  const local = event.playerId === localPlayerId;
+  return {
+    acknowledgeLocalSale: local,
+    playAttunementTransient: event.attunementTransition !== undefined && direct,
+    playLocalSaleFeedback: local && direct,
   };
 }

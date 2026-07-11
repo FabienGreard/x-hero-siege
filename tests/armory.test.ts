@@ -7,7 +7,7 @@ import {
 } from "../src/shared/armory-data";
 import { HERO_IDS } from "../src/shared/game-data";
 import { parseClientMessage, type ClientMessage, type EquipmentSlots } from "../src/shared/protocol";
-import { goldToUnits } from "../src/server/economy";
+import { goldFromUnits, goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
 import { deriveHeroStats } from "../src/server/hero-stats";
 
@@ -134,15 +134,15 @@ describe("authoritative Ironbound Forge", () => {
     expect(player.stats).toEqual(baseline.stats);
 
     placeAtForge(game);
-    fund(game, ARMORY_WARE_PRICE - 1);
+    game.players.get("p1")!.goldUnits = goldToUnits(ARMORY_WARE_PRICE) - 1;
     expect(buy(game, "tempered_edge").code).toBe("INSUFFICIENT_GOLD");
     player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(ARMORY_WARE_PRICE - 1);
+    expect(player.gold).toBe(goldFromUnits(goldToUnits(ARMORY_WARE_PRICE) - 1));
     expect(player.equipment).toEqual(createEmptyEquipment());
     expect(player.stats).toEqual(baseline.stats);
   });
 
-  test("an earned Gatebreaker reward funds a real Forge purchase", () => {
+  test("the Gatebreaker reward no longer buys a ware before the wallet reaches 60", () => {
     const game = new GameWorld({ accelerated: true, random: () => 0.5 });
     readyParty(game, 1);
     expect(game.debugAdvance().ok).toBe(true);
@@ -150,9 +150,11 @@ describe("authoritative Ironbound Forge", () => {
     expect(game.getSnapshot().players[0]!.gold).toBe(35);
 
     placeAtForge(game);
+    expect(buy(game, "tempered_edge").code).toBe("INSUFFICIENT_GOLD");
+    fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "tempered_edge").ok).toBe(true);
     const player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(35 - ARMORY_WARE_PRICE);
+    expect(player.gold).toBe(0);
     expect(player.equipment[0]).toBe("tempered_edge");
     expect(player.stats.basicDamage).toBeCloseTo(36);
   });
@@ -224,6 +226,7 @@ describe("authoritative Ironbound Forge", () => {
     game.update(0.1);
     const baselineDistance = game.getSnapshot().players[0]!.position.x - baselineStart;
 
+    fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "fleetstep_greaves").ok).toBe(true);
     const boostedStart = game.getSnapshot().players[0]!.position.x;
     game.handleMessage("p1", {
@@ -247,6 +250,7 @@ describe("authoritative Ironbound Forge", () => {
       let sequence = 1;
       if (withEdge) {
         sequence = walkTo(game, forge.position, 0.5, sequence);
+        fund(game, ARMORY_WARE_PRICE);
         expect(buy(game, "tempered_edge").ok).toBe(true);
       }
       const rift = game.getSnapshot().riftHeart;

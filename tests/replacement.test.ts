@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { ARMORY_WARE_PRICE, VENDOR_DEFINITIONS } from "../src/shared/armory-data";
+import {
+  ARMORY_REFORGE_NET_COST,
+  ARMORY_SELL_VALUE,
+  ARMORY_WARE_PRICE,
+  VENDOR_DEFINITIONS,
+} from "../src/shared/armory-data";
 import { HERO_IDS } from "../src/shared/game-data";
 import {
   parseClientMessage,
@@ -40,7 +45,7 @@ function equip(
   game: GameWorld,
   equipment: EquipmentSlots,
   playerId = "p1",
-  gold = ARMORY_WARE_PRICE,
+  gold = ARMORY_REFORGE_NET_COST,
 ): void {
   const player = game.players.get(playerId)!;
   player.equipment = [...equipment] as EquipmentSlots;
@@ -104,7 +109,8 @@ describe("authoritative full-build item replacement", () => {
     }))).toBeNull();
   });
 
-  test("a full-price replacement changes exactly the selected slot and emits an exact receipt", () => {
+  test("a 30-gold net reforge changes exactly the selected slot and emits one atomic receipt", () => {
+    expect(ARMORY_WARE_PRICE - ARMORY_SELL_VALUE).toBe(ARMORY_REFORGE_NET_COST);
     const game = new GameWorld();
     readyHero(game, "warden");
     equip(game, sixFocuses);
@@ -129,7 +135,9 @@ describe("authoritative full-build item replacement", () => {
     expect(player.stats.basicDamage).toBeCloseTo(36);
     expect(player.stats.abilityPower).toBeCloseTo(1.9);
 
-    const events = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
+    const pendingEvents = game.takePendingEvents();
+    expect(pendingEvents.filter((event) => event.kind === "item_sold")).toHaveLength(0);
+    const events = pendingEvents.filter((event) => event.kind === "item_purchased");
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
       kind: "item_purchased",
@@ -139,6 +147,7 @@ describe("authoritative full-build item replacement", () => {
       itemId: "tempered_edge",
       slotIndex: 3,
       replacedItemId: "runebound_focus",
+      goldDelta: -ARMORY_REFORGE_NET_COST,
       position: VENDOR_DEFINITIONS.ironbound_forge.position,
     });
   });
@@ -154,11 +163,11 @@ describe("authoritative full-build item replacement", () => {
     expect(replace(game, "ironbound_forge", "tempered_edge", 0, "runebound_focus").code)
       .toBe("REPLACEMENT_NOT_REQUIRED");
     let player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(ARMORY_WARE_PRICE);
+    expect(player.gold).toBe(ARMORY_REFORGE_NET_COST);
     expect(player.equipment).toEqual(partial);
     expect(game.takePendingEvents().filter((event) => event.kind === "item_purchased")).toHaveLength(0);
 
-    equip(game, sixFocuses);
+    equip(game, sixFocuses, "p1", ARMORY_WARE_PRICE);
     expect(game.handleMessage("p1", {
       type: "buy_item",
       vendorId: "ironbound_forge",
@@ -264,7 +273,7 @@ describe("authoritative full-build item replacement", () => {
         code: "INSUFFICIENT_GOLD",
         setup: (game) => {
           placeAt(game, "ironbound_forge");
-          game.players.get("p1")!.goldUnits = goldToUnits(ARMORY_WARE_PRICE - 1);
+          game.players.get("p1")!.goldUnits = goldToUnits(ARMORY_REFORGE_NET_COST) - 1;
         },
       },
     ];
@@ -308,13 +317,13 @@ describe("authoritative full-build item replacement", () => {
       "fleetstep_greaves",
       "runebound_focus",
     ];
-    equip(game, equipment, "p1", 2 * ARMORY_WARE_PRICE);
+    equip(game, equipment, "p1", 2 * ARMORY_REFORGE_NET_COST);
     placeAt(game, "ironbound_forge");
 
     expect(replace(game, "ironbound_forge", "tempered_edge", 0, "tempered_edge").code).toBe("SAME_ITEM");
     expect(replace(game, "ironbound_forge", "tempered_edge", 1, "runebound_focus").ok).toBe(true);
     const player = game.getSnapshot().players[0]!;
-    expect(player.gold).toBe(ARMORY_WARE_PRICE);
+    expect(player.gold).toBe(ARMORY_REFORGE_NET_COST);
     expect(player.equipment.filter((itemId) => itemId === "tempered_edge")).toHaveLength(2);
     expect(player.equipment).toHaveLength(6);
   });
@@ -330,7 +339,7 @@ describe("authoritative full-build item replacement", () => {
       "runebound_focus",
       "runebound_focus",
     ];
-    equip(game, equipment, "p1", 2 * ARMORY_WARE_PRICE);
+    equip(game, equipment, "p1", 2 * ARMORY_REFORGE_NET_COST);
     placeAt(game, "ironbound_forge");
     const state = game.players.get("p1")!;
     Object.assign(state.cooldowns, {

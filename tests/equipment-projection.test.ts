@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ARMORY_REFORGE_NET_COST,
   ARMORY_WARE_PRICE,
   VENDOR_DEFINITIONS,
   createEmptyEquipment,
@@ -179,7 +180,7 @@ describe("canonical equipment projections", () => {
             const player = game.players.get("p1")!;
             player.level = level;
             player.equipment = [...equipment] as EquipmentSlots;
-            player.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
+            player.goldUnits = goldToUnits(ARMORY_REFORGE_NET_COST);
             const vendorId = ITEM_VENDOR[incomingItemId];
             player.position = { ...VENDOR_DEFINITIONS[vendorId].position };
 
