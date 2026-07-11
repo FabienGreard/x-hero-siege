@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.31` — The Armory Buys Back
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Resume from shipped `0.1.30` and replay the real physical-shop economy before changing it. The rendered Forge still priced every decision at `30`, offered no way to undo an equipped choice, and destroyed an outgoing full-build ware without value; legal normal timing also funded a complete build and repeated reshaping too predictably.
 - Raise every established ware to `60` gold without increasing rewards. Preserve a guaranteed first defining choice across all four champions, but move the third ware, full build, and repeated reshaping into later performance-dependent defense windows.
