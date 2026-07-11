@@ -2,6 +2,32 @@
 
 All notable project changes are recorded here.
 
+## [0.1.34] - 2026-07-11
+
+### Added
+
+- Added one canonical server-owned Splitbolt lineage: a single `1.4`-radius seed can pierce four targets, and its first confirmed enemy kill creates exactly two `1.2`-radius, four-contact forks at `±0.22` radians.
+- Added complete swept collision through every traveled segment, including the terminal partial step, plus creation-time rank and Skill Power sampling, cast-time child-ID reservation, public `seed`/`fork` snapshot identity, reconnect continuity, and run-terminal cleanup.
+- Added full-width Splitbolt behavior truth to Hero Stats: current per-bolt damage remains canonical while `4 PIERCE · KILL → 2×4` names the earned branch and bounded nonrecursive contact budget.
+- Added native `1280×720` shipped-before, final seed, earned-fork, and Hero Stats evidence, plus focused authority, collision, creation-time power, terminal, reconnect, and four-client convergence coverage.
+
+### Changed
+
+- Splitbolt now fires one committed execution line instead of three simultaneous generic violet blobs. The first kill branches off two fresh `2.2s` forks that inherit the seed's hit memory and can never branch again.
+- The seed and each fork retain `47` base damage and four contacts, preserving the old ability's maximum `12` contacts and `564` base damage while moving eight contacts behind successful execution rather than granting all three lines immediately.
+- The cast resolves toward Riftstalker's latest server-accepted aim when its windup ends. Seed and forks sweep nearest physical contact order across their complete traveled path; only an enemy kill can earn the branch, so a Rift Heart contact never creates forks.
+- One pale-violet directional needle and two smaller branch darts replace the shared orb-like ability geometry. Contacts use one compact directional mark without a generic impact ring, particle burst, new effect kind, shake, or audio cue.
+- The final normal Riftstalker controller survives all `30` runs with `7` clean runs, `26` downs, `15` intact gates, `101.8` mean gate health, `190.7` mean kills, and `784.47` mean Nexus health. Across `100` runs it survives all `100`, records `29` clean runs, `86` downs, `43` intact gates, `87.24` mean gate health, `191.14` mean kills, and `787.16` mean Nexus health; `1,480/1,617` casts earn forks.
+
+### Preserved
+
+- Splitbolt retains `47` base damage per bolt, rank and Skill Power scaling, its `7s` base cooldown, server authority, and one maximum `12`-contact/`564`-base-damage budget. Later Focus purchases, sales, reforges, and Attunement never rewrite an existing seed or either earned fork.
+- Repeater Shot, Vaulting Blade, Snarefield, Execution Volley, the other three champions, shops, five wares, prices, rewards, six unrestricted run-only slots, routes, controls, art hierarchy, and procedural audio remain established.
+- Gravebinder's systemic sustain remains a separate player-facing weakness. No parallel champion pass, sixth ware, inventory layer, permanent power, new currency, paid service, or additional progression system was added.
+- The earned-fork evidence deliberately lets North fall so one protected frame can isolate both branches; normal-timing `30`- and `100`-run cohorts remain the balance truth rather than that staged visual capture.
+- Balance comparisons remain broad cohort evidence rather than paired-seed causality because gameplay and presentation still share one RNG stream and one ID counter.
+- Typecheck, `223` tests with `13,336` assertions across `30` files, production bundle `main-cf691b832513e9b6.js` at `640,698` bytes, fixed-asset `404` smoke, and real four-client seed-and-fork convergence with `tickSpread: 0` pass.
+
 ## [0.1.33] - 2026-07-11
 
 ### Added

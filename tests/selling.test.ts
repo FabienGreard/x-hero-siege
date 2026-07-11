@@ -235,12 +235,43 @@ describe("authoritative exact-slot item selling", () => {
     expect(projectileGame.levelAbility("p1", "ability2").ok).toBe(true);
     expect(projectileGame.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
     advance(projectileGame, 0.4);
-    const projectileInternal = projectileGame as unknown as { projectiles: Map<string, { damage: number; kind: string }> };
+    const projectileInternal = projectileGame as unknown as {
+      projectiles: Map<string, {
+        damage: number;
+        kind: string;
+        position: { x: number; z: number };
+        velocity: { x: number; z: number };
+        splitStage?: "seed" | "fork";
+      }>;
+      enemies: Map<string, { hp: number; radius: number; speed: number }>;
+      spawnTimer: number;
+      spawnEnemy(
+        lane: "north",
+        kind: "imp",
+        position: { x: number; z: number },
+      ): string | null;
+    };
     const splitboltDamage = () => [...projectileInternal.projectiles.values()].filter((projectile) => projectile.kind === "splitbolt").map((projectile) => projectile.damage);
-    expectNumbers(splitboltDamage(), [54.05, 54.05, 54.05]);
+    expectNumbers(splitboltDamage(), [54.05]);
     placeAt(projectileGame, "ironbound_forge");
     expect(sell(projectileGame, "ironbound_forge", 0, "runebound_focus").ok).toBe(true);
+    expectNumbers(splitboltDamage(), [54.05]);
+    projectileInternal.spawnTimer = 1_000;
+    const seed = [...projectileInternal.projectiles.values()][0]!;
+    const speed = Math.hypot(seed.velocity.x, seed.velocity.z);
+    const forkTargetId = projectileInternal.spawnEnemy("north", "imp", {
+      x: seed.position.x + (seed.velocity.x / speed) * 2.9,
+      z: seed.position.z + (seed.velocity.z / speed) * 2.9,
+    });
+    expect(forkTargetId).not.toBeNull();
+    const forkTarget = projectileInternal.enemies.get(forkTargetId!)!;
+    forkTarget.hp = 1;
+    forkTarget.radius = 0;
+    forkTarget.speed = 0;
+    advance(projectileGame, 0.1);
     expectNumbers(splitboltDamage(), [54.05, 54.05, 54.05]);
+    expect([...projectileInternal.projectiles.values()].map(({ splitStage }) => splitStage))
+      .toEqual(["seed", "fork", "fork"]);
 
     const delayedGame = new GameWorld();
     readyHero(delayedGame, "ashcaller");

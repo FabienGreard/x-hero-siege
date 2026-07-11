@@ -7,6 +7,11 @@ import {
 } from "../src/shared/ability-impact";
 import { CINDER_WALL_DURATION_SECONDS } from "../src/shared/cinder-wall";
 import { HERO_DEFINITIONS, HERO_IDS } from "../src/shared/game-data";
+import {
+  SPLITBOLT_FORK_COUNT,
+  SPLITBOLT_FORK_PIERCE,
+  SPLITBOLT_SEED_PIERCE,
+} from "../src/shared/splitbolt";
 import type { AbilitySlot, EquipmentSlots } from "../src/shared/protocol";
 import { GameWorld } from "../src/server/game";
 
@@ -59,6 +64,28 @@ describe("canonical champion ability impact", () => {
     });
     expect(
       deriveAbilityImpactReadout("ashcaller", "ability2", 0, 1, 1),
+    ).not.toHaveProperty("behavior");
+  });
+
+  test("Splitbolt names its first-kill fork and non-recursive contact budget canonically", () => {
+    expect(deriveAbilityImpactReadout("riftstalker", "ability2", 2, 1.15, 1.15)).toMatchObject({
+      name: "Splitbolt",
+      rank: 2,
+      learned: true,
+      cooldown: 7 / 1.15,
+      metrics: [{
+        id: "primary",
+        label: "BOLT DAMAGE",
+        value: ABILITY_IMPACT_DEFINITIONS.riftstalker.ability2.primary.base * 1.25 * 1.15,
+      }],
+      behavior: {
+        id: "splitbolt",
+        compactLabel: `${SPLITBOLT_SEED_PIERCE} PIERCE · KILL → ${SPLITBOLT_FORK_COUNT}×${SPLITBOLT_FORK_PIERCE}`,
+        accessibleDescription: `The seed can hit up to ${SPLITBOLT_SEED_PIERCE} targets; its first kill creates ${SPLITBOLT_FORK_COUNT} forks that can each hit ${SPLITBOLT_FORK_PIERCE} targets and cannot split again`,
+      },
+    });
+    expect(
+      deriveAbilityImpactReadout("riftstalker", "ability2", 0, 1, 1),
     ).not.toHaveProperty("behavior");
   });
 

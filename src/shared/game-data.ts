@@ -71,7 +71,7 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     basicRange: 22,
     abilities: {
       ability1: { name: "Vaulting Blade", description: "Vault and fire through pursuers.", cooldown: 5, maxRank: 3, unlockLevel: 1 },
-      ability2: { name: "Splitbolt", description: "Launch three piercing bolts.", cooldown: 7, maxRank: 3, unlockLevel: 1 },
+      ability2: { name: "Splitbolt", description: "Drive a piercing bolt down the lane; its first kill branches off two more bolts.", cooldown: 7, maxRank: 3, unlockLevel: 1 },
       ability3: { name: "Snarefield", description: "Trap a dense enemy pack.", cooldown: 11, maxRank: 3, unlockLevel: 1 },
       ultimate: { name: "Execution Volley", description: "Flood the aimed lane with arrows.", cooldown: 34, maxRank: 2, unlockLevel: 3 },
     },

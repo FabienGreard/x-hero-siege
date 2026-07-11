@@ -441,15 +441,15 @@ describe("canonical four-copy item attunement", () => {
     const splitbolts = () => [...projectileInternal.projectiles.values()]
       .filter((projectile) => projectile.kind === "splitbolt")
       .map((projectile) => projectile.damage);
-    expectNumbers(splitbolts(), [68.15, 68.15, 68.15]);
+    expectNumbers(splitbolts(), [68.15]);
     expect(buy(projectileGame, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
-    expectNumbers(splitbolts(), [68.15, 68.15, 68.15]);
+    expectNumbers(splitbolts(), [68.15]);
     const projectilePlayer = projectileGame.players.get("p1")!;
     projectilePlayer.cooldowns.ability2 = 0;
     projectilePlayer.action = null;
     expect(projectileGame.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
     advance(projectileGame, 0.4);
-    expectNumbers(splitbolts(), [68.15, 68.15, 68.15, 82.25, 82.25, 82.25]);
+    expectNumbers(splitbolts(), [68.15, 82.25]);
 
     const delayedGame = new GameWorld();
     readyHero(delayedGame, "ashcaller");

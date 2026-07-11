@@ -400,16 +400,16 @@ describe("authoritative full-build item replacement", () => {
     const splitboltDamage = () => [...projectileInternal.projectiles.values()]
       .filter((projectile) => projectile.kind === "splitbolt")
       .map((projectile) => projectile.damage);
-    expectNumbers(splitboltDamage(), [54.05, 54.05, 54.05]);
+    expectNumbers(splitboltDamage(), [54.05]);
     placeAt(projectileGame, "ironbound_forge");
     expect(replace(projectileGame, "ironbound_forge", "tempered_edge", 0, "runebound_focus").ok).toBe(true);
-    expectNumbers(splitboltDamage(), [54.05, 54.05, 54.05]);
+    expectNumbers(splitboltDamage(), [54.05]);
     const projectilePlayer = projectileGame.players.get("p1")!;
     projectilePlayer.cooldowns.ability2 = 0;
     projectilePlayer.action = null;
     expect(projectileGame.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
     advance(projectileGame, 0.4);
-    expectNumbers(splitboltDamage(), [54.05, 54.05, 54.05, 47, 47, 47]);
+    expectNumbers(splitboltDamage(), [54.05, 47]);
 
     const delayedGame = new GameWorld();
     readyHero(delayedGame, "ashcaller");

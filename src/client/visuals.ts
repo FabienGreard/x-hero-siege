@@ -8,6 +8,7 @@ import type {
   LaneId,
   PickupKind,
   ProjectileKind,
+  SplitboltStage,
   Vec2,
 } from "../shared/protocol";
 import { VENDOR_DEFINITIONS } from "../shared/armory-data";
@@ -906,7 +907,11 @@ export function updateHealthBar(group: THREE.Group, ratio: number): void {
   group.visible = clamped < 0.999 && clamped > 0;
 }
 
-export function createProjectileVisual(kind: ProjectileKind, team: "heroes" | "demons"): THREE.Object3D {
+export function createProjectileVisual(
+  kind: ProjectileKind,
+  team: "heroes" | "demons",
+  splitStage?: SplitboltStage,
+): THREE.Object3D {
   const colors: Record<ProjectileKind, number> = {
     repeater: 0xb79aff,
     arrow: 0xd7ecff,
@@ -916,48 +921,112 @@ export function createProjectileVisual(kind: ProjectileKind, team: "heroes" | "d
     death_tide: 0x59d7a6,
     demon_bolt: 0xf05b8d,
   };
+  const splitbolt = kind === "splitbolt";
+  const splitFork = splitbolt && splitStage === "fork";
+  const splitSeed = splitbolt && !splitFork;
   const group = new THREE.Group();
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTexture(hex(colors[kind])),
     color: colors[kind],
     transparent: true,
-    opacity: kind === "repeater" ? 0.34 : kind === "ember" ? 0.38 : 1,
+    opacity: kind === "repeater"
+      ? 0.34
+      : kind === "ember"
+        ? 0.38
+        : splitFork
+          ? 0.12
+          : splitSeed
+            ? 0.18
+            : 1,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   }));
   if (kind === "repeater") glow.scale.set(0.95, 0.72, 1);
   else if (kind === "ember") glow.scale.set(1.05, 0.84, 1);
+  else if (splitFork) glow.scale.set(2.4, 1.55, 1);
+  else if (splitSeed) glow.scale.set(3.2, 2.05, 1);
   else glow.scale.set(kind === "death_tide" ? 4 : 1.8, kind === "death_tide" ? 4 : 1.8, 1);
   glow.position.y = 0.65;
-  const directionalPrimary = kind === "repeater" || kind === "ember";
+  const directionalProjectile = kind === "repeater" || kind === "ember" || splitbolt;
   const coreSize: [number, number, number] = kind === "repeater"
     ? [1.65, 0.16, 0.18]
     : kind === "ember"
       ? [1.25, 0.22, 0.26]
-      : [kind === "arrow" ? 1.6 : 0.65, 0.18, 0.22];
+      : splitFork
+        ? [1.35, 0.11, 0.15]
+        : splitSeed
+          ? [2.1, 0.16, 0.2]
+          : [kind === "arrow" ? 1.6 : 0.65, 0.18, 0.22];
   const core = new THREE.Mesh(
     new THREE.BoxGeometry(...coreSize),
     new THREE.MeshBasicMaterial({
-      color: kind === "repeater" ? 0xf3edff : kind === "ember" ? 0xffd58a : colors[kind],
+      color: kind === "repeater" || splitSeed
+        ? 0xf3edff
+        : kind === "ember"
+          ? 0xffd58a
+          : colors[kind],
+      transparent: splitFork,
+      opacity: splitFork ? 0.72 : 1,
+      depthWrite: !splitFork,
     }),
   );
   core.position.y = 0.65;
-  if (directionalPrimary) {
+  if (directionalProjectile) {
+    const tailLength = kind === "repeater"
+      ? 1.1
+      : kind === "ember"
+        ? 0.85
+        : splitFork
+          ? 0.78
+          : 1.3;
+    const tailHeight = kind === "repeater"
+      ? 0.08
+      : kind === "ember"
+        ? 0.12
+        : splitFork
+          ? 0.065
+          : 0.09;
+    const tailWidth = kind === "repeater"
+      ? 0.15
+      : kind === "ember"
+        ? 0.22
+        : splitFork
+          ? 0.11
+          : 0.15;
     const tail = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        kind === "repeater" ? 1.1 : 0.85,
-        kind === "repeater" ? 0.08 : 0.12,
-        kind === "repeater" ? 0.15 : 0.22,
-      ),
+      new THREE.BoxGeometry(tailLength, tailHeight, tailWidth),
       new THREE.MeshBasicMaterial({
-        color: kind === "repeater" ? 0xb79aff : 0xff6a32,
+        color: kind === "ember" ? 0xff6a32 : 0xb79aff,
         transparent: true,
-        opacity: kind === "repeater" ? 0.62 : 0.68,
+        opacity: kind === "ember" ? 0.68 : splitFork ? 0.34 : splitSeed ? 0.52 : 0.62,
         depthWrite: false,
       }),
     );
-    tail.position.set(kind === "repeater" ? -1 : -0.72, 0.65, 0);
-    group.add(glow, tail, core);
+    const tailOffset = kind === "repeater"
+      ? -1
+      : kind === "ember"
+        ? -0.72
+        : splitFork
+          ? -0.65
+          : -1.08;
+    tail.position.set(tailOffset, 0.65, 0);
+    if (splitbolt) {
+      const head = new THREE.Mesh(
+        new THREE.OctahedronGeometry(splitFork ? 0.14 : 0.22, 0),
+        new THREE.MeshBasicMaterial({
+          color: splitFork ? 0xd8c7ff : 0xffffff,
+          transparent: splitFork,
+          opacity: splitFork ? 0.74 : 0.94,
+          depthWrite: !splitFork,
+        }),
+      );
+      head.position.set(splitFork ? 0.72 : 1.12, 0.65, 0);
+      group.add(glow, tail, core, head);
+      group.userData.head = head;
+      group.userData.splitStage = splitFork ? "fork" : "seed";
+    } else {
+      group.add(glow, tail, core);
+    }
     group.userData.tail = tail;
   } else {
     group.add(glow, core);

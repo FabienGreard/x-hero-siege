@@ -304,17 +304,17 @@ describe("authoritative Veilglass Reliquary", () => {
     const splitbolts = () => [...internal.projectiles.values()]
       .filter((projectile) => projectile.kind === "splitbolt")
       .map((projectile) => projectile.damage);
-    expectDamages(splitbolts(), [54.05, 54.05, 54.05]);
+    expectDamages(splitbolts(), [54.05]);
 
     expect(buy(game, "veilglass_reliquary", "runebound_focus").ok).toBe(true);
-    expectDamages(splitbolts(), [54.05, 54.05, 54.05]);
+    expectDamages(splitbolts(), [54.05]);
 
     const state = game.players.get("p1")!;
     state.cooldowns.ability2 = 0;
     state.action = null;
     expect(game.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
     advance(game, 0.4);
-    expectDamages(splitbolts(), [54.05, 54.05, 54.05, 61.1, 61.1, 61.1]);
+    expectDamages(splitbolts(), [54.05, 61.1]);
   });
 
   test("retained Wraiths keep their spawned damage while the next bounded Host uses new Skill Power", () => {

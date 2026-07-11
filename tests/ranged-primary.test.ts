@@ -11,12 +11,14 @@ import {
   RIFTSTALKER_BASIC_PIERCE,
   RIFTSTALKER_BASIC_RECOVERY_SECONDS,
 } from "../src/shared/ranged-primary";
+import { SPLITBOLT_SEED_RADIUS } from "../src/shared/splitbolt";
 import type {
   AbilitySlot,
   EnemyKind,
   HeroId,
   LaneId,
   ProjectileKind,
+  SplitboltStage,
   Vec2,
 } from "../src/shared/protocol";
 import { GameWorld } from "../src/server/game";
@@ -40,6 +42,7 @@ interface TestProjectile {
   damage: number;
   pierce: number;
   hitIds: Set<string>;
+  splitStage?: SplitboltStage;
 }
 
 interface GameInternals {
@@ -397,10 +400,10 @@ describe("authoritative ranged primary geometry", () => {
   });
 
   test("Riftstalker and Gravebinder ability projectiles retain their established kinds and geometry", () => {
-    for (const [slot, kind, count, speed, pierce] of [
-      ["ability1", "arrow", 1, 31, 2],
-      ["ability2", "splitbolt", 3, 29, 4],
-      ["ultimate", "arrow", 11, 34, 3],
+    for (const [slot, kind, count, speed, pierce, radius] of [
+      ["ability1", "arrow", 1, 31, 2, 0.45],
+      ["ability2", "splitbolt", 1, 29, 4, SPLITBOLT_SEED_RADIUS],
+      ["ultimate", "arrow", 11, 34, 3, 0.45],
     ] as const) {
       const { player, internals } = readyHero("riftstalker");
       internals.castRiftstalker(player, slot, NORTH, { x: 0, z: -14 }, 1);
@@ -408,10 +411,11 @@ describe("authoritative ranged primary geometry", () => {
       expect(projectiles).toHaveLength(count);
       expect(new Set(projectiles.map((projectile) => projectile.kind))).toEqual(new Set([kind]));
       for (const projectile of projectiles) {
-        expect(projectile.radius).toBe(0.45);
+        expect(projectile.radius).toBe(radius);
         expect(projectile.remaining).toBe(2.2);
         expect(Math.hypot(projectile.velocity.x, projectile.velocity.z)).toBeCloseTo(speed);
         expect(projectile.pierce).toBe(pierce);
+        expect(projectile.splitStage).toBe(kind === "splitbolt" ? "seed" : undefined);
         expect(projectile.damage).toBeCloseTo(
           ABILITY_IMPACT_DEFINITIONS.riftstalker[slot].primary!.base,
         );

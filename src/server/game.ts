@@ -42,6 +42,15 @@ import {
   cinderWallEndpoints,
   cinderWallHalfWidth,
 } from "../shared/cinder-wall";
+import {
+  SPLITBOLT_FORK_ANGLE_RADIANS,
+  SPLITBOLT_FORK_PIERCE,
+  SPLITBOLT_FORK_RADIUS,
+  SPLITBOLT_LIFETIME_SECONDS,
+  SPLITBOLT_SEED_PIERCE,
+  SPLITBOLT_SEED_RADIUS,
+  SPLITBOLT_SPEED,
+} from "../shared/splitbolt";
 import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
   DEBUG_TIMINGS,
@@ -75,6 +84,7 @@ import type {
   PlayerSnapshot,
   ProjectileKind,
   ProjectileSnapshot,
+  SplitboltStage,
   SummonSnapshot,
   VendorId,
   Vec2,
@@ -150,6 +160,8 @@ interface ProjectileState extends ProjectileSnapshot {
   damage: number;
   pierce: number;
   hitIds: Set<string>;
+  splitTriggered?: boolean;
+  reservedForkIds?: [string, string];
 }
 
 interface SummonState extends SummonSnapshot {
@@ -598,7 +610,14 @@ export class GameWorld {
       })),
       players: [...this.players.values()].map((player) => this.playerSnapshot(player)),
       enemies: [...this.enemies.values()].map((enemy) => this.enemySnapshot(enemy)),
-      projectiles: [...this.projectiles.values()].map(({ damage: _d, pierce: _p, hitIds: _h, ...projectile }) => projectile),
+      projectiles: [...this.projectiles.values()].map(({
+        damage: _d,
+        pierce: _p,
+        hitIds: _h,
+        splitTriggered: _t,
+        reservedForkIds: _r,
+        ...projectile
+      }) => projectile),
       summons: [...this.summons.values()].map(({ damage: _d, speed: _s, strikeCooldown: _c, strikesRemaining: _r, orbitOffset: _o, ...summon }) => summon),
       pickups: [...this.pickups.values()],
       effects: [...this.effects.values()],
@@ -939,7 +958,20 @@ export class GameWorld {
       this.fireProjectile(player, "arrow", aim, this.abilityMagnitude(player, slot, rank), 31, 2, this.rankRadius(0.45, rank));
       this.effect("slash", player.position, this.rankRadius(2, rank), player.id);
     } else if (slot === "ability2") {
-      for (const angle of [-0.18, 0, 0.18]) this.fireProjectile(player, "splitbolt", rotate(aim, angle), this.abilityMagnitude(player, slot, rank), 29, 4, this.rankRadius(0.45, rank));
+      const seed = this.fireProjectile(
+        player,
+        "splitbolt",
+        aim,
+        this.abilityMagnitude(player, slot, rank),
+        SPLITBOLT_SPEED,
+        SPLITBOLT_SEED_PIERCE,
+        SPLITBOLT_SEED_RADIUS,
+        SPLITBOLT_LIFETIME_SECONDS,
+        "seed",
+      );
+      // The previous cast reserved three projectile IDs immediately. Keep that
+      // cadence even when the seed earns no fork so unrelated IDs drift less.
+      seed.reservedForkIds = [this.id("projectile"), this.id("projectile")];
     } else if (slot === "ability3") {
       const radius = this.rankRadius(7.5, rank);
       this.damageCircle(player, target, radius, this.abilityMagnitude(player, slot, rank), 4); this.effect("snare", target, radius, player.id, 1.1);
@@ -1072,7 +1104,12 @@ export class GameWorld {
     }
     const rank = player.abilityRanks[action.kind];
     if (rank <= 0) return;
-    const aim = normalize(action.direction);
+    // Splitbolt is a precision execution shot: like Riftstalker's ranged
+    // primary, it resolves toward the latest authoritative cursor aim instead
+    // of firing at the target captured before its longer ability windup.
+    const releaseAimedSplitbolt = player.heroId === "riftstalker" && action.kind === "ability2";
+    const aim = releaseAimedSplitbolt ? normalize(player.aim) : normalize(action.direction);
+    if (releaseAimedSplitbolt) action.direction = copy(aim);
     const target = { x: player.position.x + aim.x * 14, z: player.position.z + aim.z * 14 };
     if (player.heroId === "warden") this.castWarden(player, action.kind, aim, target, rank);
     if (player.heroId === "riftstalker") this.castRiftstalker(player, action.kind, aim, target, rank);
@@ -1112,9 +1149,11 @@ export class GameWorld {
   private updateProjectiles(dt: number): void {
     for (const projectile of [...this.projectiles.values()]) {
       const rangedBasic = projectile.kind === "repeater" || projectile.kind === "ember";
+      const splitbolt = projectile.kind === "splitbolt";
+      const sweptProjectile = rangedBasic || splitbolt;
       const previous = copy(projectile.position);
       let expired = false;
-      if (rangedBasic) {
+      if (sweptProjectile) {
         const stepSeconds = Math.min(Math.max(0, projectile.remaining), dt);
         projectile.remaining = Math.max(0, projectile.remaining - dt);
         projectile.position.x += projectile.velocity.x * stepSeconds;
@@ -1140,7 +1179,7 @@ export class GameWorld {
         if (expired) this.projectiles.delete(projectile.id);
         continue;
       }
-      const collisions: Array<{ enemy: EnemyState; progress: number }> = rangedBasic
+      const collisions: Array<{ enemy: EnemyState; progress: number }> = sweptProjectile
         ? [...this.enemies.values()]
             .filter((enemy) => !projectile.hitIds.has(enemy.id))
             .map((enemy) => ({
@@ -1161,7 +1200,7 @@ export class GameWorld {
                 distance(projectile.position, enemy.position) <= projectile.radius + enemy.radius,
             )
             .map((enemy) => ({ enemy, progress: 0 }));
-      const rangedHeartProgress = rangedBasic && this.phase === "push" && this.riftHeart.active
+      const sweptHeartProgress = sweptProjectile && this.phase === "push" && this.riftHeart.active
         ? segmentHitProgress(
             previous,
             projectile.position,
@@ -1173,8 +1212,8 @@ export class GameWorld {
 
       for (const { enemy, progress } of collisions) {
         if (
-          rangedHeartProgress !== null &&
-          rangedHeartProgress <= progress &&
+          sweptHeartProgress !== null &&
+          sweptHeartProgress <= progress &&
           this.projectiles.has(projectile.id)
         ) {
           this.damageRiftHeart(projectile.damage);
@@ -1183,6 +1222,7 @@ export class GameWorld {
           break;
         }
         projectile.hitIds.add(enemy.id);
+        let killed = false;
         if (rangedBasic) {
           this.damageEnemy(
             enemy,
@@ -1191,10 +1231,23 @@ export class GameWorld {
             projectile.kind === "repeater" ? "repeater_impact" : "ember_impact",
             this.directionYaw(projectile.velocity),
           );
+        } else if (splitbolt) {
+          // Preserve the generic ability impact's presentation RNG draw while
+          // using the quieter directional hit already established for Rift shots.
+          this.random();
+          this.damageEnemy(
+            enemy,
+            projectile.damage,
+            owner,
+            "repeater_impact",
+            this.directionYaw(projectile.velocity),
+          );
+          killed = !this.enemies.has(enemy.id);
         } else {
           // Ability impacts retain their generic visual and RNG consumption.
           this.damageEnemy(enemy, projectile.damage, owner);
         }
+        if (killed) this.forkSplitbolt(projectile, enemy.position);
         if (projectile.kind === "ember") {
           this.damageAshcallerBurst(enemy.position, projectile.damage, owner, enemy.id);
         }
@@ -1202,15 +1255,15 @@ export class GameWorld {
         if (projectile.pierce <= 0) { this.projectiles.delete(projectile.id); break; }
       }
       if (
-        rangedBasic &&
+        sweptProjectile &&
         !rangedHeartHit &&
-        rangedHeartProgress !== null &&
+        sweptHeartProgress !== null &&
         this.projectiles.has(projectile.id)
       ) {
         this.damageRiftHeart(projectile.damage);
         this.projectiles.delete(projectile.id);
       } else if (
-        !rangedBasic &&
+        !sweptProjectile &&
         this.phase === "push" &&
         this.riftHeart.active &&
         distance(projectile.position, WORLD_LAYOUT.riftHeart) <= projectile.radius + 6
@@ -1219,7 +1272,39 @@ export class GameWorld {
         this.damageRiftHeart(projectile.damage);
         this.projectiles.delete(projectile.id);
       }
-      if (rangedBasic && expired) this.projectiles.delete(projectile.id);
+      if (sweptProjectile && expired) this.projectiles.delete(projectile.id);
+    }
+  }
+
+  private forkSplitbolt(seed: ProjectileState, origin: Vec2): void {
+    if (
+      seed.kind !== "splitbolt" ||
+      seed.splitStage !== "seed" ||
+      seed.splitTriggered
+    ) return;
+    seed.splitTriggered = true;
+    const reservedIds = seed.reservedForkIds;
+    if (!reservedIds) return;
+
+    const direction = normalize(seed.velocity);
+    const speed = length(seed.velocity);
+    for (const [index, angle] of [-SPLITBOLT_FORK_ANGLE_RADIANS, SPLITBOLT_FORK_ANGLE_RADIANS].entries()) {
+      const forkDirection = rotate(direction, angle);
+      const fork: ProjectileState = {
+        id: reservedIds[index]!,
+        ownerId: seed.ownerId,
+        team: seed.team,
+        kind: "splitbolt",
+        splitStage: "fork",
+        position: copy(origin),
+        velocity: { x: forkDirection.x * speed, z: forkDirection.z * speed },
+        radius: SPLITBOLT_FORK_RADIUS,
+        remaining: SPLITBOLT_LIFETIME_SECONDS,
+        damage: seed.damage,
+        pierce: SPLITBOLT_FORK_PIERCE,
+        hitIds: new Set(seed.hitIds),
+      };
+      this.projectiles.set(fork.id, fork);
     }
   }
 
@@ -1472,10 +1557,12 @@ export class GameWorld {
     if (phase === "victory") {
       this.riftHeart.active = false;
       this.enemies.clear();
+      this.projectiles.clear();
       this.clearCinderWalls();
       this.emit("victory", "RIFT HEART DESTROYED — humanity survives the night.", { position: WORLD_LAYOUT.riftHeart });
     }
     if (phase === "defeat") {
+      this.projectiles.clear();
       this.clearCinderWalls();
       this.emit("defeat", this.nexus.hp <= 0 ? "The Heartfire Nexus has fallen." : "The Nexus barrier collapsed before the Rift Heart fell.", {});
     }
@@ -1531,15 +1618,19 @@ export class GameWorld {
     pierce: number,
     radius = 0.45,
     lifetime = kind === "death_tide" ? 4 : 2.2,
-  ): void {
+    splitStage?: SplitboltStage,
+  ): ProjectileState {
     const normalized = normalize(direction);
     const projectile: ProjectileState = {
       id: this.id("projectile"), ownerId: player.id, team: "heroes", kind,
       position: { x: player.position.x + normalized.x * 1.7, z: player.position.z + normalized.z * 1.7 },
       velocity: { x: normalized.x * speed, z: normalized.z * speed }, radius, remaining: lifetime,
       damage, pierce, hitIds: new Set(),
+      ...(splitStage ? { splitStage } : {}),
+      ...(splitStage === "seed" ? { splitTriggered: false } : {}),
     };
     this.projectiles.set(projectile.id, projectile);
+    return projectile;
   }
 
   private action(kind: ActionSnapshot["kind"], phase: ActionSnapshot["phase"], duration: number, direction: Vec2): ActionSnapshot {

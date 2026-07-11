@@ -1,13 +1,24 @@
 import { describe, expect, test } from "bun:test";
 import { goldToUnits } from "../src/server/economy";
 import { createGameServer } from "../src/server/index";
+import {
+  SPLITBOLT_FORK_ANGLE_RADIANS,
+  SPLITBOLT_FORK_PIERCE,
+  SPLITBOLT_FORK_RADIUS,
+  SPLITBOLT_LIFETIME_SECONDS,
+  SPLITBOLT_SEED_PIERCE,
+  SPLITBOLT_SEED_RADIUS,
+  SPLITBOLT_SPEED,
+} from "../src/shared/splitbolt";
 import type {
   EffectSnapshot,
   EquipmentSlots,
   GameSnapshot,
   HeroId,
   PlayerSnapshot,
+  ProjectileSnapshot,
   ServerMessage,
+  Vec2,
 } from "../src/shared/protocol";
 
 const RECONNECT_GRACE_MS = 180;
@@ -147,6 +158,12 @@ function findPlayer(snapshot: GameSnapshot, playerId: string): PlayerSnapshot {
 function visibleCinderWalls(snapshot: GameSnapshot, ownerId: string): EffectSnapshot[] {
   return snapshot.effects.filter((effect) =>
     effect.ownerId === ownerId && effect.kind === "cinder_wall"
+  );
+}
+
+function ownedSplitbolts(snapshot: GameSnapshot, ownerId: string): ProjectileSnapshot[] {
+  return snapshot.projectiles.filter((projectile) =>
+    projectile.ownerId === ownerId && projectile.kind === "splitbolt"
   );
 }
 
@@ -433,6 +450,199 @@ describe("authoritative reconnect lifecycle", () => {
       expect(resumedWalls[0]!.remaining).toBeGreaterThan(0);
       expect([...internals.cinderWalls.keys()]).toEqual([wallId]);
       expect(findPlayer(resumedWelcome.snapshot, playerId).connected).toBe(true);
+    } finally {
+      await harness.stop();
+    }
+  });
+
+  test("keeps one earned Splitbolt lineage through Riftstalker disconnect and resume", async () => {
+    const harness = createHarness();
+    try {
+      const original = await harness.open();
+      const firstWelcome = await original.welcome("Rift Bolt Owner");
+      const playerId = firstWelcome.playerId;
+
+      await claimAndReady(harness, original, playerId, "riftstalker");
+      original.send({ type: "start" });
+      await waitUntil(() => harness.instance.game.phase === "defense", "active Riftstalker defense");
+
+      type InternalProjectile = ProjectileSnapshot & {
+        damage: number;
+        pierce: number;
+        hitIds: Set<string>;
+        splitTriggered?: boolean;
+        reservedForkIds?: [string, string];
+      };
+      const internals = harness.instance.game as unknown as {
+        enemies: Map<string, {
+          position: Vec2;
+          hp: number;
+          radius: number;
+          speed: number;
+        }>;
+        projectiles: Map<string, InternalProjectile>;
+        spawnTimer: number;
+        spawnEnemy(lane: "north", kind: "imp", position: Vec2): string | null;
+      };
+      internals.enemies.clear();
+      internals.spawnTimer = 9_999;
+
+      const player = harness.instance.game.players.get(playerId)!;
+      player.position = { x: 20, z: 0 };
+      original.send({ type: "level_ability", slot: "ability2" });
+      await waitUntil(
+        () => harness.instance.game.players.get(playerId)?.abilityRanks.ability2 === 1,
+        "learned Splitbolt",
+      );
+      original.send({
+        type: "input",
+        seq: 1,
+        move: { x: 0, z: 0 },
+        aim: { x: 0, z: -1 },
+        attacking: false,
+      });
+      await waitUntil(
+        () => harness.instance.game.players.get(playerId)?.lastInputSeq === 1,
+        "authoritative Splitbolt aim",
+      );
+
+      const targetPosition: Vec2 = { x: 20, z: -35 };
+      const targetId = internals.spawnEnemy("north", "imp", targetPosition);
+      expect(targetId).not.toBeNull();
+      const target = internals.enemies.get(targetId!)!;
+      target.position = { ...targetPosition };
+      target.speed = 0;
+      target.hp = 30;
+
+      original.send({ type: "cast", slot: "ability2" });
+      await waitUntil(
+        () => {
+          const splitbolts = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
+          return splitbolts.length === 1 && splitbolts[0]?.splitStage === "seed";
+        },
+        "active Splitbolt seed",
+      );
+
+      const activeSeed = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId)[0]!;
+      const seedInternal = internals.projectiles.get(activeSeed.id)!;
+      const reservedForkIds = [...seedInternal.reservedForkIds!] as [string, string];
+      const seedDamage = seedInternal.damage;
+      expect(SPLITBOLT_FORK_ANGLE_RADIANS).toBe(0.22);
+      expect(seedDamage).toBe(47);
+      expect(seedInternal.pierce).toBe(SPLITBOLT_SEED_PIERCE);
+      expect(activeSeed.splitStage).toBe("seed");
+      expect(activeSeed.velocity).toEqual({ x: 0, z: -SPLITBOLT_SPEED });
+      expect(activeSeed.radius).toBe(SPLITBOLT_SEED_RADIUS);
+      expect(new Set(reservedForkIds).size).toBe(2);
+      expect(internals.projectiles.has(reservedForkIds[0])).toBe(false);
+      expect(internals.projectiles.has(reservedForkIds[1])).toBe(false);
+
+      original.close();
+      await original.waitForClose();
+      await waitUntil(
+        () => !findPlayer(harness.instance.game.getSnapshot(), playerId).connected,
+        "detached Riftstalker with active Splitbolt seed",
+      );
+
+      const detachedSeedProjectiles = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
+      expect(detachedSeedProjectiles).toHaveLength(1);
+      const detachedSeed = detachedSeedProjectiles[0]!;
+      expect(detachedSeed.id).toBe(activeSeed.id);
+      expect(detachedSeed.splitStage).toBe("seed");
+      expect(detachedSeed.velocity).toEqual(activeSeed.velocity);
+      expect(detachedSeed.radius).toBe(activeSeed.radius);
+      expect(detachedSeed.remaining).toBeLessThanOrEqual(activeSeed.remaining);
+      expect(detachedSeed.remaining).toBeGreaterThan(0);
+      expect(detachedSeed.position.x).toBe(activeSeed.position.x);
+      expect(detachedSeed.position.z).toBeLessThanOrEqual(activeSeed.position.z);
+      expect(internals.projectiles.get(activeSeed.id)?.reservedForkIds).toEqual(reservedForkIds);
+
+      const resumed = await harness.open();
+      const resumedWelcome = await resumed.welcome(
+        "Rift Bolt Owner Returning",
+        firstWelcome.resumeToken,
+      );
+      expect(resumedWelcome.resumed).toBe(true);
+      expect(resumedWelcome.playerId).toBe(playerId);
+      const resumedSeedProjectiles = ownedSplitbolts(resumedWelcome.snapshot, playerId);
+      expect(resumedSeedProjectiles).toHaveLength(1);
+      const resumedSeed = resumedSeedProjectiles[0]!;
+      expect(resumedSeed.id).toBe(activeSeed.id);
+      expect(resumedSeed.splitStage).toBe("seed");
+      expect(resumedSeed.velocity).toEqual(activeSeed.velocity);
+      expect(resumedSeed.radius).toBe(activeSeed.radius);
+      expect(resumedSeed.remaining).toBeLessThanOrEqual(detachedSeed.remaining);
+      expect(resumedSeed.remaining).toBeGreaterThan(0);
+      expect(internals.projectiles.get(activeSeed.id)?.reservedForkIds).toEqual(reservedForkIds);
+
+      resumed.send({
+        type: "input",
+        seq: 2,
+        move: { x: 0, z: 0 },
+        aim: { x: 1, z: 0 },
+        attacking: false,
+      });
+      await waitUntil(
+        () => harness.instance.game.players.get(playerId)?.lastInputSeq === 2,
+        "post-resume Riftstalker re-aim",
+      );
+      const resumedPlayer = harness.instance.game.players.get(playerId)!;
+      resumedPlayer.equipment[0] = "runebound_focus";
+      resumedPlayer.position = { x: 40, z: 40 };
+
+      await waitUntil(
+        () => {
+          const splitbolts = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
+          return splitbolts.length === 3 &&
+            splitbolts.filter((projectile) => projectile.splitStage === "fork").length === 2;
+        },
+        "earned Splitbolt forks after resume",
+      );
+
+      const earned = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
+      expect(earned.map((projectile) => projectile.id)).toEqual([
+        activeSeed.id,
+        ...reservedForkIds,
+      ]);
+      expect(new Set(earned.map((projectile) => projectile.id)).size).toBe(3);
+      expect(earned.map((projectile) => projectile.splitStage)).toEqual(["seed", "fork", "fork"]);
+      expect(findPlayer(harness.instance.game.getSnapshot(), playerId).stats.abilityPower).toBeCloseTo(1.15);
+
+      const expectedForkX = Math.sin(SPLITBOLT_FORK_ANGLE_RADIANS) * SPLITBOLT_SPEED;
+      const expectedForkZ = -Math.cos(SPLITBOLT_FORK_ANGLE_RADIANS) * SPLITBOLT_SPEED;
+      expect(earned[0]!.velocity).toEqual({ x: 0, z: -SPLITBOLT_SPEED });
+      expect(earned[1]!.velocity.x).toBeCloseTo(-expectedForkX);
+      expect(earned[1]!.velocity.z).toBeCloseTo(expectedForkZ);
+      expect(earned[2]!.velocity.x).toBeCloseTo(expectedForkX);
+      expect(earned[2]!.velocity.z).toBeCloseTo(expectedForkZ);
+      expect(earned[1]!.position.x + earned[2]!.position.x).toBeCloseTo(targetPosition.x * 2);
+      expect(earned[1]!.position.z).toBeCloseTo(earned[2]!.position.z);
+      expect(earned[0]!.radius).toBe(SPLITBOLT_SEED_RADIUS);
+      expect(earned[1]!.radius).toBe(SPLITBOLT_FORK_RADIUS);
+      expect(earned[2]!.radius).toBe(SPLITBOLT_FORK_RADIUS);
+      expect(earned[1]!.remaining).toBeCloseTo(earned[2]!.remaining);
+      expect(earned[1]!.remaining).toBeLessThanOrEqual(SPLITBOLT_LIFETIME_SECONDS);
+      expect(earned[1]!.remaining).toBeGreaterThan(SPLITBOLT_LIFETIME_SECONDS - 0.2);
+      expect(earned[1]!.remaining).toBeGreaterThan(earned[0]!.remaining);
+
+      const earnedSeedInternal = internals.projectiles.get(activeSeed.id)!;
+      expect(earnedSeedInternal.damage).toBe(seedDamage);
+      expect(earnedSeedInternal.radius).toBe(SPLITBOLT_SEED_RADIUS);
+      expect(earnedSeedInternal.splitTriggered).toBe(true);
+      for (const id of reservedForkIds) {
+        const fork = internals.projectiles.get(id)!;
+        expect(fork.damage).toBe(seedDamage);
+        expect(fork.pierce).toBe(SPLITBOLT_FORK_PIERCE);
+        expect(fork.radius).toBe(SPLITBOLT_FORK_RADIUS);
+        expect(fork.splitTriggered).toBeUndefined();
+        expect(fork.reservedForkIds).toBeUndefined();
+      }
+
+      await delay(60);
+      expect(ownedSplitbolts(harness.instance.game.getSnapshot(), playerId).map(({ id }) => id)).toEqual([
+        activeSeed.id,
+        ...reservedForkIds,
+      ]);
     } finally {
       await harness.stop();
     }

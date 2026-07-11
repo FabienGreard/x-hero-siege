@@ -2,6 +2,20 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — Make the kill branch
+
+Playing Riftstalker after `0.1.33` made the remaining skill sameness visible in one button. Splitbolt promised a piercing shot that divided after a kill. The game instead launched three purple blobs at once, before anything died. Execution Volley was larger, but both skills began with the same sentence: press the button and receive several projectiles. For the class already asking the most of aim and survival, its supposed execution reward was neither earned nor readable.
+
+`0.1.34` begins with one shot. It follows Riftstalker's latest accepted aim when the windup ends, travels as one pale-violet needle, and checks every piece of the lane it actually crosses. If that seed confirms a kill, two smaller bolts branch from the fallen demon. They keep the successful line's history, so neither can pretend the same body is a fresh target, and neither can branch again. A miss or a nonlethal hit stays one shot.
+
+The new behavior changes the shape of the power without increasing its ceiling. The seed and both branches still deal 47 base damage and can each touch four targets: at most 12 contacts and 564 base damage, exactly like the old three-by-four cast. Eight of those contacts now have to be earned. Hero Stats says the rule in the same order the player experiences it—`4 PIERCE · KILL → 2×4`—while the server reserves the branch identities at cast time so reconnecting peers cannot disagree about what the shot became.
+
+The visual answer stays deliberately thin. The seed is the clearest line, the branches are smaller echoes, and contact leaves one compact directional mark rather than another ring and burst. The companion frame shows the calm seed; a separate mechanics capture allows North to fall so the two moving branches can be isolated without pretending that staged moment is a successful defense.
+
+Normal play supplies the balance answer. Across one hundred Riftstalker runs, every Nexus survives; clean runs rise from `23` to `29`, downs fall from `102` to `86`, and mean gate health rises from `75.65` to `87.24`. The champion remains fragile, and the same 47-damage shot still has to kill before it grows. That is the right direction: a clearer identity and a little more earned reliability, not Ashcaller's safety copied onto the demon hunter.
+
+The next replay begins from this shipped branch rather than from a promised nerf. Gravebinder remains unusually safe, but that safety spans Soul Scythe, protection, and horde-derived effects. The next checkpoint should first play those interactions together, then choose one bounded rule instead of flattening an entire kit or hiding the answer in another item.
+
 ## 2026-07-11 — Placed fire should outlive the button press
 
 Playing the four heroes after `0.1.32` made the remaining sameness easier to name. Ashcaller was already the safer ranged controller, but one of the clearest promises in the approved roster still existed only in copy. Cinder Wall drew five orange circles at once, damaged whatever was already there, and disappeared. It looked like another area cast and could not hold a route for the next demon.

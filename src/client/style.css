@@ -470,6 +470,11 @@ button {
   white-space: nowrap;
 }
 
+.ability-impact-rule.is-rift {
+  color: #cbbcff;
+  border-top-color: rgba(183, 154, 255, 0.22);
+}
+
 .ability-impact-readout.is-purchased,
 .primary-impact.is-purchased {
   border-color: rgba(233, 186, 99, 0.62);

@@ -797,6 +797,7 @@ function updateHeroAbilityImpact(self: PlayerSnapshot): void {
     row.setAttribute("role", "listitem");
     const wraithHost = self.heroId === "gravebinder" && slot === "ability3" && impact.learned;
     const cinderWall = impact.behavior?.id === "cinder_wall";
+    const splitbolt = impact.behavior?.id === "splitbolt";
     const fullMetrics = impact.metrics
       .map((metric) => `${formatHeroStat(metric.value, 1)} ${metric.label}`)
       .concat(
@@ -824,7 +825,7 @@ function updateHeroAbilityImpact(self: PlayerSnapshot): void {
     row.innerHTML = `
       <div class="ability-impact-heading"><kbd>${keyLabel}</kbd><strong>${impact.name}</strong><small>${impact.learned ? `R${impact.rank}` : "R0"}</small></div>
       <div class="ability-impact-result"><span>${impact.learned ? compactMetrics : "UNLEARNED"}</span><em>${impact.learned ? cooldown : "—"}</em></div>
-      ${impact.behavior ? `<div class="ability-impact-rule">${impact.behavior.compactLabel}</div>` : ""}`;
+      ${impact.behavior ? `<div class="ability-impact-rule${splitbolt ? " is-rift" : ""}">${impact.behavior.compactLabel}</div>` : ""}`;
     heroAbilityImpact.append(row);
   }
 }
@@ -2382,7 +2383,7 @@ function syncProjectiles(projectiles: ProjectileSnapshot[]): void {
     active.add(projectile.id);
     let tracked = projectileVisuals.get(projectile.id);
     if (!tracked) {
-      const visual = createProjectileVisual(projectile.kind, projectile.team);
+      const visual = createProjectileVisual(projectile.kind, projectile.team, projectile.splitStage);
       visual.position.set(projectile.position.x, 0, projectile.position.z);
       world.add(visual);
       tracked = { visual, target: visual.position.clone(), velocity: projectile.velocity, seed: Math.random() * 10 };

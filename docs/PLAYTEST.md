@@ -60,7 +60,7 @@ Repeat once while allowing enemies to reach and destroy the Nexus. Confirm defea
 Run at least the opening combat with each hero:
 
 - **Warden:** melee control and frontline durability read clearly.
-- **Riftstalker:** ranged precision and mobility read clearly.
+- **Riftstalker:** ranged precision and mobility read clearly. Splitbolt must release one directional seed toward the latest accepted aim, sweep its complete traveled path, and branch into exactly two smaller nonrecursive forks only after its first confirmed enemy kill. Hero Stats must state `4 PIERCE · KILL → 2×4`, while Execution Volley remains the larger immediate multi-arrow cast.
 - **Ashcaller:** placed fire and explosive area damage read clearly. Cinder Wall must remain for `2s`, catch present and late targets once each, and stay visually below enemies, objective state, and major casts.
 - **Gravebinder:** horde-derived sustain and spirits read clearly.
 
@@ -98,6 +98,23 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - One change that would most improve the next playtest.
 
 After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.34`, 2026-07-11
+
+**Status:** implemented and locally verified; feature push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Began from pushed and verified `0.1.33` and played Riftstalker through the real rendered defense before changing code. The earlier screen, gate, ranged-primary, Wraith, economy, selling, item-breadth, and Cinder Wall work held. Splitbolt remained the clearest promise gap: pressing `E` launched three immediate generic violet blobs, so the promised kill-triggered division did not exist and the skill read too close to Execution Volley's immediate projectile group.
+- The final server owns one lineage. Splitbolt resolves toward Riftstalker's latest accepted aim after windup and releases one `1.4`-radius seed at speed `29`. It sweeps the complete segment traveled on every update, including the terminal partial step, resolves contacts in nearest physical order, and can touch up to four targets.
+- The seed's first confirmed enemy kill creates exactly two `1.2`-radius forks at `−0.22` and `+0.22` radians. Each begins at the killed enemy, receives a fresh `2.2s` lifetime, inherits the seed's hit IDs, can touch four targets, and cannot fork again. A nonlethal contact, a second seed kill, either fork's kill, or a Rift Heart hit creates nothing further.
+- Seed and forks all retain `47` base damage plus the rank and Skill Power captured at cast time. Focus bought, sold, reforged, or Attuned after launch cannot rewrite any active member of that lineage. The old and new ceilings are both `12` contacts and `564` base damage, but the new cast must earn eight of those contacts through its first kill.
+- Two child IDs are reserved when the seed is created, preserving the prior three-projectile ID cadence whether or not the branch is earned. Public snapshots expose only `splitStage: seed` or `fork`; private damage, hit memory, reserved IDs, and trigger state remain server-side. In reconnect and four-client checks, the same seed and reserved fork IDs survive detachment and resume without duplication.
+- The renderer replaces three orb-like blobs with one pale-violet directional needle and two smaller, dimmer branch darts. The seed and forks remain legible against Citadel stone without borrowing Execution Volley's larger arrow group. A compact directional contact mark replaces the generic ability impact ring and burst; no new effect kind, sound, shake, banner, or HUD layer was introduced.
+- Hero Stats keeps Splitbolt's exact current per-bolt magnitude and adds the full-width behavior `4 PIERCE · KILL → 2×4`. Its accessible description names the four-target seed, first-kill branch, two four-target forks, and nonrecursive limit. Focus projections and accepted purchases preserve that sentence while changing only the canonical current damage.
+- Compared the shipped [three-blob baseline](playtest/splitbolt-before.jpg), final [single seed](playtest/splitbolt-seed.jpg), earned [two-fork branch](playtest/splitbolt-after.jpg), and [Hero Stats contract](playtest/splitbolt-stats.jpg). Every frame is a native `1280×720` game render with exact viewport fit and empty warning/error diagnostics. The fork frame intentionally allows North to fall while a protected capture isolates both moving branches; it proves the visual lineage, not normal-play viability.
+- Thirty final normal Riftstalker openings produce `30/30` surviving Nexuses, `7` clean runs, `26` downs, `15` intact gates, `101.8` mean gate health, `190.7` mean kills, and `784.47` mean Nexus health. The shipped `0.1.33` broad cohort recorded `7` clean runs, `28` downs, `89.37` mean gate health, and `186.87` mean kills.
+- The final 100-run cohort produces `100/100` surviving Nexuses, `29` clean runs, `86` downs, `43` intact gates, `87.24` mean gate health, `191.14` mean kills, and `787.16` mean Nexus health. `1,480` of `1,617` Splitbolt casts earn forks (`91.53%`). The shipped cohort recorded `23` clean runs, `102` downs, and `75.65` mean gate health. These remain broad build-level comparisons because presentation and gameplay share RNG and one ID counter.
+- Typecheck, `223` tests with `13,336` assertions across `30` files, production asset `main-cf691b832513e9b6.js` at `640,698` bytes, fixed-asset `404` smoke, focused terminal-step, first-kill, nonrecursive, contact-budget, creation-time power, Heart, terminal-cleanup, reconnect, and real four-client convergence gates pass. Four peers agree on the seed and earned fork snapshots with `tickSpread: 0`.
+- The companion site selects the calm single-seed frame rather than the staged fallen-gate branch capture. Its pending `0.1.34` card names the earned first-kill identity without presenting the mechanical maximum as routine output. The playable game remains undeployed because no Bun/WebSocket host is configured and stale clients still require an atomic compatible client/server promotion.
 
 ## Recorded verification — `0.1.33`, 2026-07-11
 

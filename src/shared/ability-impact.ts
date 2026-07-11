@@ -1,5 +1,10 @@
 import { CINDER_WALL_DURATION_SECONDS } from "./cinder-wall";
 import { HERO_DEFINITIONS } from "./game-data";
+import {
+  SPLITBOLT_FORK_COUNT,
+  SPLITBOLT_FORK_PIERCE,
+  SPLITBOLT_SEED_PIERCE,
+} from "./splitbolt";
 import type { AbilitySlot, HeroId } from "./protocol";
 
 export type AbilityImpactMetricId = "primary" | "secondary";
@@ -28,7 +33,7 @@ export interface AbilityImpactReadout {
   cooldown: number;
   metrics: AbilityImpactMetric[];
   behavior?: {
-    id: "cinder_wall";
+    id: "cinder_wall" | "splitbolt";
     compactLabel: string;
     accessibleDescription: string;
   };
@@ -104,13 +109,21 @@ export function deriveAbilityImpactReadout(
             : [];
         })
     : [];
-  const behavior = learned && heroId === "ashcaller" && slot === "ability2"
-    ? {
-        id: "cinder_wall" as const,
-        compactLabel: `${CINDER_WALL_DURATION_SECONDS}S WALL · ONCE/TARGET`,
-        accessibleDescription: `Burns for ${CINDER_WALL_DURATION_SECONDS} seconds and damages each target at most once per cast`,
-      }
-    : undefined;
+  const behavior = !learned || slot !== "ability2"
+    ? undefined
+    : heroId === "ashcaller"
+      ? {
+          id: "cinder_wall" as const,
+          compactLabel: `${CINDER_WALL_DURATION_SECONDS}S WALL · ONCE/TARGET`,
+          accessibleDescription: `Burns for ${CINDER_WALL_DURATION_SECONDS} seconds and damages each target at most once per cast`,
+        }
+      : heroId === "riftstalker"
+        ? {
+            id: "splitbolt" as const,
+            compactLabel: `${SPLITBOLT_SEED_PIERCE} PIERCE · KILL → ${SPLITBOLT_FORK_COUNT}×${SPLITBOLT_FORK_PIERCE}`,
+            accessibleDescription: `The seed can hit up to ${SPLITBOLT_SEED_PIERCE} targets; its first kill creates ${SPLITBOLT_FORK_COUNT} forks that can each hit ${SPLITBOLT_FORK_PIERCE} targets and cannot split again`,
+          }
+        : undefined;
   return {
     slot,
     name: ability.name,

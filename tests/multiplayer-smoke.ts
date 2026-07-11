@@ -12,6 +12,15 @@ import {
   CINDER_WALL_END_DISTANCE,
   CINDER_WALL_START_DISTANCE,
 } from "../src/shared/cinder-wall";
+import {
+  SPLITBOLT_FORK_ANGLE_RADIANS,
+  SPLITBOLT_FORK_PIERCE,
+  SPLITBOLT_FORK_RADIUS,
+  SPLITBOLT_LIFETIME_SECONDS,
+  SPLITBOLT_SEED_PIERCE,
+  SPLITBOLT_SEED_RADIUS,
+  SPLITBOLT_SPEED,
+} from "../src/shared/splitbolt";
 import { WRAITH_HOST_MAX_ACTIVE_PER_OWNER } from "../src/shared/wraith-host";
 import type {
   EffectSnapshot,
@@ -19,7 +28,9 @@ import type {
   GameSnapshot,
   HeroId,
   HeroStatsSnapshot,
+  ProjectileSnapshot,
   ServerMessage,
+  Vec2,
 } from "../src/shared/protocol";
 
 type Predicate = (message: ServerMessage) => boolean;
@@ -40,6 +51,19 @@ function ownedCinderEffects(snapshot: GameSnapshot, ownerId: string): EffectSnap
   return snapshot.effects.filter((effect) =>
     effect.ownerId === ownerId &&
     (effect.kind === "cinder_wall" || effect.kind === "cinder_wall_companion")
+  );
+}
+
+function ownedSplitbolts(snapshot: GameSnapshot, ownerId: string): ProjectileSnapshot[] {
+  return snapshot.projectiles.filter((projectile) =>
+    projectile.ownerId === ownerId && projectile.kind === "splitbolt"
+  );
+}
+
+function assertClose(actual: number, expected: number, label: string): void {
+  assert.ok(
+    Math.abs(actual - expected) < 1e-9,
+    `${label}: expected ${expected}, received ${actual}`,
   );
 }
 
@@ -159,11 +183,148 @@ try {
   assert.equal(windingUp.players.find((player) => player.id === peers[0]!.playerId)!.action?.phase, "windup");
 
   const hostGame = instance.game as unknown as {
-    enemies: Map<string, unknown>;
+    enemies: Map<string, {
+      position: Vec2;
+      hp: number;
+      radius: number;
+      speed: number;
+    }>;
+    projectiles: Map<string, ProjectileSnapshot & {
+      damage: number;
+      pierce: number;
+      hitIds: Set<string>;
+      splitTriggered?: boolean;
+      reservedForkIds?: [string, string];
+    }>;
     spawnTimer: number;
+    spawnEnemy(lane: "north", kind: "imp", position: Vec2): string | null;
   };
   hostGame.enemies.clear();
   hostGame.spawnTimer = 9_999;
+
+  const riftPeer = peers[1]!;
+  const riftId = riftPeer.playerId;
+  const riftOrigin: Vec2 = { x: -24, z: -4 };
+  const splitTarget: Vec2 = { x: -24, z: -20 };
+  const riftState = instance.game.players.get(riftId)!;
+  riftState.position = { ...riftOrigin };
+  riftState.action = null;
+  riftPeer.send({ type: "level_ability", slot: "ability2" });
+  await riftPeer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === riftId);
+    return player?.abilityRanks.ability2 === 1 && player.skillPoints === 0;
+  });
+  riftPeer.send({
+    type: "input",
+    seq: 1,
+    move: { x: 0, z: 0 },
+    aim: { x: 0, z: -1 },
+    attacking: false,
+  });
+  await riftPeer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === riftId);
+    return player?.lastInputSeq === 1 && player.aim.x === 0 && player.aim.z === -1;
+  });
+
+  const splitEnemyId = hostGame.spawnEnemy("north", "imp", splitTarget);
+  assert.notEqual(splitEnemyId, null);
+  const splitEnemy = hostGame.enemies.get(splitEnemyId!)!;
+  splitEnemy.position = { ...splitTarget };
+  splitEnemy.speed = 0;
+  splitEnemy.hp = 30;
+
+  riftPeer.send({ type: "cast", slot: "ability2" });
+  const splitSeedAuthority = await riftPeer.snapshot((snapshot) => {
+    const splitbolts = ownedSplitbolts(snapshot, riftId);
+    return splitbolts.length === 1 && splitbolts[0]?.splitStage === "seed";
+  });
+  const splitSeedTick = splitSeedAuthority.tick;
+  const splitSeedSnapshots = await Promise.all(peers.map((peer) =>
+    peer.snapshot((snapshot) => snapshot.tick === splitSeedTick)
+  ));
+  const authoritativeSeedProjectiles = ownedSplitbolts(splitSeedAuthority, riftId);
+  assert.equal(authoritativeSeedProjectiles.length, 1);
+  const splitSeed = authoritativeSeedProjectiles[0]!;
+  assert.equal(SPLITBOLT_FORK_ANGLE_RADIANS, 0.22);
+  assert.equal(splitSeed.splitStage, "seed");
+  assert.deepEqual(splitSeed.velocity, { x: 0, z: -SPLITBOLT_SPEED });
+  assert.equal(splitSeed.radius, SPLITBOLT_SEED_RADIUS);
+  for (const snapshot of splitSeedSnapshots) {
+    assert.deepEqual(ownedSplitbolts(snapshot, riftId), authoritativeSeedProjectiles);
+  }
+
+  const internalSeed = hostGame.projectiles.get(splitSeed.id)!;
+  const reservedForkIds = [...internalSeed.reservedForkIds!] as [string, string];
+  assert.equal(internalSeed.damage, 47);
+  assert.equal(internalSeed.pierce, SPLITBOLT_SEED_PIERCE);
+  assert.equal(internalSeed.radius, SPLITBOLT_SEED_RADIUS);
+  assert.equal(new Set(reservedForkIds).size, 2);
+  assert.equal(hostGame.projectiles.has(reservedForkIds[0]), false);
+  assert.equal(hostGame.projectiles.has(reservedForkIds[1]), false);
+
+  const splitForkAuthority = await riftPeer.snapshot((snapshot) => {
+    const splitbolts = ownedSplitbolts(snapshot, riftId);
+    return splitbolts.length === 3 &&
+      splitbolts.filter((projectile) => projectile.splitStage === "seed").length === 1 &&
+      splitbolts.filter((projectile) => projectile.splitStage === "fork").length === 2;
+  });
+  const splitForkTick = splitForkAuthority.tick;
+  const splitForkSnapshots = await Promise.all(peers.map((peer) =>
+    peer.snapshot((snapshot) => snapshot.tick === splitForkTick)
+  ));
+  const authoritativeSplitbolts = ownedSplitbolts(splitForkAuthority, riftId);
+  for (const snapshot of splitForkSnapshots) {
+    assert.deepEqual(ownedSplitbolts(snapshot, riftId), authoritativeSplitbolts);
+  }
+
+  const earnedSeed = authoritativeSplitbolts.find((projectile) => projectile.id === splitSeed.id)!;
+  const leftFork = authoritativeSplitbolts.find((projectile) => projectile.id === reservedForkIds[0])!;
+  const rightFork = authoritativeSplitbolts.find((projectile) => projectile.id === reservedForkIds[1])!;
+  assert.ok(earnedSeed);
+  assert.ok(leftFork);
+  assert.ok(rightFork);
+  assert.equal(earnedSeed.splitStage, "seed");
+  assert.equal(leftFork.splitStage, "fork");
+  assert.equal(rightFork.splitStage, "fork");
+  assert.equal(new Set(authoritativeSplitbolts.map((projectile) => projectile.id)).size, 3);
+  assert.deepEqual(authoritativeSplitbolts.map((projectile) => projectile.id), [
+    splitSeed.id,
+    ...reservedForkIds,
+  ]);
+
+  const expectedForkX = Math.sin(SPLITBOLT_FORK_ANGLE_RADIANS) * SPLITBOLT_SPEED;
+  const expectedForkZ = -Math.cos(SPLITBOLT_FORK_ANGLE_RADIANS) * SPLITBOLT_SPEED;
+  assertClose(leftFork.velocity.x, -expectedForkX, "left fork velocity x");
+  assertClose(leftFork.velocity.z, expectedForkZ, "left fork velocity z");
+  assertClose(rightFork.velocity.x, expectedForkX, "right fork velocity x");
+  assertClose(rightFork.velocity.z, expectedForkZ, "right fork velocity z");
+  for (const projectile of authoritativeSplitbolts) {
+    assertClose(Math.hypot(projectile.velocity.x, projectile.velocity.z), SPLITBOLT_SPEED, `${projectile.id} speed`);
+  }
+  assert.equal(earnedSeed.radius, SPLITBOLT_SEED_RADIUS);
+  assert.equal(leftFork.radius, SPLITBOLT_FORK_RADIUS);
+  assert.equal(rightFork.radius, SPLITBOLT_FORK_RADIUS);
+  assertClose(leftFork.remaining, rightFork.remaining, "fork remaining lifetime");
+  assert.ok(leftFork.remaining <= SPLITBOLT_LIFETIME_SECONDS);
+  assert.ok(leftFork.remaining > SPLITBOLT_LIFETIME_SECONDS - 0.2);
+  assert.ok(leftFork.remaining > earnedSeed.remaining);
+  assertClose(leftFork.position.x + rightFork.position.x, splitTarget.x * 2, "fork horizontal symmetry");
+  assertClose(leftFork.position.z, rightFork.position.z, "fork forward symmetry");
+  assertClose(earnedSeed.position.x, splitTarget.x, "seed lane axis");
+  assert.equal(hostGame.projectiles.get(earnedSeed.id)?.splitTriggered, true);
+  for (const forkId of reservedForkIds) {
+    const fork = hostGame.projectiles.get(forkId)!;
+    assert.equal(fork.damage, 47);
+    assert.equal(fork.pierce, SPLITBOLT_FORK_PIERCE);
+    assert.equal(fork.radius, SPLITBOLT_FORK_RADIUS);
+    assert.equal(fork.splitTriggered, undefined);
+    assert.equal(fork.reservedForkIds, undefined);
+  }
+  for (const state of instance.game.players.values()) {
+    state.goldUnits = 0;
+    state.xp = 0;
+    state.kills = 0;
+  }
 
   const ashPeer = peers[2]!;
   const ashId = ashPeer.playerId;
@@ -607,6 +768,13 @@ try {
       visibleEffects: visibleCinder.length,
       companionEffects: cinderCompanions.length,
       effectIds: authoritativeCinderEffects.map((effect) => effect.id),
+    },
+    splitbolt: {
+      seedClients: splitSeedSnapshots.length,
+      forkClients: splitForkSnapshots.length,
+      seedId: splitSeed.id,
+      forkIds: reservedForkIds,
+      stages: authoritativeSplitbolts.map((projectile) => projectile.splitStage),
     },
   }));
 } finally {

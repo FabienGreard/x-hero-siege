@@ -192,6 +192,8 @@ export type ProjectileKind =
   | "death_tide"
   | "demon_bolt";
 
+export type SplitboltStage = "seed" | "fork";
+
 export interface ProjectileSnapshot {
   id: string;
   ownerId: string;
@@ -201,6 +203,7 @@ export interface ProjectileSnapshot {
   velocity: Vec2;
   radius: number;
   remaining: number;
+  splitStage?: SplitboltStage;
 }
 
 export interface SummonSnapshot {

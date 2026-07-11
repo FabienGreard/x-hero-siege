@@ -1,0 +1,8 @@
+export const SPLITBOLT_SPEED = 29;
+export const SPLITBOLT_LIFETIME_SECONDS = 2.2;
+export const SPLITBOLT_SEED_RADIUS = 1.4;
+export const SPLITBOLT_FORK_RADIUS = 1.2;
+export const SPLITBOLT_SEED_PIERCE = 4;
+export const SPLITBOLT_FORK_COUNT = 2;
+export const SPLITBOLT_FORK_PIERCE = 4;
+export const SPLITBOLT_FORK_ANGLE_RADIANS = 0.22;
