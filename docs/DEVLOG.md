@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A wall should say how long it can hold
+
+The player review arrived as a connected list: the battlefield felt dark and busy, ranged attacks were hard to follow, Gravebinder felt too strong, the gate's health was unclear, and the Armory needed selling, higher prices, and more breadth. The right response was not to pour all seven into one release. Replaying `0.1.26` made the first broken decision plain. The Nexus said `100%` in one strong bar; the North gate said only `OPEN · 17`. A full wall and a wall one hit from collapse asked the same strategic question with almost the same answer.
+
+`0.1.27` lets the wall answer. City Watch now keeps its exact footprint but trades `OPEN` for an authoritative percentage and a two-pixel fill. Near the structure, one quiet bar carries the same truth into the world. At half health it warms; at one quarter it turns critical; once the arch falls, City Watch says `FALLEN`. The Nexus never loses its place at the top. A gate is a buffer that buys time to hold, rotate, or shop; the Heartfire remains the life of the run.
+
+The new read also sharpens the next decisions instead of pretending to solve them. Fresh all-hero diagnostics support the ranged and Gravebinder feedback strongly enough that item prices cannot be tuned from Warden-only pacing: making every ware more expensive now would simply delay the Armory most for the heroes already failing to reach it. Selling, a doubled-price candidate, and one-ware-at-a-time catalog growth remain valuable, but ranged viability and an all-four pacing gate have to make that economy evidence trustworthy first.
+
+Nothing became tougher or safer because the wall gained a voice. Its health, enemy damage, routes, shops, prices, effects, and authority are untouched. The checkpoint removes one missing piece of information from an already noisy screen, using less visual language than a new warning system would have required.
+
 ## 2026-07-11 — A percentage is not a return time
 
 The normal `0.1.25` Warden replay earned `31` gold and reached the Veilglass Reliquary at `29.3s` through legal combat, movement, and route timing. In the controlled rendered Ashcaller comparison, Hero Stats named Flame Ring at `6s`, Cinder Wall at `9s`, Falling Star at `12s`, and Worldfire at `38s`. The Quickening card beside it promised only `Cooldown Speed 100% → 115%`. Both surfaces were true, but the purchase still asked the player to perform denominator arithmetic while the siege continued.

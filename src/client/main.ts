@@ -45,6 +45,7 @@ import type {
   VendorId,
 } from "../shared/protocol";
 import { itemPurchaseDeliveryPolicy } from "./event-delivery";
+import { deriveGateReadout } from "./gate-readout";
 import {
   beginOrdinaryPurchaseRequest,
   ordinaryPurchaseRequestAfterError,
@@ -350,7 +351,11 @@ for (const lane of LANE_IDS) {
   const status = document.createElement("div");
   status.className = "lane-status is-sealed";
   status.dataset.lane = lane;
-  status.innerHTML = `<span class="lane-status-name">${LANE_LABELS[lane]}</span><span class="lane-status-state">SEALED</span>`;
+  status.innerHTML = `
+    <span class="lane-status-name">${LANE_LABELS[lane]}</span>
+    <span class="lane-status-state">SEALED</span>
+    <span class="lane-status-health" aria-hidden="true"><span class="lane-status-health-fill"></span></span>
+  `;
   laneStatusList.append(status);
   laneStatusElements.set(lane, status);
 }
@@ -2195,6 +2200,7 @@ function updateThreats(state: GameSnapshot): void {
   const counts: Record<LaneId, number> = { north: 0, east: 0, south: 0, west: 0 };
   for (const enemy of state.enemies) counts[enemy.lane] += enemy.elite ? 3 : enemy.kind === "brute" || enemy.kind === "siege" ? 2 : 1;
   const activeLanes = new Set(state.activeLanes);
+  const gates = new Map(state.gates.map((gate) => [gate.lane, gate]));
   const activeCount = activeLanes.size;
   const max = Math.max(5, ...state.activeLanes.map((lane) => counts[lane]));
   threatHeading.textContent = activeCount === 1 ? "1 ROAD OPEN" : `${activeCount} ROADS OPEN`;
@@ -2211,15 +2217,25 @@ function updateThreats(state: GameSnapshot): void {
     element.classList.toggle("is-hot", active && (lane === state.pressureLane || pressure > 0.72));
     const compassLabel = element.querySelector<HTMLElement>("b");
     if (compassLabel) compassLabel.textContent = active ? lane[0]!.toUpperCase() : "×";
-    element.title = active ? `${LANE_LABELS[lane]} lane: open, ${counts[lane]} threat` : `${LANE_LABELS[lane]} lane: sealed`;
+    const gate = gates.get(lane);
+    const gateReadout = gate ? deriveGateReadout(gate, active, counts[lane]) : null;
+    element.title = gateReadout?.title ?? (active ? `${LANE_LABELS[lane]} lane: open` : `${LANE_LABELS[lane]} lane: sealed`);
     element.setAttribute("aria-label", element.title);
 
     const status = laneStatusElements.get(lane);
     if (!status) continue;
     status.classList.toggle("is-active", active);
-    status.classList.toggle("is-sealed", !active);
+    status.classList.toggle("is-sealed", gateReadout?.tone === "sealed");
+    status.classList.toggle("is-pressured", gateReadout?.tone === "damaged");
+    status.classList.toggle("is-critical", gateReadout?.tone === "critical");
+    status.classList.toggle("is-fallen", gateReadout?.tone === "fallen");
+    status.style.setProperty("--gate-health", `${(gateReadout?.ratio ?? 0) * 100}%`);
+    if (gateReadout) {
+      status.title = gateReadout.title;
+      status.setAttribute("aria-label", gateReadout.ariaLabel);
+    }
     const statusCopy = status.querySelector<HTMLElement>(".lane-status-state");
-    if (statusCopy) statusCopy.textContent = active ? counts[lane] > 0 ? `OPEN · ${counts[lane]}` : "OPEN" : "SEALED";
+    if (statusCopy) statusCopy.textContent = gateReadout?.label ?? (active ? "OPEN" : "SEALED");
   }
 }
 

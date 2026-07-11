@@ -2,6 +2,20 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.27` — Read the Wall
+
+**Status:** implemented and locally verified on 2026-07-11; companion site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Correct the missing defensive decision exposed by the shipped `0.1.26` replay and player review: the top objective truthfully named Nexus health, but City Watch reduced an active front to `OPEN · threat`, the minimap treated its gate as merely intact or breached, and the physical gate communicated durability only through a subtle crystal scale. A full and one-hit-from-fallen wall therefore read almost alike while the player was deciding whether to hold, rotate, or leave for a local shop.
+- Derive one canonical gate readout from the authoritative `hp`, `maxHp`, `breached`, active-lane, and threat snapshot. Keep each existing `20px` City Watch tile, replace `OPEN` with an exact clamped percentage, add one restrained two-pixel fill, name `SEALED` and `FALLEN` explicitly, and expose raw health plus threat count through the existing title and accessible label.
+- Add one calm world-space bar above every active gate. Let healthy, pressured, critical, and empty states change by fill and color without a pulse, particle, banner, sound, or second warning language. Keep the Heartfire Nexus as the sole dominant top bar and the only objective whose loss ends the run.
+- Preserve gate durability, enemy damage and targeting, lane allocation, phase rules, routes, shops, prices, catalog, six unrestricted slots, champion stats, abilities, art, audio, controls, protocol, and server authority. This checkpoint reveals an existing resource; it does not rebalance or duplicate it.
+- Compare the approved gameplay triptych and the shipped `OPEN · threat` baseline with real native `1280×720` full, half, critical, fallen, four-front, and shop-open renders. The final production bundle `main-680c295ef9e435bb.js`, `162` tests with `10,223` assertions across `23` files, production smoke, and real four-client convergence pass with no warning/error logs or overflow.
+
+**Review evidence carried forward:** the same intake identified under-signalled and mechanically unforgiving ranged primaries, Gravebinder sustain and Wraith Host scaling, overly additive effects and undersized interface text, missing selling, insufficient catalog breadth, and prices that feel too cheap. Fresh all-hero diagnostics show that Warden and Gravebinder currently survive the same legal full-kit controller while Riftstalker survives only half its runs and Ashcaller none; therefore higher prices cannot be finalized against Warden-only pacing without deepening the ranged disadvantage. The economy audit retains a `60`-gold, `30`-gold sellback candidate and one-ware-at-a-time catalog growth, but neither is approved for implementation until all-four solo viability is a real gate.
+
+**Next-cycle nomination:** replay shipped `0.1.27` with Riftstalker and Ashcaller and bound the next checkpoint around ranged-primary viability and readability if the reported weakness remains the highest-leverage failure. Make canonical range real, improve deterministic server-owned aim/collision forgiveness, and redistribute existing launch/projectile/impact contrast rather than adding spectacle. Establish an all-four normal-timing solo gate before repricing wares, then address Gravebinder with identity-preserving sustain and summon caps before deepening one promised skill hook at a time.
+
 ## `0.1.26` — Read the Time
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.

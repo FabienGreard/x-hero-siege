@@ -1618,6 +1618,7 @@ button.equipment-slot {
 }
 
 .lane-status {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1631,6 +1632,13 @@ button.equipment-slot {
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  overflow: hidden;
+}
+
+.lane-status-name,
+.lane-status-state {
+  position: relative;
+  z-index: 1;
 }
 
 .lane-status.is-active {
@@ -1648,6 +1656,66 @@ button.equipment-slot {
 
 .lane-status.is-active .lane-status-state {
   color: #a9cbd4;
+}
+
+.lane-status-health {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 2px;
+  height: 2px;
+  background: rgba(5, 9, 12, 0.82);
+  opacity: 0;
+}
+
+.lane-status.is-active .lane-status-health {
+  opacity: 1;
+}
+
+.lane-status-health-fill {
+  display: block;
+  width: var(--gate-health, 0%);
+  height: 100%;
+  background: #8ed7e6;
+  transition: width 140ms linear;
+}
+
+.lane-status.is-pressured {
+  border-left-color: #d7a15b;
+}
+
+.lane-status.is-pressured .lane-status-state {
+  color: #f0c47d;
+}
+
+.lane-status.is-pressured .lane-status-health-fill {
+  background: #d7a15b;
+}
+
+.lane-status.is-critical {
+  border-left-color: #ef635a;
+  background: rgba(83, 34, 34, 0.62);
+}
+
+.lane-status.is-critical .lane-status-state {
+  color: #ffaaa0;
+}
+
+.lane-status.is-critical .lane-status-health-fill {
+  background: #ef635a;
+}
+
+.lane-status.is-fallen {
+  border-left-color: #8d3036;
+  background: rgba(55, 24, 29, 0.7);
+}
+
+.lane-status.is-fallen .lane-status-state {
+  color: #cf777c;
+}
+
+.lane-status.is-fallen .lane-status-health-fill {
+  width: 0;
 }
 
 .minimap {

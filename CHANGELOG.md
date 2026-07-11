@@ -2,6 +2,25 @@
 
 All notable project changes are recorded here.
 
+## [0.1.27] - 2026-07-11
+
+### Added
+
+- Added exact authoritative gate percentages and a restrained two-pixel fill to the existing City Watch tiles, with explicit `SEALED` and `FALLEN` states for inactive and breached approaches.
+- Added one calm world-space health bar above every active gate so local wall durability remains readable while moving, fighting, or weighing a physical shop retreat.
+- Added one canonical snapshot-derived gate readout and focused coverage for full, damaged, critical, fallen, sealed, over-max, invalid-max, and positive sub-one-percent health.
+- Added native `1280×720` production evidence for full, half, critical, fallen, four-front, and shop-open states.
+
+### Changed
+
+- City Watch and compass titles now expose raw gate health and current threat count from the same authoritative snapshot instead of reducing an active front to `OPEN · threat`.
+- Healthy, pressured, critical, and empty reads redistribute contrast inside existing objective surfaces without adding another panel, warning banner, pulse, particle, or sound.
+
+### Preserved
+
+- The Heartfire Nexus remains the sole dominant top objective bar and the only structure whose destruction ends the run; a fallen gate still changes pressure without causing defeat.
+- Gate durability, enemy damage and targeting, lane allocation, encounters, routes, shops, prices, catalog, six unrestricted slots, champion stats, abilities, controls, art, audio, protocol, and server authority are unchanged.
+
 ## [0.1.26] - 2026-07-11
 
 ### Added

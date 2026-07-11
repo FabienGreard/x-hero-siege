@@ -1193,6 +1193,12 @@ interface GateSealVisual {
   bars: THREE.Mesh[];
 }
 
+interface GateHealthBarVisual {
+  root: THREE.Group;
+  background: THREE.Sprite;
+  fill: THREE.Sprite;
+}
+
 export interface ArenaVisuals {
   root: THREE.Group;
   nexusCrystal: THREE.Mesh;
@@ -1206,6 +1212,7 @@ export interface ArenaVisuals {
   gateGlows: Record<LaneId, THREE.Sprite>;
   gateArches: Record<LaneId, THREE.Mesh>;
   gateSeals: Record<LaneId, GateSealVisual>;
+  gateHealthBars: Record<LaneId, GateHealthBarVisual>;
   motes: THREE.Points;
   update: (
     elapsed: number,
@@ -1636,6 +1643,7 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
   const gateGlows = {} as Record<LaneId, THREE.Sprite>;
   const gateArches = {} as Record<LaneId, THREE.Mesh>;
   const gateSeals = {} as Record<LaneId, GateSealVisual>;
+  const gateHealthBars = {} as Record<LaneId, GateHealthBarVisual>;
   for (const lane of ["north", "east", "south", "west"] as const) {
     const point = WORLD_LAYOUT.gates[lane];
     const horizontal = lane === "north" || lane === "south";
@@ -1660,6 +1668,34 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
     root.add(glow);
     gateGlows[lane] = glow;
     gateSeals[lane] = createGateSeal(root, lane, point, horizontal);
+
+    const healthRoot = new THREE.Group();
+    healthRoot.position.set(point.x, 9.25, point.z);
+    const healthBackground = new THREE.Sprite(new THREE.SpriteMaterial({
+      color: 0x0a1115,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false,
+    }));
+    healthBackground.scale.set(7.2, 0.66, 1);
+    healthBackground.renderOrder = 24;
+    healthRoot.add(healthBackground);
+    const healthFill = new THREE.Sprite(new THREE.SpriteMaterial({
+      color: 0x8ed7e6,
+      transparent: true,
+      opacity: 0.96,
+      depthTest: false,
+      depthWrite: false,
+    }));
+    healthFill.center.set(0, 0.5);
+    healthFill.position.set(-3.25, 0, 0);
+    healthFill.scale.set(6.5, 0.28, 1);
+    healthFill.renderOrder = 25;
+    healthRoot.add(healthFill);
+    healthRoot.visible = false;
+    root.add(healthRoot);
+    gateHealthBars[lane] = { root: healthRoot, background: healthBackground, fill: healthFill };
   }
 
   // Heartfire Nexus: deliberately readable from every approach.
@@ -1842,6 +1878,7 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
       const glow = gateGlows[lane];
       const arch = gateArches[lane];
       const seal = gateSeals[lane];
+      const healthBar = gateHealthBars[lane];
       seal.root.visible = laneSelectionActive && !laneIsOpen && !gateState.breached;
       if (seal.root.visible) {
         const sealPulse = 0.76 + Math.sin(elapsed * 2.4 + activeLanes.length) * 0.08;
@@ -1870,6 +1907,20 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
       arch.rotation.z = gateState.breached ? (lane === "north" || lane === "south" ? 0.28 : 0.12) : 0;
       arch.rotation.x = gateState.breached ? (lane === "east" || lane === "west" ? 0.28 : 0.12) : 0;
       arch.scale.y = gateState.breached ? 0.72 : 1;
+
+      const gateRatio = THREE.MathUtils.clamp(gateState.hpRatio, 0, 1);
+      healthBar.root.visible = laneSelectionActive && laneIsOpen;
+      healthBar.fill.visible = !gateState.breached && gateRatio > 0;
+      healthBar.fill.scale.x = 6.5 * gateRatio;
+      (healthBar.fill.material as THREE.SpriteMaterial).color.setHex(
+        gateState.breached || gateRatio <= 0.25
+          ? 0xef635a
+          : gateRatio <= 0.6
+            ? 0xe0a75a
+            : 0x8ed7e6,
+      );
+      (healthBar.background.material as THREE.SpriteMaterial).color.setHex(gateState.breached ? 0x12080a : 0x0a1115);
+      (healthBar.background.material as THREE.SpriteMaterial).opacity = gateState.breached ? 0.72 : 0.9;
     }
     const riftActive = phase === "push";
     riftCore.visible = phase !== "lobby";
@@ -1895,5 +1946,5 @@ export function createArena(scene: THREE.Scene): ArenaVisuals {
     motes.position.y = Math.sin(elapsed * 0.18) * 0.6;
   }
 
-  return { root, nexusCrystal, nexusGlow, nexusRings, nexusLight, riftCore, riftGlow, braziers, gateCrystals, gateGlows, gateArches, gateSeals, motes, update };
+  return { root, nexusCrystal, nexusGlow, nexusRings, nexusLight, riftCore, riftGlow, braziers, gateCrystals, gateGlows, gateArches, gateSeals, gateHealthBars, motes, update };
 }
