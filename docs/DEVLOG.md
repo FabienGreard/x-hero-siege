@@ -2,6 +2,18 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — Placed fire should outlive the button press
+
+Playing the four heroes after `0.1.32` made the remaining sameness easier to name. Ashcaller was already the safer ranged controller, but one of the clearest promises in the approved roster still existed only in copy. Cinder Wall drew five orange circles at once, damaged whatever was already there, and disappeared. It looked like another area cast and could not hold a route for the next demon.
+
+`0.1.33` draws an actual line. The server samples the Ashcaller's committed aim, a center segment from `3.2` to `16` world units, rank width, and Skill Power when `E` resolves. That wall remains for two seconds. A demon already in the fire is struck immediately; one entering later can still be caught; no target can take the same cast twice. The slow lasts two seconds, the Rift Heart can be struck once, and moving, ranking, or changing Focus afterward cannot rewrite what was placed.
+
+Persistence needed less presentation, not more. The first broad surface read too much like a maroon carpet laid over the Citadel floor. The final shape becomes a low translucent rounded burn line that leaves stone and enemy feet visible, with restrained seams and embers instead of five rings and their burst fields. Four invisible one-second records keep the old presentation draw and ID cadence while every current client renders only the one authoritative wall. Hero Stats gives the mechanic the same concise sentence: `2S WALL · ONCE/TARGET`.
+
+The final wall changes Ashcaller's risk profile substantially without making it flawless. Across one hundred normal openings, clean runs rise from the previous broad cohort's `70` to `96`, intact gates from `78` to `97`, and mean gate health from `165.67` to `240.07`; four downs remain and every Nexus survives. Those are cohort-level results, not paired-seed proof, because presentation and gameplay still share one random stream and ID counter.
+
+The comparison sharpens rather than erases the next decision. Warden and Gravebinder remain completely safe in the same controller, but Gravebinder's advantage is spread across a whole sustain kit and did not yield to a token Soul Scythe cap. Riftstalker is the leading immediate difficulty at only `23` clean runs, `102` downs, and `75.65` mean gate health. The next cycle should play that fragile execution promise before changing another item or several champion skills together.
+
 ## 2026-07-11 — A fifth ware should answer a different question
 
 `0.1.31` made an Armory choice expensive enough to matter and reversible enough to learn from. Playing that shipped Forge made the next gap sharper. Its two cards still asked only how to act harder or move faster. Adding several more percentages would have made a larger catalog, but not a deeper decision.

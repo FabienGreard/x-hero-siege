@@ -7,8 +7,14 @@ import {
 } from "../src/shared/armory-data";
 import { createGameServer } from "../src/server/index";
 import { goldToUnits } from "../src/server/economy";
+import {
+  CINDER_WALL_BASE_HALF_WIDTH,
+  CINDER_WALL_END_DISTANCE,
+  CINDER_WALL_START_DISTANCE,
+} from "../src/shared/cinder-wall";
 import { WRAITH_HOST_MAX_ACTIVE_PER_OWNER } from "../src/shared/wraith-host";
 import type {
+  EffectSnapshot,
   EquipmentSlots,
   GameSnapshot,
   HeroId,
@@ -28,6 +34,13 @@ function assertHeroStats(
       `${key}: expected ${expected[key]}, received ${actual[key]}`,
     );
   }
+}
+
+function ownedCinderEffects(snapshot: GameSnapshot, ownerId: string): EffectSnapshot[] {
+  return snapshot.effects.filter((effect) =>
+    effect.ownerId === ownerId &&
+    (effect.kind === "cinder_wall" || effect.kind === "cinder_wall_companion")
+  );
 }
 
 class Peer {
@@ -145,6 +158,74 @@ try {
   });
   assert.equal(windingUp.players.find((player) => player.id === peers[0]!.playerId)!.action?.phase, "windup");
 
+  const hostGame = instance.game as unknown as {
+    enemies: Map<string, unknown>;
+    spawnTimer: number;
+  };
+  hostGame.enemies.clear();
+  hostGame.spawnTimer = 9_999;
+
+  const ashPeer = peers[2]!;
+  const ashId = ashPeer.playerId;
+  const ashOrigin = { x: 7, z: -11 };
+  const ashState = instance.game.players.get(ashId)!;
+  ashState.position = { ...ashOrigin };
+  ashState.action = null;
+  ashPeer.send({ type: "level_ability", slot: "ability2" });
+  await ashPeer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === ashId);
+    return player?.abilityRanks.ability2 === 1 && player.skillPoints === 0;
+  });
+  ashPeer.send({
+    type: "input",
+    seq: 1,
+    move: { x: 0, z: 0 },
+    aim: { x: 0, z: -1 },
+    attacking: false,
+  });
+  await ashPeer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === ashId);
+    return player?.lastInputSeq === 1 && player.aim.x === 0 && player.aim.z === -1;
+  });
+
+  ashPeer.send({ type: "cast", slot: "ability2" });
+  const cinderAuthority = await ashPeer.snapshot((snapshot) => {
+    const effects = ownedCinderEffects(snapshot, ashId);
+    return effects.filter((effect) => effect.kind === "cinder_wall").length === 1 &&
+      effects.filter((effect) => effect.kind === "cinder_wall_companion").length === 4;
+  });
+  const cinderTick = cinderAuthority.tick;
+  const cinderSnapshots = await Promise.all(peers.map((peer) =>
+    peer.snapshot((snapshot) => snapshot.tick === cinderTick)
+  ));
+  const authoritativeCinderEffects = ownedCinderEffects(cinderAuthority, ashId);
+  for (const snapshot of cinderSnapshots) {
+    assert.deepEqual(ownedCinderEffects(snapshot, ashId), authoritativeCinderEffects);
+  }
+
+  const visibleCinder = authoritativeCinderEffects.filter((effect) => effect.kind === "cinder_wall");
+  const cinderCompanions = authoritativeCinderEffects.filter(
+    (effect) => effect.kind === "cinder_wall_companion",
+  );
+  assert.equal(visibleCinder.length, 1);
+  assert.equal(cinderCompanions.length, 4);
+  assert.equal(new Set(authoritativeCinderEffects.map((effect) => effect.id)).size, 5);
+  assert.deepEqual(visibleCinder[0]!.position, {
+    x: ashOrigin.x,
+    z: ashOrigin.z - (CINDER_WALL_START_DISTANCE + CINDER_WALL_END_DISTANCE) * 0.5,
+  });
+  assert.equal(visibleCinder[0]!.radius, CINDER_WALL_BASE_HALF_WIDTH);
+  assert.ok(Math.abs(visibleCinder[0]!.rotation - Math.PI * 0.5) < 1e-9);
+  assert.deepEqual(cinderCompanions.map((effect) => effect.position),
+    [2, 3, 4, 5].map((step) => ({
+      x: ashOrigin.x,
+      z: ashOrigin.z - step * CINDER_WALL_START_DISTANCE,
+    })),
+  );
+  for (const effect of cinderCompanions) {
+    assert.equal(effect.radius, CINDER_WALL_BASE_HALF_WIDTH);
+  }
+
   const gravePeer = peers[3]!;
   const graveId = gravePeer.playerId;
   gravePeer.send({ type: "level_ability", slot: "ability3" });
@@ -152,10 +233,6 @@ try {
     const player = snapshot.players.find((candidate) => candidate.id === graveId);
     return player?.abilityRanks.ability3 === 1 && player.skillPoints === 0;
   });
-  const hostGame = instance.game as unknown as {
-    enemies: Map<string, unknown>;
-    spawnTimer: number;
-  };
   hostGame.enemies.clear();
   hostGame.spawnTimer = 9_999;
   gravePeer.send({ type: "cast", slot: "ability3" });
@@ -524,6 +601,12 @@ try {
       maxActive: boundedHostIds.length,
       reservedClients: reservedHostSnapshots.length,
       resumedClients: restoredHostSnapshots.length,
+    },
+    cinderWall: {
+      convergedClients: cinderSnapshots.length,
+      visibleEffects: visibleCinder.length,
+      companionEffects: cinderCompanions.length,
+      effectIds: authoritativeCinderEffects.map((effect) => effect.id),
     },
   }));
 } finally {

@@ -1,3 +1,4 @@
+import { CINDER_WALL_DURATION_SECONDS } from "./cinder-wall";
 import { HERO_DEFINITIONS } from "./game-data";
 import type { AbilitySlot, HeroId } from "./protocol";
 
@@ -26,6 +27,11 @@ export interface AbilityImpactReadout {
   learned: boolean;
   cooldown: number;
   metrics: AbilityImpactMetric[];
+  behavior?: {
+    id: "cinder_wall";
+    compactLabel: string;
+    accessibleDescription: string;
+  };
 }
 
 /**
@@ -50,7 +56,7 @@ export const ABILITY_IMPACT_DEFINITIONS: Record<HeroId, Record<AbilitySlot, Abil
   },
   ashcaller: {
     ability1: { primary: { base: 54, label: "DAMAGE" } },
-    ability2: { primary: { base: 42, label: "DAMAGE / HIT" } },
+    ability2: { primary: { base: 42, label: "DAMAGE / TARGET" } },
     ability3: { primary: { base: 105, label: "DAMAGE" } },
     ultimate: { primary: { base: 155, label: "DAMAGE" } },
   },
@@ -98,6 +104,13 @@ export function deriveAbilityImpactReadout(
             : [];
         })
     : [];
+  const behavior = learned && heroId === "ashcaller" && slot === "ability2"
+    ? {
+        id: "cinder_wall" as const,
+        compactLabel: `${CINDER_WALL_DURATION_SECONDS}S WALL · ONCE/TARGET`,
+        accessibleDescription: `Burns for ${CINDER_WALL_DURATION_SECONDS} seconds and damages each target at most once per cast`,
+      }
+    : undefined;
   return {
     slot,
     name: ability.name,
@@ -105,5 +118,6 @@ export function deriveAbilityImpactReadout(
     learned,
     cooldown: ability.cooldown / safeRecovery,
     metrics,
+    ...(behavior ? { behavior } : {}),
   };
 }

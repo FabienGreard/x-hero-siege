@@ -11,6 +11,10 @@ import type {
   Vec2,
 } from "../shared/protocol";
 import { VENDOR_DEFINITIONS } from "../shared/armory-data";
+import {
+  CINDER_WALL_DURATION_SECONDS,
+  CINDER_WALL_LENGTH,
+} from "../shared/cinder-wall";
 import { HERO_DEFINITIONS, WORLD_LAYOUT } from "../shared/game-data";
 import { deriveCombatStrideEcho } from "./combat-stride-visual";
 
@@ -1032,6 +1036,10 @@ interface EffectPiece {
   baseOpacity: number;
 }
 
+interface CinderEmberPiece extends EffectPiece {
+  phase: number;
+}
+
 function effectMaterial(
   color: number,
   opacity: number,
@@ -1097,6 +1105,8 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
     repeater_impact: 0xf3edff,
     ember_impact: 0xffd58a,
     wraith_impact: 0x8ff0c8,
+    cinder_wall: 0xff6a32,
+    cinder_wall_companion: 0xff6a32,
     shock: 0x62caff,
     fire: 0xff6638,
     meteor_warning: 0xf14d3f,
@@ -1114,7 +1124,65 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
   };
   const color = colorByKind[kind];
 
-  if (kind === "wraith_impact") {
+  if (kind === "cinder_wall_companion") {
+    group.visible = false;
+  } else if (kind === "cinder_wall") {
+    const halfWidth = Math.max(0.4, radius);
+    const bed = addEffectMesh(
+      group,
+      new THREE.BoxGeometry(CINDER_WALL_LENGTH, 0.035, halfWidth * 2),
+      0xa53624,
+      0.11,
+    );
+    bed.position.y = 0.065;
+    for (const side of [-1, 1]) {
+      const cap = addEffectMesh(
+        group,
+        new THREE.CircleGeometry(halfWidth, 24),
+        0xa53624,
+        0.09,
+      );
+      cap.rotation.x = -Math.PI * 0.5;
+      cap.position.set(side * CINDER_WALL_LENGTH * 0.5, 0.066, 0);
+    }
+    const hotSeam = addEffectMesh(
+      group,
+      new THREE.BoxGeometry(CINDER_WALL_LENGTH * 0.98, 0.045, Math.max(0.16, halfWidth * 0.14)),
+      0xff7b3d,
+      0.62,
+    );
+    hotSeam.position.y = 0.095;
+    for (const side of [-1, 1]) {
+      const edge = addEffectMesh(
+        group,
+        new THREE.BoxGeometry(CINDER_WALL_LENGTH * 0.96, 0.025, 0.12),
+        0xe55732,
+        0.24,
+        true,
+      );
+      edge.position.set(0, 0.08, side * halfWidth * 0.82);
+    }
+
+    const embers: CinderEmberPiece[] = [];
+    for (let index = 0; index < 6; index += 1) {
+      const baseOpacity = index % 2 === 0 ? 0.7 : 0.56;
+      const ember = addEffectMesh(
+        group,
+        new THREE.BoxGeometry(0.18 + (index % 3) * 0.05, 0.38, 0.16),
+        index % 2 === 0 ? 0xffb45a : 0xff7035,
+        baseOpacity,
+      );
+      ember.position.set(
+        -CINDER_WALL_LENGTH * 0.5 + ((index + 0.5) / 6) * CINDER_WALL_LENGTH,
+        0.16,
+        Math.sin(index * 2.17 + rotation) * halfWidth * 0.5,
+      );
+      ember.rotation.z = index % 2 === 0 ? -0.16 : 0.16;
+      ember.renderOrder = 9;
+      embers.push({ mesh: ember, baseOpacity, phase: (index * 0.173 + rotation * 0.07) % 1 });
+    }
+    group.userData.cinderEmbers = embers;
+  } else if (kind === "wraith_impact") {
     const slash = addEffectMesh(group, new THREE.BoxGeometry(0.72, 0.04, 0.1), color, 0.78);
     slash.rotation.y = 0.48;
     const answer = addEffectMesh(group, new THREE.BoxGeometry(0.5, 0.035, 0.08), 0xd8ffed, 0.62);
@@ -1197,6 +1265,31 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
 export function updateEffectVisual(group: THREE.Group, remaining: number, elapsed: number): void {
   const kind = group.userData.kind as EffectKind;
   const pieces = (group.userData.pieces as EffectPiece[] | undefined) ?? [];
+
+  if (kind === "cinder_wall_companion") {
+    group.visible = false;
+    return;
+  }
+  if (kind === "cinder_wall") {
+    const age = THREE.MathUtils.clamp(CINDER_WALL_DURATION_SECONDS - remaining, 0, CINDER_WALL_DURATION_SECONDS);
+    const appear = THREE.MathUtils.clamp(age / 0.16, 0, 1);
+    const release = THREE.MathUtils.clamp(remaining / 0.35, 0, 1);
+    const wallOpacity = Math.min(appear, release);
+    for (const piece of pieces) {
+      (piece.mesh.material as THREE.MeshBasicMaterial).opacity = piece.baseOpacity * wallOpacity;
+    }
+    const embers = (group.userData.cinderEmbers as CinderEmberPiece[] | undefined) ?? [];
+    for (const ember of embers) {
+      const rise = (elapsed * 0.72 + ember.phase) % 1;
+      ember.mesh.position.y = 0.18 + rise * 0.75;
+      ember.mesh.scale.y = 0.75 + (1 - rise) * 0.45;
+      (ember.mesh.material as THREE.MeshBasicMaterial).opacity =
+        ember.baseOpacity * wallOpacity * (1 - rise) * 0.85;
+    }
+    group.scale.setScalar(1);
+    return;
+  }
+
   const compactImpact = kind === "repeater_impact" || kind === "ember_impact" || kind === "wraith_impact";
   const fade = compactImpact
     ? THREE.MathUtils.clamp(remaining / 0.16, 0, 1)

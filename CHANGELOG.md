@@ -2,6 +2,30 @@
 
 All notable project changes are recorded here.
 
+## [0.1.33] - 2026-07-11
+
+### Added
+
+- Added one canonical server-owned Cinder Wall contract: the line begins `3.2` world units from the Ashcaller, ends at `16`, persists for `2s`, widens from a `3.2` half-width by rank, and applies the established `2s` slow.
+- Added authoritative once-per-enemy-per-cast contact memory, late-entry damage, exactly-once Rift Heart damage, cast-time Skill Power sampling, reconnect identity, and run-reset cleanup.
+- Added full-width Cinder Wall behavior truth to Hero Stats: current damage remains canonical while `2S WALL · ONCE/TARGET` names the persistent consequence without estimating pack totals.
+- Added native `1280×720` shipped-before, final-wall, and Hero Stats evidence, plus focused authority, created-effect, reconnect, and four-client convergence coverage.
+
+### Changed
+
+- Cinder Wall now leaves a real burning line instead of resolving as five simultaneous generic fire circles. Every enemy can take the current cast's damage and slow at most once, while an enemy entering later can still be caught before the two-second wall expires.
+- Present contacts resolve when the cast lands, before enemies act, while the sampled origin, direction, width, damage, and hit history remain fixed for the wall's lifetime.
+- The five-ring presentation becomes one low translucent rounded line with restrained ember motion and no ring or burst particles. Four invisible one-second companion records retain the previous five-effect presentation cadence without reaching the renderer.
+- The final normal Ashcaller controller reaches `29/30` clean runs, `29/30` intact gates, `243.63` mean gate health, `201.33` mean kills, and one down; the 100-run cohort reaches `96` clean runs, four downs, `97` intact gates, `240.07` mean gate health, and `200.89` mean kills. All runs survive.
+
+### Preserved
+
+- Cinder Wall retains `42` base damage per target, rank and Skill Power scaling, the `9s` base cooldown, committed aim, server authority, and creation-time power. Later Focus purchases, sales, or reforges never rewrite an existing wall.
+- Every other Ashcaller cast, the other three champions, shops, five wares, prices, rewards, six unrestricted run-only slots, routes, controls, art hierarchy, and procedural audio remain established.
+- Gravebinder's systemic sustain and Riftstalker's severe execution difficulty remain separate player-facing weaknesses. No parallel kit pass, sixth ware, persistence system, permanent power, new currency, or additional progression layer was added.
+- Balance comparisons remain broad cohort evidence rather than paired-seed causality because gameplay and presentation still share one RNG stream and one ID counter.
+- Typecheck, `208` tests with `13,014` assertions across `29` files, production bundle `main-593e248fbf41e291.js` at `639,756` bytes, fixed-asset `404` smoke, and real four-client convergence with `tickSpread: 0` pass.
+
 ## [0.1.32] - 2026-07-11
 
 ### Added

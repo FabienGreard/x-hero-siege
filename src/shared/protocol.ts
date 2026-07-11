@@ -231,6 +231,8 @@ export type EffectKind =
   | "repeater_impact"
   | "ember_impact"
   | "wraith_impact"
+  | "cinder_wall"
+  | "cinder_wall_companion"
   | "shock"
   | "fire"
   | "meteor_warning"

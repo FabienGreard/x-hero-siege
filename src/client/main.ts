@@ -355,6 +355,7 @@ const ABILITY_METRIC_SHORT_LABELS: Record<string, string> = {
   "ARROW DAMAGE": "ARROW",
   "BOLT DAMAGE": "BOLT",
   "DAMAGE / HIT": "DMG/HIT",
+  "DAMAGE / TARGET": "DMG/TGT",
   BARRIER: "BAR",
   "HEAL / HIT": "HEAL/HIT",
   "WRAITH DAMAGE": "WRAITH",
@@ -795,16 +796,18 @@ function updateHeroAbilityImpact(self: PlayerSnapshot): void {
     row.className = `ability-impact${impact.learned ? "" : " is-unlearned"}`;
     row.setAttribute("role", "listitem");
     const wraithHost = self.heroId === "gravebinder" && slot === "ability3" && impact.learned;
+    const cinderWall = impact.behavior?.id === "cinder_wall";
     const fullMetrics = impact.metrics
       .map((metric) => `${formatHeroStat(metric.value, 1)} ${metric.label}`)
       .concat(
+        impact.behavior ? [impact.behavior.accessibleDescription] : [],
         wraithHost
           ? [`${wraithHostSummonCount(impact.rank)} Wraiths with up to ${WRAITH_HOST_MAX_STRIKES_PER_SUMMON} strikes each; at most 5 Wraiths active`]
           : [],
       )
       .join(" and ");
     const compactMetrics = impact.metrics
-      .map((metric) => `${formatHeroStat(metric.value, 1)} ${wraithHost ? "DMG" : (ABILITY_METRIC_SHORT_LABELS[metric.label] ?? metric.label)}`)
+      .map((metric) => `${formatHeroStat(metric.value, 1)} ${wraithHost || cinderWall ? "DMG" : (ABILITY_METRIC_SHORT_LABELS[metric.label] ?? metric.label)}`)
       .concat(
         wraithHost
           ? [`${wraithHostSummonCount(impact.rank)}×${WRAITH_HOST_MAX_STRIKES_PER_SUMMON} HIT CAP`]
@@ -820,7 +823,8 @@ function updateHeroAbilityImpact(self: PlayerSnapshot): void {
     );
     row.innerHTML = `
       <div class="ability-impact-heading"><kbd>${keyLabel}</kbd><strong>${impact.name}</strong><small>${impact.learned ? `R${impact.rank}` : "R0"}</small></div>
-      <div class="ability-impact-result"><span>${impact.learned ? compactMetrics : "UNLEARNED"}</span><em>${impact.learned ? cooldown : "—"}</em></div>`;
+      <div class="ability-impact-result"><span>${impact.learned ? compactMetrics : "UNLEARNED"}</span><em>${impact.learned ? cooldown : "—"}</em></div>
+      ${impact.behavior ? `<div class="ability-impact-rule">${impact.behavior.compactLabel}</div>` : ""}`;
     heroAbilityImpact.append(row);
   }
 }
@@ -2449,10 +2453,11 @@ function syncEffects(effects: EffectSnapshot[]): void {
     let tracked = effectVisuals.get(effect.id);
     if (!tracked) {
       const presentation = deriveWraithImpactPresentation(effect);
-      const visual = presentation === "hidden-companion"
+      const hiddenCompanion = presentation === "hidden-companion" || effect.kind === "cinder_wall_companion";
+      const visual = hiddenCompanion
         ? new THREE.Group()
         : createEffectVisual(effect.kind, effect.radius, effect.rotation);
-      if (presentation === "hidden-companion") {
+      if (hiddenCompanion) {
         visual.userData.kind = effect.kind;
         visual.userData.pieces = [];
       }
@@ -2462,6 +2467,8 @@ function syncEffects(effects: EffectSnapshot[]): void {
       effectVisuals.set(effect.id, tracked);
       if (
         presentation === "default" &&
+        !hiddenCompanion &&
+        effect.kind !== "cinder_wall" &&
         effect.kind !== "meteor_warning" &&
         effect.kind !== "snare" &&
         effect.kind !== "repeater_impact" &&

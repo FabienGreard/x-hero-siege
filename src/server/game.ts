@@ -34,6 +34,14 @@ import {
   RIFTSTALKER_BASIC_RECOVERY_SECONDS,
   isRangedHero,
 } from "../shared/ranged-primary";
+import {
+  CINDER_WALL_DURATION_SECONDS,
+  CINDER_WALL_SLOW_SECONDS,
+  CINDER_WALL_START_DISTANCE,
+  cinderWallContainsPoint,
+  cinderWallEndpoints,
+  cinderWallHalfWidth,
+} from "../shared/cinder-wall";
 import { isEquipmentSlotIndex } from "../shared/protocol";
 import {
   DEBUG_TIMINGS,
@@ -164,6 +172,19 @@ interface DelayedStrike {
   kind: EffectKind;
 }
 
+interface CinderWallState {
+  id: string;
+  ownerId: string;
+  start: Vec2;
+  end: Vec2;
+  halfWidth: number;
+  remaining: number;
+  damage: number;
+  slowSeconds: number;
+  hitIds: Set<string>;
+  riftHeartHit: boolean;
+}
+
 const ZERO_COOLDOWNS = (): Record<ActionSlot, number> => ({
   basic: 0,
   ability1: 0,
@@ -254,6 +275,7 @@ export class GameWorld {
   private summons = new Map<string, SummonState>();
   private pickups = new Map<string, PickupState>();
   private effects = new Map<string, EffectState>();
+  private cinderWalls = new Map<string, CinderWallState>();
   private delayed: DelayedStrike[] = [];
   private pendingEvents: GameEvent[] = [];
   private recentEvents: GameEvent[] = [];
@@ -402,6 +424,7 @@ export class GameWorld {
     this.summons.clear();
     this.pickups.clear();
     this.effects.clear();
+    this.cinderWalls.clear();
     this.recentEvents = [];
     this.pendingEvents = [];
     this.resetStructures();
@@ -451,6 +474,7 @@ export class GameWorld {
     this.updateProjectiles(dt);
     this.updateSummons(dt);
     this.updateEnemies(dt);
+    this.updateCinderWalls();
     this.updatePickups(dt);
     this.updateDelayed();
     this.updateDirector(dt);
@@ -597,6 +621,7 @@ export class GameWorld {
     this.summons.clear();
     this.pickups.clear();
     this.effects.clear();
+    this.cinderWalls.clear();
     this.delayed = [];
     this.resetStructures();
     const starts: Vec2[] = [{ x: -4, z: 7 }, { x: 4, z: 7 }, { x: -4, z: -7 }, { x: 4, z: -7 }];
@@ -928,12 +953,7 @@ export class GameWorld {
       const radius = this.rankRadius(7, rank);
       this.damageCircle(player, player.position, radius, this.abilityMagnitude(player, slot, rank)); this.effect("fire", player.position, radius, player.id);
     } else if (slot === "ability2") {
-      const hit = new Set<string>();
-      for (let step = 1; step <= 5; step++) {
-        const point = { x: player.position.x + aim.x * step * 3.2, z: player.position.z + aim.z * step * 3.2 };
-        const radius = this.rankRadius(3.2, rank);
-        this.damageCircle(player, point, radius, this.abilityMagnitude(player, slot, rank), 2, hit); this.effect("fire", point, radius, player.id, 1);
-      }
+      this.createCinderWall(player, aim, rank);
     } else if (slot === "ability3") {
       const radius = this.rankRadius(8, rank);
       this.effect("meteor_warning", target, radius, player.id, 0.9);
@@ -1452,9 +1472,13 @@ export class GameWorld {
     if (phase === "victory") {
       this.riftHeart.active = false;
       this.enemies.clear();
+      this.clearCinderWalls();
       this.emit("victory", "RIFT HEART DESTROYED — humanity survives the night.", { position: WORLD_LAYOUT.riftHeart });
     }
-    if (phase === "defeat") this.emit("defeat", this.nexus.hp <= 0 ? "The Heartfire Nexus has fallen." : "The Nexus barrier collapsed before the Rift Heart fell.", {});
+    if (phase === "defeat") {
+      this.clearCinderWalls();
+      this.emit("defeat", this.nexus.hp <= 0 ? "The Heartfire Nexus has fallen." : "The Nexus barrier collapsed before the Rift Heart fell.", {});
+    }
   }
 
   private spawnEnemy(lane: LaneId, kind: EnemyKind, forcedPosition?: Vec2): string | null {
@@ -1680,6 +1704,112 @@ export class GameWorld {
     }
   }
 
+  private createCinderWall(player: PlayerState, direction: Vec2, rank: number): void {
+    const facing = normalize(direction);
+    const { start, end } = cinderWallEndpoints(player.position, facing);
+    const halfWidth = cinderWallHalfWidth(rank);
+    const midpoint = {
+      x: (start.x + end.x) * 0.5,
+      z: (start.z + end.z) * 0.5,
+    };
+
+    // The old five-ring cast consumed five presentation RNG draws and five
+    // effect IDs. Retain that presentation cadence to minimize unrelated seed
+    // drift even though persistent contacts can still change later gameplay.
+    this.random();
+    const visible = this.effect(
+      "cinder_wall",
+      midpoint,
+      halfWidth,
+      player.id,
+      CINDER_WALL_DURATION_SECONDS,
+      null,
+      this.directionYaw(facing),
+    );
+    for (let step = 2; step <= 5; step += 1) {
+      const point = {
+        x: player.position.x + facing.x * step * CINDER_WALL_START_DISTANCE,
+        z: player.position.z + facing.z * step * CINDER_WALL_START_DISTANCE,
+      };
+      this.effect("cinder_wall_companion", point, halfWidth, player.id, 1);
+    }
+
+    const wall: CinderWallState = {
+      id: visible.id,
+      ownerId: player.id,
+      start,
+      end,
+      halfWidth,
+      remaining: visible.remaining,
+      damage: this.abilityMagnitude(player, "ability2", rank),
+      slowSeconds: CINDER_WALL_SLOW_SECONDS,
+      hitIds: new Set<string>(),
+      riftHeartHit: false,
+    };
+    this.cinderWalls.set(visible.id, wall);
+    this.applyCinderWallContacts(wall, player);
+  }
+
+  private updateCinderWalls(): void {
+    for (const wall of [...this.cinderWalls.values()]) {
+      const visual = this.effects.get(wall.id);
+      if (!visual) {
+        this.cinderWalls.delete(wall.id);
+        continue;
+      }
+      wall.remaining = visual.remaining;
+      const owner = this.players.get(wall.ownerId);
+      if (!owner) {
+        this.effects.delete(wall.id);
+        this.cinderWalls.delete(wall.id);
+        continue;
+      }
+
+      this.applyCinderWallContacts(wall, owner);
+    }
+  }
+
+  private clearCinderWalls(): void {
+    for (const [id, effect] of this.effects) {
+      if (effect.kind === "cinder_wall" || effect.kind === "cinder_wall_companion") {
+        this.effects.delete(id);
+      }
+    }
+    this.cinderWalls.clear();
+  }
+
+  private applyCinderWallContacts(wall: CinderWallState, owner: PlayerState): void {
+    for (const enemy of [...this.enemies.values()]) {
+      if (
+        wall.hitIds.has(enemy.id) ||
+        !cinderWallContainsPoint(
+          wall.start,
+          wall.end,
+          enemy.position,
+          wall.halfWidth + enemy.radius,
+        )
+      ) continue;
+      wall.hitIds.add(enemy.id);
+      enemy.slowFor = Math.max(enemy.slowFor, wall.slowSeconds);
+      this.damageEnemy(enemy, wall.damage, owner);
+    }
+
+    if (
+      !wall.riftHeartHit &&
+      this.phase === "push" &&
+      this.riftHeart.active &&
+      cinderWallContainsPoint(
+        wall.start,
+        wall.end,
+        WORLD_LAYOUT.riftHeart,
+        wall.halfWidth + 6,
+      )
+    ) {
+      wall.riftHeartHit = true;
+      this.damageRiftHeart(wall.damage);
+    }
+  }
+
   private updateTransient(dt: number): void {
     for (const effect of [...this.effects.values()]) { effect.remaining -= dt; if (effect.remaining <= 0) this.effects.delete(effect.id); }
     this.recentEvents = this.recentEvents.filter((event) => this.totalTime - event.at <= 10);
@@ -1871,7 +2001,7 @@ export class GameWorld {
     lane: LaneId | null = null,
     rotation = this.random() * Math.PI * 2,
     sourceSummonId: string | null = null,
-  ): void {
+  ): EffectState {
     const effect: EffectState = {
       id: this.id("effect"),
       kind,
@@ -1884,6 +2014,7 @@ export class GameWorld {
       ...(sourceSummonId ? { sourceSummonId } : {}),
     };
     this.effects.set(effect.id, effect);
+    return effect;
   }
 
   private emit(kind: GameEvent["kind"], text: string, extra: Partial<GameEvent>): void {

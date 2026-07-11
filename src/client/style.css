@@ -456,6 +456,20 @@ button {
   white-space: nowrap;
 }
 
+.ability-impact-rule {
+  overflow: hidden;
+  margin-top: 4px;
+  padding-top: 4px;
+  color: #ffb77a;
+  border-top: 1px solid rgba(255, 145, 74, 0.18);
+  font-size: 6px;
+  font-weight: 950;
+  letter-spacing: 0.025em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ability-impact-readout.is-purchased,
 .primary-impact.is-purchased {
   border-color: rgba(233, 186, 99, 0.62);
@@ -2918,6 +2932,7 @@ kbd {
 .ability-impact-heading small,
 .ability-impact-result,
 .ability-impact-result em,
+.ability-impact-rule,
 .equipment-heading > span:last-child,
 .shop-loadout-meta b,
 .equipment-stack-copy strong,

@@ -5,6 +5,7 @@ import {
   scaleAbilityMagnitude,
   type AbilityImpactMetricId,
 } from "../src/shared/ability-impact";
+import { CINDER_WALL_DURATION_SECONDS } from "../src/shared/cinder-wall";
 import { HERO_DEFINITIONS, HERO_IDS } from "../src/shared/game-data";
 import type { AbilitySlot, EquipmentSlots } from "../src/shared/protocol";
 import { GameWorld } from "../src/server/game";
@@ -37,6 +38,28 @@ describe("canonical champion ability impact", () => {
       cooldown: 12 / 1.15,
       metrics: [{ id: "primary", label: "DAMAGE", value: 105 * 1.5 * 1.15 }],
     });
+  });
+
+  test("Cinder Wall names its persistent once-per-target contract canonically", () => {
+    expect(deriveAbilityImpactReadout("ashcaller", "ability2", 2, 1.15, 1.15)).toMatchObject({
+      name: "Cinder Wall",
+      rank: 2,
+      learned: true,
+      cooldown: 9 / 1.15,
+      metrics: [{
+        id: "primary",
+        label: "DAMAGE / TARGET",
+        value: 42 * 1.25 * 1.15,
+      }],
+      behavior: {
+        id: "cinder_wall",
+        compactLabel: `${CINDER_WALL_DURATION_SECONDS}S WALL · ONCE/TARGET`,
+        accessibleDescription: `Burns for ${CINDER_WALL_DURATION_SECONDS} seconds and damages each target at most once per cast`,
+      },
+    });
+    expect(
+      deriveAbilityImpactReadout("ashcaller", "ability2", 0, 1, 1),
+    ).not.toHaveProperty("behavior");
   });
 
   test("unlearned casts remain truthful instead of presenting rank-one power as current", () => {

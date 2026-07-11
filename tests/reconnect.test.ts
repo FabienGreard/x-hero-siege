@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { goldToUnits } from "../src/server/economy";
 import { createGameServer } from "../src/server/index";
 import type {
+  EffectSnapshot,
   EquipmentSlots,
   GameSnapshot,
   HeroId,
@@ -141,6 +142,24 @@ function findPlayer(snapshot: GameSnapshot, playerId: string): PlayerSnapshot {
   const player = snapshot.players.find((candidate) => candidate.id === playerId);
   if (!player) throw new Error(`Player ${playerId} is missing from the snapshot`);
   return player;
+}
+
+function visibleCinderWalls(snapshot: GameSnapshot, ownerId: string): EffectSnapshot[] {
+  return snapshot.effects.filter((effect) =>
+    effect.ownerId === ownerId && effect.kind === "cinder_wall"
+  );
+}
+
+function cinderWallIdentity(effect: EffectSnapshot) {
+  return {
+    id: effect.id,
+    kind: effect.kind,
+    ownerId: effect.ownerId,
+    position: { ...effect.position },
+    radius: effect.radius,
+    rotation: effect.rotation,
+    lane: effect.lane,
+  };
 }
 
 function resumableState(player: PlayerSnapshot) {
@@ -328,6 +347,92 @@ describe("authoritative reconnect lifecycle", () => {
         },
         "newest duplicate-token socket authority",
       );
+    } finally {
+      await harness.stop();
+    }
+  });
+
+  test("keeps one server-owned Cinder Wall through Ashcaller disconnect and resume", async () => {
+    const harness = createHarness();
+    try {
+      const original = await harness.open();
+      const firstWelcome = await original.welcome("Ash Wall Owner");
+      const playerId = firstWelcome.playerId;
+
+      await claimAndReady(harness, original, playerId, "ashcaller");
+      original.send({ type: "start" });
+      await waitUntil(() => harness.instance.game.phase === "defense", "active Ashcaller defense");
+
+      const internals = harness.instance.game as unknown as {
+        enemies: Map<string, unknown>;
+        spawnTimer: number;
+        cinderWalls: Map<string, unknown>;
+      };
+      internals.enemies.clear();
+      internals.spawnTimer = 9_999;
+      const player = harness.instance.game.players.get(playerId)!;
+      player.position = { x: 5, z: -8 };
+
+      original.send({ type: "level_ability", slot: "ability2" });
+      await waitUntil(
+        () => harness.instance.game.players.get(playerId)?.abilityRanks.ability2 === 1,
+        "learned Cinder Wall",
+      );
+      original.send({
+        type: "input",
+        seq: 1,
+        move: { x: 0, z: 0 },
+        aim: { x: 0, z: -1 },
+        attacking: false,
+      });
+      await waitUntil(
+        () => harness.instance.game.players.get(playerId)?.lastInputSeq === 1,
+        "authoritative Cinder Wall aim",
+      );
+      original.send({ type: "cast", slot: "ability2" });
+      await waitUntil(
+        () => visibleCinderWalls(harness.instance.game.getSnapshot(), playerId).length === 1,
+        "active Cinder Wall",
+      );
+
+      const activeSnapshot = harness.instance.game.getSnapshot();
+      const activeWalls = visibleCinderWalls(activeSnapshot, playerId);
+      expect(activeWalls).toHaveLength(1);
+      const activeWall = activeWalls[0]!;
+      const wallId = activeWall.id;
+      const activeRemaining = activeWall.remaining;
+      const activeIdentity = cinderWallIdentity(activeWall);
+      expect([...internals.cinderWalls.keys()]).toEqual([wallId]);
+
+      original.close();
+      await original.waitForClose();
+      await waitUntil(
+        () => !findPlayer(harness.instance.game.getSnapshot(), playerId).connected,
+        "detached Ashcaller with active wall",
+      );
+
+      const detachedWalls = visibleCinderWalls(harness.instance.game.getSnapshot(), playerId);
+      expect(detachedWalls).toHaveLength(1);
+      expect(cinderWallIdentity(detachedWalls[0]!)).toEqual(activeIdentity);
+      const detachedRemaining = detachedWalls[0]!.remaining;
+      expect(detachedRemaining).toBeLessThanOrEqual(activeRemaining);
+      expect(detachedWalls[0]!.remaining).toBeGreaterThan(0);
+      expect([...internals.cinderWalls.keys()]).toEqual([wallId]);
+
+      const resumed = await harness.open();
+      const resumedWelcome = await resumed.welcome(
+        "Ash Wall Owner Returning",
+        firstWelcome.resumeToken,
+      );
+      expect(resumedWelcome.resumed).toBe(true);
+      expect(resumedWelcome.playerId).toBe(playerId);
+      const resumedWalls = visibleCinderWalls(resumedWelcome.snapshot, playerId);
+      expect(resumedWalls).toHaveLength(1);
+      expect(cinderWallIdentity(resumedWalls[0]!)).toEqual(activeIdentity);
+      expect(resumedWalls[0]!.remaining).toBeLessThanOrEqual(detachedRemaining);
+      expect(resumedWalls[0]!.remaining).toBeGreaterThan(0);
+      expect([...internals.cinderWalls.keys()]).toEqual([wallId]);
+      expect(findPlayer(resumedWelcome.snapshot, playerId).connected).toBe(true);
     } finally {
       await harness.stop();
     }

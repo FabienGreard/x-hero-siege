@@ -61,7 +61,7 @@ Run at least the opening combat with each hero:
 
 - **Warden:** melee control and frontline durability read clearly.
 - **Riftstalker:** ranged precision and mobility read clearly.
-- **Ashcaller:** placed fire and explosive area damage read clearly.
+- **Ashcaller:** placed fire and explosive area damage read clearly. Cinder Wall must remain for `2s`, catch present and late targets once each, and stay visually below enemies, objective state, and major casts.
 - **Gravebinder:** horde-derived sustain and spirits read clearly.
 
 Each hero must be capable of solo wave clear and boss damage. Complementary co-op effects are welcome; dependency on a healer, tank, or specific composition is a failure.
@@ -98,6 +98,23 @@ Each hero must be capable of solo wave clear and boss damage. Complementary co-o
 - One change that would most improve the next playtest.
 
 After verifying the slice, record the result and begin the next cycle from the newly verified build. Do not use playtest observations as permission to add deferred systems or change the approved game promise.
+
+## Recorded verification — `0.1.33`, 2026-07-11
+
+**Status:** implemented and locally verified; push and companion Pages deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Began from locally verified `0.1.32` and played all four champions through their real opening combat before selecting another checkpoint. The earlier gate, ranged-primary, screen, Wraith, shop, selling, price, and fifth-ware fixes held. Ashcaller remained the clearest approved-promise gap: `Cinder Wall` was described as living placed fire but resolved as five simultaneous generic rings and could not catch anything entering after the cast.
+- The final server owns one wall from cast to expiry. Its committed center segment begins `3.2` world units from the Ashcaller and ends at `16`; rank one uses a `3.2` half-width and later ranks add eight percent of that base each. It burns for `2s`, applies the established `2s` slow, and stores origin, direction, geometry, damage, owner, remaining time, hit IDs, and Rift contact authoritatively.
+- Present enemies are evaluated when the cast resolves, before their next action. Each enemy can take damage and slow at most once from that cast; leaving and re-entering cannot repeat either, while a previously untouched late entrant can be caught once. The Rift Heart takes the wall's damage at most once. Expiry, defeat/reset cleanup, and missing-owner cleanup remove both gameplay and presentation state.
+- Cinder Wall samples Skill Power and rank geometry at creation. Focus bought or sold after casting, a later rank-up, movement, or aim change cannot alter its damage or footprint. An active wall continues through the owner's short disconnected reservation, selling Focus does not rewrite it, and reconnect returns the same visible effect ID rather than duplicating the wall or its contacts.
+- One visible two-second `cinder_wall` snapshot carries midpoint, rank half-width, committed yaw, and remaining time. Four invisible one-second companion records retain the old five-effect presentation cadence; they create no geometry, ring, burst, shake, or removal feedback. In the real four-client run, all peers agreed on one visible ID and four companion IDs with `tickSpread: 0`.
+- The final renderer uses one low translucent rounded line with restrained embedded seams and embers. It preserves the server footprint without becoming a solid carpet, keeps the underlying stone visible, and stays subordinate to the Ashcaller, enemies, Nexus, gate state, ranged shots, and major casts. No new audio or global particle system was added.
+- Hero Stats keeps Cinder Wall's current per-target magnitude and gives its behavior a full-width line: `2S WALL · ONCE/TARGET`. The accessible label says the wall burns for two seconds and damages each target at most once per cast. Base and legal mixed Focus/Quickening builds fit at the native `8px` decision floor without truncation.
+- Compared the shipped [five-ring baseline](playtest/cinder-wall-before.jpg), final [persistent wall](playtest/cinder-wall-after.jpg), and [Hero Stats contract](playtest/cinder-wall-stats.jpg). All three are real native `1280×720` JPEG renders. The final fresh client reports exact viewport fit, readable floor and silhouettes, one visible wall, no companion geometry, and empty warning/error diagnostics.
+- Thirty final normal Ashcaller openings produce `29/30` clean runs, one down, `29/30` intact gates, `243.63` mean North-gate health, `201.33` mean kills, and `30/30` surviving Nexuses. The 100-run final cohort produces `96` clean runs, four downs, `97` intact gates, `240.07` mean gate health, and `200.89` mean kills, with every Nexus surviving.
+- The comparable prior `0.1.32` 100-run Ashcaller cohort recorded `70` clean runs, `31` downs, `78` intact gates, and `165.67` mean gate health. Treat that as broad build-level evidence only: presentation and gameplay still share RNG and IDs, so the result supports the persistent-wall direction but cannot prove paired-seed causality.
+- The final 100-run roster comparison keeps Warden and Gravebinder at `100` clean runs with `260` mean gate health. Riftstalker remains deliberately fragile but is now the leading difficulty at `23` clean runs, `102` downs, and `75.65` mean gate health. Gravebinder's systemic sustain remains unresolved; neither class was changed here.
+- Typecheck, `208` tests with `13,014` assertions across `29` files, production asset `main-593e248fbf41e291.js` at `639,756` bytes, fixed-asset `404` smoke, focused wall authority/created-effect/reconnect gates, and real four-client WebSocket convergence pass. Push, companion-site deployment, and live verification remain pending and must be recorded only after the feature commit reaches `origin/master` and Pages succeeds.
 
 ## Recorded verification — `0.1.32`, 2026-07-11
 

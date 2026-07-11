@@ -267,6 +267,80 @@ describe("authoritative exact-slot item selling", () => {
     expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [27.6, 27.6, 27.6]);
   });
 
+  test("selling Focus preserves a living Cinder Wall while the next wall uses current power", () => {
+    const game = new GameWorld({ timings: { defenseDuration: 200 }, enemyCap: 12, random: () => 0.5 });
+    readyHero(game, "ashcaller");
+    equip(game, ["runebound_focus", null, null, null, null, null]);
+    const player = game.players.get("p1")!;
+    player.position = { x: 0, z: 0 };
+    const internal = game as unknown as {
+      cinderWalls: Map<string, { damage: number }>;
+      enemies: Map<string, { position: { x: number; z: number }; hp: number; radius: number; speed: number }>;
+      spawnTimer: number;
+      spawnEnemy(lane: "north", kind: "imp", position: { x: number; z: number }): string | null;
+    };
+    internal.spawnTimer = 1_000;
+    internal.enemies.clear();
+
+    expect(game.levelAbility("p1", "ability2").ok).toBe(true);
+    expect(game.handleMessage("p1", {
+      type: "input",
+      seq: 1,
+      move: { x: 0, z: 0 },
+      aim: { x: 0, z: -1 },
+      attacking: false,
+    }).ok).toBe(true);
+    expect(game.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
+    advance(game, 0.4);
+    expect([...internal.cinderWalls.values()]).toHaveLength(1);
+    expect([...internal.cinderWalls.values()][0]!.damage).toBeCloseTo(48.3);
+
+    placeAt(game, "ironbound_forge");
+    expect(sell(game, "ironbound_forge", 0, "runebound_focus").ok).toBe(true);
+    expect(game.getSnapshot().players[0]!.stats.abilityPower).toBe(1);
+
+    const firstLateId = internal.spawnEnemy("north", "imp", { x: 0, z: -8 });
+    expect(firstLateId).not.toBeNull();
+    const firstLate = internal.enemies.get(firstLateId!)!;
+    firstLate.position = { x: 0, z: -8 };
+    firstLate.hp = 1_000;
+    firstLate.radius = 0;
+    firstLate.speed = 0;
+    advance(game, 0.05);
+    expect(firstLate.hp).toBeCloseTo(1_000 - 48.3);
+
+    for (
+      let step = 0;
+      step < 220 && (player.cooldowns.ability2 > 0 || internal.cinderWalls.size > 0);
+      step += 1
+    ) game.update(0.05);
+    expect(player.cooldowns.ability2).toBe(0);
+    expect(internal.cinderWalls.size).toBe(0);
+
+    player.position = { x: 0, z: 0 };
+    expect(game.handleMessage("p1", {
+      type: "input",
+      seq: 2,
+      move: { x: 0, z: 0 },
+      aim: { x: 0, z: -1 },
+      attacking: false,
+    }).ok).toBe(true);
+    expect(game.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
+    advance(game, 0.4);
+    expect([...internal.cinderWalls.values()]).toHaveLength(1);
+    expect([...internal.cinderWalls.values()][0]!.damage).toBe(42);
+
+    const secondLateId = internal.spawnEnemy("north", "imp", { x: 0, z: -12 });
+    expect(secondLateId).not.toBeNull();
+    const secondLate = internal.enemies.get(secondLateId!)!;
+    secondLate.position = { x: 0, z: -12 };
+    secondLate.hp = 1_000;
+    secondLate.radius = 0;
+    secondLate.speed = 0;
+    advance(game, 0.05);
+    expect(secondLate.hp).toBe(1_000 - 42);
+  });
+
   test("two heroes sell independently at opposite shops", () => {
     const game = new GameWorld();
     readyParty(game, [HERO_IDS[0]!, HERO_IDS[1]!]);
