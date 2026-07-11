@@ -55,7 +55,9 @@ import {
   EQUIPMENT_STAT_FIELDS,
   formatEquipmentStat,
   projectAcceptedPurchaseImpact,
+  projectLearnedAbilityCooldowns,
   projectOrdinaryPurchasePreview,
+  type LearnedAbilityCooldownProjection,
 } from "./shop-preview";
 import {
   deriveLocalShopReadiness,
@@ -324,6 +326,10 @@ const ABILITY_READOUT_SLOTS = [
   ["ability3", "R"],
   ["ultimate", "F"],
 ] as const satisfies ReadonlyArray<readonly [AbilitySlot, string]>;
+
+function abilityKeyLabel(slot: AbilitySlot): string {
+  return ABILITY_READOUT_SLOTS.find(([candidate]) => candidate === slot)?.[1] ?? slot;
+}
 const ABILITY_METRIC_SHORT_LABELS: Record<string, string> = {
   DAMAGE: "DMG",
   "ARROW DAMAGE": "ARROW",
@@ -793,7 +799,12 @@ function replacementStackPreview(
     .join(" · ");
 }
 
-function replacementStatsPreview(current: HeroStatsSnapshot, projected: HeroStatsSnapshot): string {
+function replacementStatsPreview(
+  current: HeroStatsSnapshot,
+  projected: HeroStatsSnapshot,
+  heroId: HeroId,
+  abilityRanks: PlayerSnapshot["abilityRanks"],
+): string {
   const changes = EQUIPMENT_STAT_FIELDS
     .filter(({ key }) => key !== "basicMoveRetention" && Math.abs(current[key] - projected[key]) > 1e-9)
     .map(({ key, label }) => `${label} ${formatEquipmentStat(key, current[key])} → ${formatEquipmentStat(key, projected[key])}`);
@@ -802,6 +813,19 @@ function replacementStatsPreview(current: HeroStatsSnapshot, projected: HeroStat
   if (Math.abs(currentStride - projectedStride) > 1e-9) {
     const strideValue = (speed: number) => speed > 0 ? `${formatHeroStat(speed, 1)} WORLD/S` : "LOCKED";
     changes.push(`Combat Stride ${strideValue(currentStride)} → ${strideValue(projectedStride)}`);
+  }
+  if (Math.abs(current.cooldownRecovery - projected.cooldownRecovery) > 1e-9) {
+    const learnedCooldowns = projectLearnedAbilityCooldowns(
+      heroId,
+      abilityRanks,
+      current,
+      projected,
+    );
+    if (learnedCooldowns.length > 0) {
+      changes.push(`Fresh Cast Cooldowns ${learnedCooldowns
+        .map((cooldown) => `${abilityKeyLabel(cooldown.slot)} ${cooldown.name} ${cooldown.currentValue} → ${cooldown.projectedValue}`)
+        .join(" / ")}`);
+    }
   }
   return changes.join(" · ");
 }
@@ -965,6 +989,28 @@ function updateEquipmentReadouts(self: PlayerSnapshot): void {
   renderEquipmentSlots(shopEquipmentSlots, self.equipment, replacementItemId, replacementSlotIndex);
 }
 
+function renderLearnedCooldownProjection(
+  grid: HTMLElement,
+  cooldowns: readonly LearnedAbilityCooldownProjection[],
+): void {
+  const projectionKey = cooldowns
+    .map(({ slot, rank, currentValue, projectedValue }) => `${slot}:${rank}:${currentValue}:${projectedValue}`)
+    .join("|");
+  if (grid.dataset.projection === projectionKey) return;
+  grid.dataset.projection = projectionKey;
+  grid.replaceChildren(...cooldowns.map((cooldown) => {
+    const row = document.createElement("span");
+    row.className = "shop-item-cast-return";
+    row.title = `${cooldown.name} rank ${cooldown.rank} fresh-cast cooldown: ${cooldown.currentValue} to ${cooldown.projectedValue}`;
+    const key = document.createElement("b");
+    key.textContent = abilityKeyLabel(cooldown.slot);
+    const value = document.createElement("span");
+    value.textContent = `${cooldown.currentValue} → ${cooldown.projectedValue}`;
+    row.append(key, value);
+    return row;
+  }));
+}
+
 function renderShopCatalog(vendorId: VendorId): void {
   shopItems.replaceChildren();
   shopItemButtons.clear();
@@ -981,7 +1027,7 @@ function renderShopCatalog(vendorId: VendorId): void {
       <strong class="shop-item-name">${item.name}</strong>
       <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">0 OWNED</small></span>
       <small class="shop-item-description">${item.description}</small>
-      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em><span class="shop-item-evolution" data-shop-evolution hidden><small>COMBAT STRIDE</small><strong data-shop-evolution-value>—</strong></span></span>
+      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em><span class="shop-item-evolution" data-shop-evolution hidden><small>COMBAT STRIDE</small><strong data-shop-evolution-value>—</strong></span><span class="shop-item-cast-preview" data-shop-cast-preview hidden><small>CAST RETURNS</small><span class="shop-item-cast-grid" data-shop-cast-grid></span></span></span>
       <span class="shop-item-price"><span>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
     button.addEventListener("click", () => buyShopItem(itemId));
     shopItems.append(button);
@@ -1036,7 +1082,12 @@ function refreshReplacementState(self: PlayerSnapshot | undefined = currentPlaye
         selectedOutgoing.id,
         selectedItem.id,
       );
-      shopReplaceStats.textContent = replacementStatsPreview(self.stats, projectedStats) || "No Hero Stat change";
+      shopReplaceStats.textContent = replacementStatsPreview(
+        self.stats,
+        projectedStats,
+        self.heroId,
+        self.abilityRanks,
+      ) || "No Hero Stat change";
       shopReplaceSignature.textContent = replacementSignaturePreview(self.equipment, projection.equipment);
       shopReplaceConfirm.setAttribute(
         "aria-label",
@@ -1223,6 +1274,7 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
             level: self.level,
             equipment: self.equipment,
             stats: self.stats,
+            abilityRanks: self.abilityRanks,
           },
           itemId,
         );
@@ -1231,8 +1283,12 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const previewAttunement = button.querySelector<HTMLElement>("[data-shop-projection-attunement]");
     const previewEvolution = button.querySelector<HTMLElement>("[data-shop-evolution]");
     const previewEvolutionValue = button.querySelector<HTMLElement>("[data-shop-evolution-value]");
+    const previewCast = button.querySelector<HTMLElement>("[data-shop-cast-preview]");
+    const previewCastGrid = button.querySelector<HTMLElement>("[data-shop-cast-grid]");
+    const learnedCooldowns = purchasePreview?.learnedCooldowns ?? [];
     button.classList.toggle("has-purchase-preview", purchasePreview !== null);
     button.classList.toggle("has-evolution-preview", purchasePreview?.combatStride !== null && purchasePreview?.combatStride !== undefined);
+    button.classList.toggle("has-cast-preview", learnedCooldowns.length > 0);
     if (preview) preview.hidden = purchasePreview === null;
     if (previewValue) previewValue.textContent = purchasePreview?.resultText ?? "—";
     if (previewAttunement) previewAttunement.hidden = !purchasePreview?.attunes;
@@ -1245,6 +1301,8 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
           : `${stride.currentValue} → ${stride.projectedValue} WORLD/S`
         : "—";
     }
+    if (previewCast) previewCast.hidden = learnedCooldowns.length === 0;
+    if (previewCastGrid) renderLearnedCooldownProjection(previewCastGrid, learnedCooldowns);
     if (ownedLabel) {
       const ownedProgressLabel = evolutionProgress?.visualLabel ?? attunementProgress.visualLabel;
       ownedLabel.textContent = ownedProgressLabel
@@ -1452,6 +1510,7 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
   }
   const activeVendor = vendorSnapshot(activeVendorId, state);
   if (shopOpen && activeVendor) {
+    if (replacementItemId) refreshReplacementState(self);
     updateShopCards(self, distanceBetween(self.position, activeVendor.position) <= activeVendor.interactionRadius);
   }
 }

@@ -4,8 +4,10 @@ import {
   isStackAttuned,
   projectEquipmentChange,
 } from "../shared/armory-data";
+import { deriveAbilityImpactReadout } from "../shared/ability-impact";
 import { deriveHeroStats } from "../shared/hero-stats";
 import type {
+  AbilitySlot,
   EquipmentSlotIndex,
   EquipmentSlots,
   HeroId,
@@ -48,6 +50,71 @@ export function formatEquipmentStat(key: EquipmentStatKey, value: number): strin
     return `${formatNumber(value * 100)}%`;
   }
   return formatNumber(value, 1);
+}
+
+const ABILITY_SLOTS = [
+  "ability1",
+  "ability2",
+  "ability3",
+  "ultimate",
+] as const satisfies readonly AbilitySlot[];
+
+export interface LearnedAbilityCooldownProjection {
+  slot: AbilitySlot;
+  name: string;
+  rank: number;
+  currentSeconds: number;
+  projectedSeconds: number;
+  currentValue: string;
+  projectedValue: string;
+}
+
+/** Exact fresh-cast returns for currently learned abilities whose cooldown changes. */
+export function projectLearnedAbilityCooldowns(
+  heroId: HeroId,
+  abilityRanks: Record<AbilitySlot, number>,
+  currentStats: HeroStatsSnapshot,
+  projectedStats: HeroStatsSnapshot,
+): LearnedAbilityCooldownProjection[] {
+  return ABILITY_SLOTS.flatMap((slot) => {
+    const rank = abilityRanks[slot] ?? 0;
+    const current = deriveAbilityImpactReadout(
+      heroId,
+      slot,
+      rank,
+      currentStats.abilityPower,
+      currentStats.cooldownRecovery,
+    );
+    if (!current.learned) return [];
+    const projected = deriveAbilityImpactReadout(
+      heroId,
+      slot,
+      rank,
+      projectedStats.abilityPower,
+      projectedStats.cooldownRecovery,
+    );
+    if (Math.abs(current.cooldown - projected.cooldown) <= 1e-9) return [];
+    return [{
+      slot,
+      name: current.name,
+      rank: current.rank,
+      currentSeconds: current.cooldown,
+      projectedSeconds: projected.cooldown,
+      currentValue: `${formatNumber(current.cooldown, 1)}S`,
+      projectedValue: `${formatNumber(projected.cooldown, 1)}S`,
+    }];
+  });
+}
+
+function accessibleLearnedCooldownResult(
+  projections: readonly LearnedAbilityCooldownProjection[],
+): string {
+  if (projections.length === 0) return "";
+  const consequences = projections
+    .map(({ name, rank, currentSeconds, projectedSeconds }) =>
+      `${name} rank ${rank} fresh-cast cooldown ${formatNumber(currentSeconds, 1)} seconds to ${formatNumber(projectedSeconds, 1)} seconds`)
+    .join("; ");
+  return ` Learned cast returns: ${consequences}.`;
 }
 
 export interface CombatStridePreview {
@@ -96,6 +163,7 @@ export interface OrdinaryPurchasePreviewSource {
   level: number;
   equipment: EquipmentSlots;
   stats: HeroStatsSnapshot;
+  abilityRanks: Record<AbilitySlot, number>;
 }
 
 export interface OrdinaryPurchasePreview {
@@ -113,6 +181,7 @@ export interface OrdinaryPurchasePreview {
   effectiveProjectedCount: number;
   attunes: boolean;
   combatStride: CombatStridePreview | null;
+  learnedCooldowns: LearnedAbilityCooldownProjection[];
 }
 
 export interface AcceptedPurchaseImpact {
@@ -164,6 +233,14 @@ export function projectOrdinaryPurchasePreview(
   const projectedCount = equipmentCopyCount(projection.equipment, itemId);
   const attunes = !isStackAttuned(currentCount) && isStackAttuned(projectedCount);
   const combatStride = projectCombatStride(source.stats, projectedStats);
+  const learnedCooldowns = itemId === "quickening_sigil"
+    ? projectLearnedAbilityCooldowns(
+        source.heroId,
+        source.abilityRanks,
+        source.stats,
+        projectedStats,
+      )
+    : [];
   const formatted = formatOrdinaryPurchaseResult(
     field.key,
     field.label,
@@ -183,9 +260,10 @@ export function projectOrdinaryPurchasePreview(
     effectiveProjectedCount: effectiveStackCopies(projectedCount),
     attunes,
     combatStride,
-    accessibleResult: combatStride
-      ? `${formatted.accessibleResult} ${combatStride.accessibleResult}`
-      : formatted.accessibleResult,
+    learnedCooldowns,
+    accessibleResult: `${formatted.accessibleResult}${
+      combatStride ? ` ${combatStride.accessibleResult}` : ""
+    }${accessibleLearnedCooldownResult(learnedCooldowns)}`,
   };
 }
 

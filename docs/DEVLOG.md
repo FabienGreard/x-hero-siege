@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A percentage is not a return time
+
+The normal `0.1.25` Warden replay earned `31` gold and reached the Veilglass Reliquary at `29.3s` through legal combat, movement, and route timing. In the controlled rendered Ashcaller comparison, Hero Stats named Flame Ring at `6s`, Cinder Wall at `9s`, Falling Star at `12s`, and Worldfire at `38s`. The Quickening card beside it promised only `Cooldown Speed 100% → 115%`. Both surfaces were true, but the purchase still asked the player to perform denominator arithmetic while the siege continued.
+
+`0.1.26` keeps that aggregate stat and adds the answer the champion can actually use. `Fresh Cast Cooldowns` lists only learned abilities and shows each full recharge before and after the proposed Sigil: for this Ashcaller, `Q 6 → 5.2s`, `E 9 → 7.8s`, `R 12 → 10.4s`, and `F 38 → 33s`. The same canonical translation follows Quickening into or out of a full-build reforge, while live Hero Stats remains the accepted current build until the trade succeeds.
+
+Nothing returns sooner because the panel learned to explain it. The preview names a fresh cast's full recharge, never the live time remaining on an active cooldown; the server still preserves that active cooldown's percentage progress when the build changes. No ability, item value, timer rule, cadence, purchase flow, or source of authority changed. One established ware simply tells the truth in seconds before the gold leaves the wallet.
+
 ## 2026-07-11 — A carried step should leave a trace
 
 `0.1.24` made Combat Stride mechanically true, but replaying the four-Greaves Warden exposed a gap between that truth and its battlefield read. The Attuned primary carried `15%` of current Move Speed through windup and impact, yet the resulting displacement was small enough to disappear under the hero in a crowded defense. The cyan signature said Fleetstep; it did not quite say that the swing had carried a step.

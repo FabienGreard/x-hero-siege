@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.26` — Read the Time
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending release proof; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Correct the pre-purchase comprehension weakness exposed by legal normal-timing `0.1.25` play: the Warden reached the Reliquary at `29.304s` with level `3`, `153` HP, `31` gold, `31` kills, empty equipment, rank-three `E`, North `260`, and the Nexus `800`, but Quickening still answered only `Cooldown Speed 100% → 115%`. A rendered Ashcaller could already read `Q 6S`, `E 9S`, `R 12S`, and `F 38S` in Hero Stats, yet the ware never connected its price to those learned casts before commitment.
+- Keep the aggregate Quickening result and add one subordinate `CAST RETURNS` treatment derived from the same canonical `deriveAbilityImpactReadout` used by current Hero Stats. Show only learned casts: zero adds no heading or reserved space, one names only that key, and four form a compact ordered `Q`/`E`/`R`/`F` grid.
+- Carry the same exact fresh-cast projection into final slot-specific reforge confirmation. Quickening-in names shorter full returns, Quickening-out and `×4 → ×3` Attunement loss name longer returns, and the live accepted Hero Stats remain unchanged until the authoritative purchase succeeds.
+- Preserve percentage progress on cooldowns already running, and identify these projections as full fresh-cast duration rather than remaining timer values. Preserve all ability mechanics, ranks, damage, timing, server authority, protocol, item power, prices, shops, catalog, six unrestricted slots, art, and audio.
+- Compare the shipped baseline with zero-, one-, and four-learned states, the fourth-Sigil `145% → 175%` Attunement step, and both reforge directions at native `1280×720`. Typecheck, the `153`-test authoritative suite, the focused `23`-test shop and replacement gate, production bundle `main-255e98a50aaa14e6.js`, and real four-client convergence all pass on the final tree.
+
+**Next-cycle nomination:** replay shipped `0.1.26` at normal timing and choose the highest-leverage player-visible weakness from the actual run. Focus's exact learned-cast magnitude preview is only a candidate if play exposes the same pre-purchase gap; do not infer a parallel checklist or new catalog breadth.
+
 ## `0.1.25` — Leave the Step
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.

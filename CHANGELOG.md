@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## [0.1.26] - 2026-07-11
+
+### Added
+
+- Added learned-only fresh-cast cooldown previews to Quickening Sigil's ordinary shop card, translating the aggregate Cooldown Speed step into each current champion cast that the player has actually learned.
+- Added the same exact fresh-cast consequences to final full-build reforge confirmation in both directions, so adding Quickening names the shorter returns and removing it names the longer returns before gold is spent.
+- Added native `1280×720` evidence for the shipped baseline, zero-, one-, and four-learned-cast states, the fourth-Sigil Attunement step, and Quickening-in and Quickening-out reforges.
+
+### Changed
+
+- Reused the canonical `deriveAbilityImpactReadout` path for current and projected equipment instead of introducing a second cooldown formula. Zero learned casts add no empty treatment, one learned cast names only its key, and four learned casts stay ordered in a compact `Q`/`E`/`R`/`F` grid.
+- Kept the ordinary headline as the exact aggregate stat result while adding named fresh-cast detail beneath it; the fourth Sigil still shows `145% → 175%`, `ATTUNES`, and its larger canonical cast-return step.
+
+### Preserved
+
+- Quickening still preserves the percentage progress of any cooldown already running. The new numbers describe full fresh-cast duration, not the live remaining timer, and unlearned abilities never receive speculative rank-one values.
+- Ability power, damage, healing, barriers, summons, cooldown balance, LMB cadence, action timing, server authority, protocol, shops, prices, six unrestricted slots, catalog, art, and audio are unchanged.
+
 ## [0.1.25] - 2026-07-11
 
 ### Added
