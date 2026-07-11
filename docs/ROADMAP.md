@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.29` — Read the Screen
 
-**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Correct the highest-leverage weakness reproduced from shipped `0.1.28`: at native `1280×720`, the approved concept held playable stone in clear midtones while the real build crushed the world beneath strong vignette, noise, and near-black panel chrome. Decision-bearing shop and Hero Stats copy also collapsed below a practical reading floor in ordinary, evolution, Reliquary, and six-slot reforge states.
 - Raise the static world hierarchy with brighter sky and fog, modestly stronger cool and warm scene fill, and lighter noise and vignette overlays. Preserve established renderer exposure and tone mapping so a major Death Tide remains the brightest authored event and ordinary combat does not gain another effect.
