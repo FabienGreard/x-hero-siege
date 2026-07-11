@@ -1,6 +1,6 @@
 {
   "name": "siegeheart",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "bun run scripts/build.ts",
     "check": "tsc --noEmit",
     "test": "bun test",
+    "smoke:production": "bun run build && bun run tests/production-build-smoke.ts",
     "smoke:multiplayer": "bun run tests/multiplayer-smoke.ts"
   },
   "dependencies": {

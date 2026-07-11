@@ -168,9 +168,17 @@ button {
   box-shadow: 0 0 8px var(--green);
 }
 
+.connection-pill.is-connecting .connection-dot {
+  animation: connection-pulse 1.1s ease-in-out infinite;
+}
+
 .connection-pill.is-offline .connection-dot {
   background: var(--red);
   box-shadow: 0 0 8px var(--red);
+}
+
+@keyframes connection-pulse {
+  50% { opacity: 0.35; transform: scale(0.72); }
 }
 
 .hero-stats-toggle {
@@ -1291,6 +1299,16 @@ button.equipment-slot {
 .team-member.is-downed {
   filter: grayscale(0.8);
   opacity: 0.62;
+}
+
+.team-member.is-disconnected {
+  border-color: rgba(231, 187, 89, 0.2);
+  filter: grayscale(0.65);
+  opacity: 0.58;
+}
+
+.team-member.is-disconnected .team-copy small {
+  color: #d2ad67;
 }
 
 .team-portrait {

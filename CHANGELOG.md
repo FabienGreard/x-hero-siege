@@ -2,6 +2,28 @@
 
 All notable project changes are recorded here.
 
+## [0.1.24] - 2026-07-11
+
+### Added
+
+- Added a 15-second in-memory defender reservation that restores the same authoritative player ID, hero, position, health, level, ability ranks, cooldowns, gold, and all six run-only equipment slots after a transient disconnect or page reload.
+- Added an opaque 256-bit resume token kept only in per-tab session storage, a mandatory pre-admission handshake, generation-fenced single-socket control, bounded reconnect backoff, truthful terminal states, and restrained `RECONNECTING` party language.
+- Added focused handshake, token-secrecy, detach/resume, duplicate-session, expiry, abandoned-room, stale-lobby, first-input, real four-client convergence, and production-asset smoke coverage.
+- Added content-fingerprinted production client bundles so immutable caching follows the bundle bytes instead of the old fixed `/assets/main.js` URL.
+
+### Changed
+
+- A disconnected defender now becomes inert but remains targetable and damageable during the grace window; the siege never pauses, held movement and attacks are cleared, and no immunity, AI control, or persistence is introduced.
+- Reload hydration now reconciles the current authoritative run without replaying purchase receipts, Attunement ceremonies, phase or wave banners, accumulated damage feedback, or pending shop transactions; the next input sequence resumes above the retained server sequence, and the end screen keeps authoritative total run time.
+- Lobby connection copy now mutates its polite live region only when the visible value changes instead of repeating unchanged status on every snapshot.
+- Expired reservations release their hero and room place, transfer host authority to a connected survivor, and return a fully abandoned room to an empty lobby.
+- Production HTML remains uncached while naming the exact hashed client asset; the legacy fixed asset path now returns `404` in production instead of serving stale immutable code.
+
+### Preserved
+
+- The four heroes, Nexus and lane rules, defense-breach-push structure, combat, controls, art, audio, shops, prices, economy, Hero Stats, six unrestricted run-only slots, items, Attunement, Combat Stride, balance, and server authority are unchanged.
+- Resume state exists only in the live server process. No account, database, cookie, local-storage inventory, permanent progression, join-in-progress, matchmaking, pause, immunity, paid service, or secret was added.
+
 ## [0.1.23] - 2026-07-11
 
 ### Added

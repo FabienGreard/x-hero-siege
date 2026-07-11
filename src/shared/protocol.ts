@@ -47,6 +47,7 @@ export interface Vec2 {
 }
 
 export type ClientMessage =
+  | { type: "hello"; name: string; resumeToken?: string }
   | { type: "join"; name: string }
   | { type: "claim_hero"; heroId: HeroId }
   | { type: "release_hero" }
@@ -131,6 +132,7 @@ export interface VendorSnapshot {
 export interface PlayerSnapshot {
   id: string;
   name: string;
+  connected: boolean;
   heroId: HeroId | null;
   ready: boolean;
   position: Vec2;
@@ -284,6 +286,7 @@ export interface GameEvent {
 export interface GameSnapshot {
   tick: number;
   serverTime: number;
+  runElapsed: number;
   debug: boolean;
   phase: GamePhase;
   phaseElapsed: number;
@@ -311,6 +314,9 @@ export type ServerMessage =
       type: "welcome";
       playerId: string;
       websocketPath: "/ws";
+      resumeToken: string;
+      resumed: boolean;
+      resumeWindowMs: number;
       snapshot: GameSnapshot;
     }
   | { type: "snapshot"; snapshot: GameSnapshot }
@@ -338,6 +344,13 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   if (!value || typeof value !== "object" || !("type" in value)) return null;
   const message = value as Record<string, unknown>;
   switch (message.type) {
+    case "hello": {
+      if (typeof message.name !== "string") return null;
+      if (message.resumeToken === undefined) return { type: "hello", name: message.name };
+      return typeof message.resumeToken === "string" && message.resumeToken.length <= 128
+        ? { type: "hello", name: message.name, resumeToken: message.resumeToken }
+        : null;
+    }
     case "join":
       return typeof message.name === "string"
         ? { type: "join", name: message.name }

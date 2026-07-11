@@ -1,4 +1,5 @@
-import { cp, mkdir, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = new URL("../", import.meta.url);
@@ -14,7 +15,7 @@ const [client, server] = await Promise.all([
     outdir: fileURLToPath(new URL("assets/", dist)),
     target: "browser",
     format: "esm",
-    sourcemap: "external",
+    sourcemap: "none",
     minify: true,
   }),
   Bun.build({
@@ -32,9 +33,18 @@ if (!client.success || !server.success) {
   process.exit(1);
 }
 
+const clientBundle = new URL("assets/main.js", dist);
+const clientBytes = await readFile(clientBundle);
+const clientHash = createHash("sha256").update(clientBytes).digest("hex").slice(0, 16);
+const fingerprintedClientName = `main-${clientHash}.js`;
+await rename(clientBundle, new URL(`assets/${fingerprintedClientName}`, dist));
+
+const productionHtml = (await readFile(new URL("index.html", root), "utf8"))
+  .replace("/assets/main.js", `/assets/${fingerprintedClientName}`);
+
 await Promise.all([
-  cp(new URL("index.html", root), new URL("index.html", dist)),
+  writeFile(new URL("index.html", dist), productionHtml),
   cp(new URL("src/client/style.css", root), new URL("style.css", dist)),
 ]);
 
-console.log(`Built Siegeheart client and server into ${fileURLToPath(dist)}`);
+console.log(`Built Siegeheart client ${fingerprintedClientName} and server into ${fileURLToPath(dist)}`);

@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A dropped connection should not erase a decision
+
+The `0.1.23` replay began where the Armory wanted it to begin: a normal Warden left North for the Forge, returned wearing Greaves, fought for another window, then crossed the Citadel for Focus. One ordinary network drop erased the whole sentence. The server removed the defender immediately; the browser returned as a stranger after the gates had opened, so hero selection could only repeat that the siege had already begun. Gold, equipment, champion stats, and control of the run disappeared together.
+
+`0.1.24` holds that defender's place for fifteen seconds. The live server keeps the same hero and build, clears held movement and attacks, and lets the dangerous world continue. A short opaque token lets the same browser reclaim exactly that place after a transient loss or full reload. The hero gains no shield, autopilot, pause, or permanent record; if the window closes, the reservation leaves with it.
+
+The visible promise is deliberately small: allies see `RECONNECTING`, the returning player sees `DEFENDER RESTORED` and one quiet confirmation that the build came back, and Hero Stats simply contains the same Greaves, Focus, ranks, gold, and exact champion consequences it contained before. Old purchase receipts, Attunement awakenings, damage bursts, and wave banners do not pretend to happen again. A page reload also resumes above the server's last input number, so the first real movement is accepted instead of silently waiting for a reset counter to catch up.
+
+The protocol change exposed an older delivery weakness during rendered verification: the production client lived forever behind one immutable filename. The corrected build gives immutable caching to the bytes, not the path, and places their hash in the HTML. That is not a second feature; it is what makes the reconnect handshake safe to ship as the client and server evolve together.
+
 ## 2026-07-11 — Speed should survive the swing
 
 The Armory had learned to explain commitment, but replaying `0.1.22` made one ware feel shallower than the others. Four Fleetstep Greaves gave the Warden `15.8` Move Speed and a clear Attuned silhouette. Iron Cleave still read exactly as it did without them, and holding the primary discarded all of that movement during its windup. Edge changed the named strike, Focus changed named casts, and Quickening changed their return. Greaves still ended at a faster number between actions.

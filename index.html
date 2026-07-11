@@ -15,7 +15,7 @@
       <div class="screen-vignette" aria-hidden="true"></div>
 
       <section id="hud" class="hud is-hidden" aria-label="Game status">
-        <div id="connection-pill" class="connection-pill is-connecting">
+        <div id="connection-pill" class="connection-pill is-connecting" role="status" aria-live="polite" aria-atomic="true" aria-label="Waking the realm">
           <span class="connection-dot"></span>
           <span id="connection-label">Waking the realm…</span>
         </div>
@@ -256,7 +256,7 @@
               <span>YOUR NAME</span>
               <input id="player-name" maxlength="18" autocomplete="off" spellcheck="false" value="Defender" />
             </label>
-            <div class="lobby-status">
+            <div class="lobby-status" role="status" aria-live="polite" aria-atomic="true">
               <span id="lobby-count">1 / 4 defenders</span>
               <span id="lobby-note">Choose a hero to reserve them</span>
             </div>

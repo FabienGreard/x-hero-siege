@@ -242,8 +242,27 @@ const particles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; born: number
 const previousHp = new Map<string, number>();
 const seenEvents = new Set<string>();
 
+const RESUME_TOKEN_STORAGE_KEY = "siegeheart.resume.v1";
+const RECONNECT_DELAYS_MS = [500, 1_000, 2_000, 4_000, 5_000] as const;
+const DEFAULT_RESUME_WINDOW_MS = 15_000;
+const WELCOME_TIMEOUT_MS = 5_000;
+const TERMINAL_CONNECTION_CODES = new Set([
+  "SESSION_EXPIRED",
+  "GAME_IN_PROGRESS",
+  "LOBBY_FULL",
+  "SESSION_REPLACED",
+]);
+
 let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
+let welcomeTimer: number | null = null;
+let connectionGeneration = 0;
+let connectionReady = false;
+let terminalConnection = false;
+let reconnectAttempt = 0;
+let reconnectStartedAt: number | null = null;
+let resumeWindowMs = DEFAULT_RESUME_WINDOW_MS;
+let memoryResumeToken: string | null = null;
 let localPlayerId: string | null = null;
 let selectedHero: HeroId | null = null;
 let snapshot: GameSnapshot | null = null;
@@ -254,7 +273,6 @@ let lastFrame = performance.now();
 let cameraViewHeight = 72;
 let screenShake = 0;
 let bannerTimer: number | null = null;
-let runStartedAt = 0;
 let joinedName = "";
 let endTimer: number | null = null;
 let endScheduledFor: "victory" | "defeat" | null = null;
@@ -404,29 +422,146 @@ class SiegeAudio {
 
 const audio = new SiegeAudio();
 
-function send(message: ClientMessage): void {
-  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+function readResumeToken(): string | null {
+  try {
+    const stored = window.sessionStorage.getItem(RESUME_TOKEN_STORAGE_KEY);
+    if (stored) memoryResumeToken = stored;
+    return stored || memoryResumeToken;
+  } catch {
+    return memoryResumeToken;
+  }
 }
 
-function connectionState(state: "connecting" | "online" | "offline", label: string): void {
+function storeResumeToken(token: string): void {
+  memoryResumeToken = token;
+  try {
+    window.sessionStorage.setItem(RESUME_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // The in-memory fallback still preserves same-page reconnects.
+  }
+}
+
+function clearResumeToken(): void {
+  memoryResumeToken = null;
+  try {
+    window.sessionStorage.removeItem(RESUME_TOKEN_STORAGE_KEY);
+  } catch {
+    // Storage may be unavailable; the fallback has already been cleared.
+  }
+}
+
+function send(message: ClientMessage): boolean {
+  if (!connectionReady || socket?.readyState !== WebSocket.OPEN) return false;
+  socket.send(JSON.stringify(message));
+  return true;
+}
+
+function connectionState(
+  state: "connecting" | "online" | "offline",
+  label: string,
+  mirrorToLobby = true,
+): void {
   connectionPill.classList.remove("is-connecting", "is-online", "is-offline");
   connectionPill.classList.add(`is-${state}`);
   connectionLabel.textContent = label;
+  connectionPill.setAttribute("aria-label", label);
+  if (mirrorToLobby && (!snapshot || snapshot.phase === "lobby")) setTextIfChanged(lobbyNote, label);
+}
+
+function setTextIfChanged(element: HTMLElement, text: string): void {
+  if (element.textContent !== text) element.textContent = text;
+}
+
+function clearConnectionTimers(): void {
+  if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+  if (welcomeTimer !== null) window.clearTimeout(welcomeTimer);
+  reconnectTimer = null;
+  welcomeTimer = null;
+}
+
+function suspendTransactionalUi(): void {
+  keys.clear();
+  attacking = false;
+  ordinaryPurchaseRequest = null;
+  replacementRequestPending = false;
+  if (shopOpen) {
+    setShopOpen(false);
+  } else {
+    replacementItemId = null;
+    replacementSlotIndex = null;
+    replacementExpectedItemId = null;
+  }
+}
+
+function terminalConnectionLabel(code: string): string {
+  if (code === "SESSION_REPLACED") return "Session open in another tab";
+  if (code === "LOBBY_FULL") return "War table full";
+  if (code === "GAME_IN_PROGRESS" || code === "SESSION_EXPIRED") return "Rejoin expired · run in progress";
+  return "Realm unavailable";
+}
+
+function stopConnection(code: string, message?: string): void {
+  terminalConnection = true;
+  connectionReady = false;
+  clearConnectionTimers();
+  suspendTransactionalUi();
+  if (code === "SESSION_EXPIRED" || code === "SESSION_REPLACED") clearResumeToken();
+  connectionState("offline", terminalConnectionLabel(code));
+  if (message) toast(message, "warning");
+}
+
+function scheduleReconnect(): void {
+  if (terminalConnection || reconnectTimer !== null) return;
+  reconnectStartedAt ??= performance.now();
+  const elapsed = performance.now() - reconnectStartedAt;
+  const resumingDefender = Boolean(localPlayerId || readResumeToken());
+  if (resumingDefender && elapsed >= resumeWindowMs) {
+    stopConnection("SESSION_EXPIRED", "Your defender could not be restored before the rejoin window closed.");
+    return;
+  }
+  const nextAttempt = reconnectAttempt + 1;
+  const delay = RECONNECT_DELAYS_MS[Math.min(reconnectAttempt, RECONNECT_DELAYS_MS.length - 1)]!;
+  const online = navigator.onLine;
+  connectionState(
+    online ? "connecting" : "offline",
+    online
+      ? `${resumingDefender ? "Rejoining defender" : "Reopening war table"} · attempt ${nextAttempt}`
+      : "Realm unreachable · waiting for network",
+  );
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    reconnectAttempt = nextAttempt;
+    connect();
+  }, resumingDefender ? Math.min(delay, Math.max(0, resumeWindowMs - elapsed)) : delay);
 }
 
 function connect(): void {
-  if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
-  connectionState("connecting", "Opening the war table…");
+  if (terminalConnection) return;
+  clearConnectionTimers();
+  connectionReady = false;
+  const generation = ++connectionGeneration;
+  if (reconnectAttempt === 0 && reconnectStartedAt === null) {
+    connectionState("connecting", "Opening the war table…");
+  }
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   const debugQuery = new URLSearchParams(location.search).has("debug") ? "?debug=1" : "";
-  socket = new WebSocket(`${protocol}//${location.host}/ws${debugQuery}`);
-  socket.addEventListener("open", () => {
-    connectionState("online", "Realm online");
+  const currentSocket = new WebSocket(`${protocol}//${location.host}/ws${debugQuery}`);
+  socket = currentSocket;
+  currentSocket.addEventListener("open", () => {
+    if (generation !== connectionGeneration) return;
     const name = cleanName(playerNameInput.value);
-    joinedName = name;
-    send({ type: "join", name });
+    const resumeToken = readResumeToken();
+    currentSocket.send(JSON.stringify({
+      type: "hello",
+      name,
+      ...(resumeToken ? { resumeToken } : {}),
+    } satisfies ClientMessage));
+    welcomeTimer = window.setTimeout(() => {
+      if (generation === connectionGeneration && !connectionReady) currentSocket.close(4000, "Welcome timeout");
+    }, WELCOME_TIMEOUT_MS);
   });
-  socket.addEventListener("message", (event) => {
+  currentSocket.addEventListener("message", (event) => {
+    if (generation !== connectionGeneration) return;
     let message: ServerMessage;
     try {
       message = JSON.parse(String(event.data)) as ServerMessage;
@@ -434,13 +569,47 @@ function connect(): void {
       return;
     }
     if (message.type === "welcome") {
+      if (welcomeTimer !== null) window.clearTimeout(welcomeTimer);
+      welcomeTimer = null;
+      const resumed = message.resumed;
+      if (!resumed) {
+        selectedHero = null;
+        seenEvents.clear();
+        inputSequence = 0;
+      }
+      suspendTransactionalUi();
       localPlayerId = message.playerId;
-      applySnapshot(message.snapshot);
+      storeResumeToken(message.resumeToken);
+      resumeWindowMs = Math.max(1_000, message.resumeWindowMs || DEFAULT_RESUME_WINDOW_MS);
+      const self = message.snapshot.players.find((player) => player.id === message.playerId);
+      inputSequence = Math.max(inputSequence, self?.lastInputSeq ?? 0);
+      if (self) {
+        playerNameInput.value = cleanName(self.name);
+        joinedName = playerNameInput.value;
+      }
+      terminalConnection = false;
+      connectionReady = true;
+      reconnectAttempt = 0;
+      reconnectStartedAt = null;
+      previousHp.clear();
+      applySnapshot(message.snapshot, { hydrate: true });
+      connectionState("online", resumed ? "Defender restored" : "Realm online", false);
+      if (resumed) {
+        toast("Back in the fight — build restored.", "loot");
+        window.setTimeout(() => {
+          if (generation === connectionGeneration && connectionReady) connectionState("online", "Realm online", false);
+        }, 1_600);
+      }
     } else if (message.type === "snapshot") {
-      applySnapshot(message.snapshot);
+      if (connectionReady) applySnapshot(message.snapshot);
     } else if (message.type === "event") {
-      handleEvent(message.event, true);
+      if (connectionReady) handleEvent(message.event, true);
     } else if (message.type === "error") {
+      if (TERMINAL_CONNECTION_CODES.has(message.code)) {
+        stopConnection(message.code, message.message);
+        currentSocket.close(1000, message.code);
+        return;
+      }
       const replacementError = new Set([
         "EQUIPMENT_CHANGED",
         "REPLACEMENT_NOT_REQUIRED",
@@ -465,16 +634,23 @@ function connect(): void {
         if (shopOpen && self) updateShopCards(self);
       }
       toast(message.message, "warning");
-      lobbyNote.textContent = message.message;
+      setTextIfChanged(lobbyNote, message.message);
     }
   });
-  socket.addEventListener("close", () => {
-    connectionState("offline", "Reconnecting…");
-    ordinaryPurchaseRequest = null;
-    socket = null;
-    reconnectTimer = window.setTimeout(connect, 1200);
+  currentSocket.addEventListener("close", (event) => {
+    if (generation !== connectionGeneration) return;
+    if (welcomeTimer !== null) window.clearTimeout(welcomeTimer);
+    welcomeTimer = null;
+    if (socket === currentSocket) socket = null;
+    connectionReady = false;
+    suspendTransactionalUi();
+    if (event.code === 4001) {
+      stopConnection("SESSION_REPLACED", "This defender session is open in another tab.");
+      return;
+    }
+    if (!terminalConnection) scheduleReconnect();
   });
-  socket.addEventListener("error", () => socket?.close());
+  currentSocket.addEventListener("error", () => currentSocket.close());
 }
 
 function cleanName(name: string): string {
@@ -960,6 +1136,7 @@ function selectReplacementSlot(slotIndex: EquipmentSlotIndex): void {
 }
 
 function confirmReplacement(): void {
+  if (!connectionReady) return;
   const self = currentPlayer();
   if (
     !shopOpen ||
@@ -1142,6 +1319,7 @@ function canOpenVendor(state: GameSnapshot, self: PlayerSnapshot | undefined, ve
 }
 
 function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): void {
+  if (open && !connectionReady) return;
   const state = snapshot;
   const self = currentPlayer(state);
   const targetVendorId = open && state
@@ -1182,6 +1360,7 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
 }
 
 function buyShopItem(itemId: ItemId): void {
+  if (!connectionReady) return;
   const self = currentPlayer();
   if (!shopOpen || !self || !activeVendorId) return;
   const vendor = vendorSnapshot(activeVendorId);
@@ -1328,6 +1507,7 @@ function renderHeroCards(): void {
 }
 
 function chooseHero(heroId: HeroId): void {
+  if (!connectionReady) return;
   audio.unlock();
   const ownerId = snapshot?.lobby.claimedHeroes[heroId];
   if (ownerId && ownerId !== localPlayerId) return;
@@ -1356,27 +1536,30 @@ function updateLobby(): void {
     const ownerLabel = card.querySelector<HTMLElement>(".hero-owner");
     if (ownerLabel) {
       ownerLabel.classList.toggle("is-hidden", !ownerId);
-      ownerLabel.textContent = isSelf ? "YOUR HERO" : `${owner?.name ?? "ALLY"} CLAIMED`;
+      ownerLabel.textContent = isSelf
+        ? "YOUR HERO"
+        : `${owner?.name ?? "ALLY"} ${owner && !owner.connected ? "RECONNECTING" : "CLAIMED"}`;
     }
   }
-  lobbyCount.textContent = `${snapshot.players.length} / 4 defender${snapshot.players.length === 1 ? "" : "s"}`;
+  const reconnectingPlayers = snapshot.players.filter((player) => !player.connected).length;
+  setTextIfChanged(lobbyCount, `${snapshot.players.length} / 4 defender${snapshot.players.length === 1 ? "" : "s"}${reconnectingPlayers > 0 ? ` · ${reconnectingPlayers} reconnecting` : ""}`);
   const isHost = snapshot.lobby.hostId === localPlayerId;
   readyButton.disabled = !self?.heroId;
   if (!self?.heroId) {
     setReadyText("CHOOSE A HERO", "ONE DEFENDER · ONE LEGEND");
-    lobbyNote.textContent = "Choose a hero to reserve them";
+    setTextIfChanged(lobbyNote, "Choose a hero to reserve them");
   } else if (!self.ready) {
     setReadyText("READY", "ENTER THE CITY");
-    lobbyNote.textContent = `${HERO_DEFINITIONS[self.heroId].name} reserved for you`;
+    setTextIfChanged(lobbyNote, `${HERO_DEFINITIONS[self.heroId].name} reserved for you`);
   } else if (isHost && snapshot.lobby.canStart) {
     setReadyText("START THE SIEGE", "YOUR PARTY IS READY");
-    lobbyNote.textContent = "The war table awaits your command";
+    setTextIfChanged(lobbyNote, "The war table awaits your command");
   } else if (isHost) {
     setReadyText("CANCEL READY", "WAITING FOR THE PARTY");
-    lobbyNote.textContent = "Waiting for every defender to ready up";
+    setTextIfChanged(lobbyNote, "Waiting for every defender to ready up");
   } else {
     setReadyText("CANCEL READY", "WAITING FOR THE HOST");
-    lobbyNote.textContent = "Ready — the host will begin the siege";
+    setTextIfChanged(lobbyNote, "Ready — the host will begin the siege");
   }
 }
 
@@ -1388,6 +1571,7 @@ function setReadyText(main: string, sub: string): void {
 }
 
 readyButton.addEventListener("click", () => {
+  if (!connectionReady) return;
   audio.unlock();
   if (!snapshot) return;
   const self = snapshot.players.find((player) => player.id === localPlayerId);
@@ -1409,6 +1593,7 @@ playerNameInput.addEventListener("change", () => {
 });
 
 playAgain.addEventListener("click", () => {
+  if (!connectionReady) return;
   if (!snapshot || !localPlayerId) return;
   if (snapshot.lobby.hostId !== localPlayerId) {
     toast("Waiting for the host to reopen the war table.", "warning");
@@ -1596,15 +1781,22 @@ function showBanner(kicker: string, title: string, subtitle: string): void {
   bannerTimer = window.setTimeout(() => waveBanner.classList.remove("is-visible"), 2600);
 }
 
-function applySnapshot(next: GameSnapshot): void {
+function applySnapshot(next: GameSnapshot, options: { hydrate?: boolean } = {}): void {
+  const hydrate = options.hydrate === true;
   const firstSnapshot = snapshot === null;
   snapshot = next;
-  if (next.phase === "victory" && previousPhase !== "victory") {
+  if (!hydrate && next.phase === "victory" && previousPhase !== "victory") {
     victoryVisualStartedAt = performance.now();
   } else if (next.phase !== "victory") {
     victoryVisualStartedAt = null;
   }
-  for (const event of next.events) handleEvent(event, false);
+  if (hydrate) {
+    for (const event of next.events) seenEvents.add(event.id);
+    previousPhase = next.phase;
+    previousWave = next.wave.number;
+  } else {
+    for (const event of next.events) handleEvent(event, false);
+  }
   const self = next.players.find((player) => player.id === localPlayerId);
   if (self?.heroId) {
     selectedHero = self.heroId;
@@ -1614,11 +1806,11 @@ function applySnapshot(next: GameSnapshot): void {
   heroStatsToggle.classList.toggle("is-hidden", !heroStatsAvailable);
   if (!heroStatsAvailable) setHeroStatsOpen(false);
 
-  if (next.phase !== previousPhase) {
+  if (!hydrate && next.phase !== previousPhase) {
     if (!firstSnapshot) onPhaseChanged(next.phase);
     previousPhase = next.phase;
   }
-  if (next.wave.number !== previousWave && next.phase === "defense") {
+  if (!hydrate && next.wave.number !== previousWave && next.phase === "defense") {
     previousWave = next.wave.number;
     showBanner("THE HORNS SOUND", `WAVE ${roman(Math.max(1, next.wave.number))}`, next.pressureLane?.toUpperCase() ?? "MULTIPLE FRONTS");
   }
@@ -1639,8 +1831,6 @@ function applySnapshot(next: GameSnapshot): void {
     endScheduledFor = null;
     endScreen.classList.add("is-hidden");
   }
-  if (next.phase === "lobby") runStartedAt = 0;
-  if (next.phase !== "lobby" && runStartedAt === 0) runStartedAt = performance.now();
   if (next.phase === "victory" || next.phase === "defeat") scheduleEnd(next.phase);
 }
 
@@ -1980,14 +2170,17 @@ function updateTeam(players: PlayerSnapshot[]): void {
     if (!player.heroId) continue;
     const definition = HERO_DEFINITIONS[player.heroId];
     const presentation = HERO_PRESENTATION[player.heroId];
+    const disconnected = !player.connected;
+    const stateLabels = [player.downed ? "DOWNED" : null, disconnected ? "RECONNECTING" : null].filter(Boolean);
     const member = document.createElement("div");
-    member.className = `team-member${player.id === localPlayerId ? " is-self" : ""}${player.downed ? " is-downed" : ""}`;
+    member.className = `team-member${player.id === localPlayerId ? " is-self" : ""}${player.downed ? " is-downed" : ""}${disconnected ? " is-disconnected" : ""}`;
     member.style.setProperty("--hero-color", presentation.color);
     member.style.setProperty("--hero-dark", presentation.dark);
     member.style.setProperty("--health", `${Math.max(0, (player.hp / Math.max(1, player.maxHp)) * 100)}%`);
+    member.setAttribute("aria-label", `${player.name}, ${definition.name}${stateLabels.length > 0 ? `, ${stateLabels.join(", ").toLowerCase()}` : ""}`);
     member.innerHTML = `
       <span class="team-portrait">${presentation.symbol}</span>
-      <span class="team-copy"><strong>${escapeText(player.name)}</strong><small>${definition.name}${player.downed ? " · DOWNED" : ""}</small></span>
+      <span class="team-copy"><strong>${escapeText(player.name)}</strong><small>${definition.name}${stateLabels.length > 0 ? ` · ${stateLabels.join(" · ")}` : ""}</small></span>
       <span class="team-level">LV ${player.level}</span>
       <span class="team-health"><i></i></span>`;
     teamList.append(member);
@@ -2071,6 +2264,7 @@ const SKILL_SLOTS: ReadonlyArray<{ slot: AbilitySlot; key: "Q" | "E" | "R" | "F"
 ];
 
 function levelAbility(slot: AbilitySlot): void {
+  if (!connectionReady) return;
   const self = snapshot?.players.find((player) => player.id === localPlayerId);
   const skill = SKILL_SLOTS.find((candidate) => candidate.slot === slot);
   if (!self?.heroId || !skill || self.skillPoints <= 0) return;
@@ -2223,7 +2417,7 @@ function showEnd(state: GameSnapshot, self: PlayerSnapshot | undefined): void {
   endStats.innerHTML = `
     <div class="end-stat"><strong>${self?.kills ?? 0}</strong><small>DEMONS SLAIN</small></div>
     <div class="end-stat"><strong>${self?.level ?? 1}</strong><small>HERO LEVEL</small></div>
-    <div class="end-stat"><strong>${formatTime(runStartedAt ? performance.now() - runStartedAt : 0)}</strong><small>TIME HELD</small></div>`;
+    <div class="end-stat"><strong>${formatTime(state.runElapsed * 1000)}</strong><small>TIME HELD</small></div>`;
   const isHost = state.lobby.hostId === localPlayerId;
   playAgain.disabled = !isHost;
   const replayMain = playAgain.querySelector<HTMLElement>(".ready-main");
@@ -2250,7 +2444,7 @@ function movementInput(): Vec2 {
 }
 
 function sendInput(): void {
-  if (!snapshot || snapshot.phase === "lobby" || snapshot.phase === "victory" || snapshot.phase === "defeat") return;
+  if (!connectionReady || !snapshot || snapshot.phase === "lobby" || snapshot.phase === "victory" || snapshot.phase === "defeat") return;
   const self = snapshot.players.find((player) => player.id === localPlayerId);
   const aim = self
     ? { x: aimWorld.x - self.position.x, z: aimWorld.z - self.position.z }
@@ -2267,6 +2461,7 @@ function sendInput(): void {
 window.setInterval(sendInput, 50);
 
 function cast(slot: AbilitySlot): void {
+  if (!connectionReady) return;
   if (snapshot?.phase === "lobby") return;
   const self = snapshot?.players.find((player) => player.id === localPlayerId);
   if (!self || (self.abilityRanks[slot] ?? 0) <= 0) return;
@@ -2355,7 +2550,7 @@ window.addEventListener("keydown", (event) => {
     setHeroStatsOpen(false);
     return;
   }
-  if (event.code === "KeyW" || event.code === "KeyA" || event.code === "KeyS" || event.code === "KeyD") keys.add(event.code);
+  if (connectionReady && (event.code === "KeyW" || event.code === "KeyA" || event.code === "KeyS" || event.code === "KeyD")) keys.add(event.code);
   if (event.repeat) return;
   const keyedSkill = event.code === "KeyQ" ? "ability1"
     : event.code === "KeyE" ? "ability2"
@@ -2376,6 +2571,23 @@ window.addEventListener("blur", () => {
   keys.clear();
   attacking = false;
 });
+window.addEventListener("offline", () => {
+  if (terminalConnection) return;
+  connectionReady = false;
+  suspendTransactionalUi();
+  connectionState("offline", "Realm unreachable · waiting for network");
+  socket?.close();
+});
+window.addEventListener("online", () => {
+  if (terminalConnection || connectionReady || socket?.readyState === WebSocket.CONNECTING || socket?.readyState === WebSocket.OPEN) return;
+  if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  reconnectStartedAt ??= performance.now();
+  reconnectAttempt += 1;
+  const resumingDefender = Boolean(localPlayerId || readResumeToken());
+  connectionState("connecting", `${resumingDefender ? "Rejoining defender" : "Reopening war table"} · attempt ${reconnectAttempt}`);
+  connect();
+});
 
 renderer.domElement.addEventListener("pointerenter", () => { pointerInside = true; });
 renderer.domElement.addEventListener("pointerleave", () => { pointerInside = false; attacking = false; });
@@ -2385,6 +2597,7 @@ renderer.domElement.addEventListener("pointermove", (event) => {
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 });
 renderer.domElement.addEventListener("pointerdown", (event) => {
+  if (!connectionReady) return;
   audio.unlock();
   if (event.button === 0) {
     attacking = true;

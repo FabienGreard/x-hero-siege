@@ -31,6 +31,8 @@ function assertHeroStats(
 class Peer {
   readonly messages: ServerMessage[] = [];
   playerId = "";
+  resumeToken = "";
+  resumed = false;
 
   private constructor(readonly socket: WebSocket) {
     socket.addEventListener("message", (event) => {
@@ -38,12 +40,21 @@ class Peer {
     });
   }
 
-  static async connect(url: string): Promise<Peer> {
+  static async connect(url: string, resumeToken?: string): Promise<Peer> {
     const socket = new WebSocket(url);
     const peer = new Peer(socket);
+    socket.addEventListener("open", () => {
+      socket.send(JSON.stringify({
+        type: "hello",
+        name: "Smoke Defender",
+        ...(resumeToken ? { resumeToken } : {}),
+      }));
+    }, { once: true });
     const welcome = await peer.waitFor((message) => message.type === "welcome");
     assert.equal(welcome.type, "welcome");
     peer.playerId = welcome.playerId;
+    peer.resumeToken = welcome.resumeToken;
+    peer.resumed = welcome.resumed;
     return peer;
   }
 
@@ -51,8 +62,8 @@ class Peer {
     this.socket.send(JSON.stringify(message));
   }
 
-  async waitFor(predicate: Predicate, timeoutMs = 4_000): Promise<ServerMessage> {
-    const existing = this.messages.find(predicate);
+  async waitFor(predicate: Predicate, cursor = 0, timeoutMs = 4_000): Promise<ServerMessage> {
+    const existing = this.messages.slice(cursor).find(predicate);
     if (existing) return existing;
     return await new Promise<ServerMessage>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -70,8 +81,8 @@ class Peer {
     });
   }
 
-  async snapshot(predicate: (snapshot: GameSnapshot) => boolean): Promise<GameSnapshot> {
-    const message = await this.waitFor((candidate) => candidate.type === "snapshot" && predicate(candidate.snapshot));
+  async snapshot(predicate: (snapshot: GameSnapshot) => boolean, cursor = 0): Promise<GameSnapshot> {
+    const message = await this.waitFor((candidate) => candidate.type === "snapshot" && predicate(candidate.snapshot), cursor);
     assert.equal(message.type, "snapshot");
     return message.snapshot;
   }
@@ -316,6 +327,78 @@ try {
     });
   }
 
+  const departing = peers[0]!;
+  const departingId = departing.playerId;
+  const departingToken = departing.resumeToken;
+  const disconnectCursors = peers.map((peer) => peer.messages.length);
+  departing.socket.close();
+  const reservedSnapshots = await Promise.all(peers.slice(1).map((peer, index) => peer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === departingId);
+    return snapshot.players.length === 4 && player?.connected === false;
+  }, disconnectCursors[index + 1])));
+  const reserved = reservedSnapshots[0]!;
+  const reservedPlayer = reserved.players.find((player) => player.id === departingId)!;
+  assert.equal(reservedPlayer.connected, false);
+  assert.deepEqual(reservedPlayer.equipment, authoritativeForgeBuyer.equipment);
+  assertHeroStats(reservedPlayer.stats, authoritativeForgeBuyer.stats);
+
+  const restoreCursors = peers.map((peer) => peer.messages.length);
+  const resumedPeer = await Peer.connect(url, departingToken);
+  assert.equal(resumedPeer.resumed, true);
+  assert.equal(resumedPeer.playerId, departingId);
+  peers[0] = resumedPeer;
+  const restored = await Promise.all(peers.map((peer, index) => peer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === departingId);
+    return snapshot.players.length === 4 &&
+      player?.connected === true;
+  }, index === 0 ? 0 : restoreCursors[index])));
+  for (const snapshot of restored) {
+    const player = snapshot.players.find((candidate) => candidate.id === departingId)!;
+    assert.equal(player.connected, true);
+    assert.deepEqual(player.equipment, authoritativeForgeBuyer.equipment);
+    assertHeroStats(player.stats, authoritativeForgeBuyer.stats);
+  }
+
+  await resumedPeer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === departingId);
+    return player?.action === null;
+  });
+  const authorityCursors = peers.map((peer) => peer.messages.length);
+  const resumeSequence = Math.max(...restored.map((snapshot) =>
+    snapshot.players.find((player) => player.id === departingId)!.lastInputSeq
+  )) + 1;
+  resumedPeer.send({
+    type: "input",
+    seq: resumeSequence,
+    move: { x: -1, z: 0 },
+    aim: { x: -1, z: 0 },
+    attacking: true,
+  });
+  const resumedAuthority = await Promise.all(peers.map((peer, index) => peer.snapshot((snapshot) => {
+    const player = snapshot.players.find((candidate) => candidate.id === departingId);
+    return player?.lastInputSeq === resumeSequence &&
+      player.action?.kind === "basic" &&
+      player.action.phase === "windup" &&
+      player.velocity.x < 0;
+  }, authorityCursors[index])));
+  const authoritativeResume = resumedAuthority[0]!.players.find((player) => player.id === departingId)!;
+  for (const snapshot of resumedAuthority) {
+    const player = snapshot.players.find((candidate) => candidate.id === departingId)!;
+    assert.deepEqual({
+      connected: player.connected,
+      lastInputSeq: player.lastInputSeq,
+      action: player.action,
+      velocity: player.velocity,
+      position: player.position,
+    }, {
+      connected: true,
+      lastInputSeq: resumeSequence,
+      action: authoritativeResume.action,
+      velocity: authoritativeResume.velocity,
+      position: authoritativeResume.position,
+    });
+  }
+
   console.log(JSON.stringify({
     ok: true,
     clients: peers.length,
@@ -329,6 +412,8 @@ try {
       forgeAttunedCopies: 4,
       reliquaryAttunedCopies: 0,
       combatStrideClients: strideSnapshots.length,
+      resumedClients: restored.length,
+      postResumeAuthorityClients: resumedAuthority.length,
     },
   }));
 } finally {

@@ -2,6 +2,20 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.24` — Hold Your Place
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Correct the run-killing regression exposed during the normal `0.1.23` shop replay: after earning Greaves and Focus through two real physical routes, one socket loss deleted the Warden and its build, then every automatic reconnect entered hero selection and received `GAME_IN_PROGRESS` while the empty room continued to defeat.
+- Keep one disconnected defender in authoritative memory for `15s`. Preserve identity, hero, host role, position, health, level, XP, ranks, cooldowns, wallet, and all six unrestricted equipment slots; neutralize held input while leaving the hero targetable and the co-op simulation unpaused.
+- Resume through one server-issued 256-bit bearer token stored only in per-tab session storage. Fence stale sockets by connection generation, allow only one controller, reject invalid active-run admission, show disconnected allies as `RECONNECTING`, expire the reservation cleanly, and reset only a fully abandoned room.
+- Reconcile a reload from the welcome snapshot without replaying old receipts, Attunement, damage, or phase ceremonies. Advance the client input sequence from the retained server sequence so movement works immediately after a full reload.
+- Fingerprint production client assets as an inseparable delivery gate for the new handshake. Keep HTML uncached, cache only byte-addressed bundles immutably, and reject the obsolete fixed asset path.
+- Preserve the complete game promise and Armory. This is bounded transport recovery, not persistence, accounts, join-in-progress, matchmaking, pausing, invulnerability, AI substitution, or a new progression system.
+- Prove fresh and stale handshakes, token secrecy, active detach/resume, same-ID state retention, duplicate-tab fencing, expiry, lobby fallback, abandoned-room reset, next-sequence input, real four-client convergence, hashed production routing, native `1280×720` reload rendering, no hero-select flash, no replayed progression feedback, and clean diagnostics.
+
+**Next-cycle nomination:** replay shipped `0.1.24` at normal timing and return to the highest-leverage shop, item, or champion-stat weakness. Recompare Combat Stride's battlefield read with the approved gameplay concept if its visual embodiment leads; otherwise test the exact pre-purchase translation of an existing ware before adding any parallel evolution or catalog breadth.
+
 ## `0.1.23` — Carry the Step
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.
@@ -328,14 +342,14 @@ Do not schedule expansion until those answers support it in the actual build.
 
 ## Playable-hosting quality gate
 
-Before claiming a public playable deployment, disable or protect debug mutation routes; enforce WebSocket Origin, payload-size, and input-rate limits; fingerprint client assets instead of serving a stale immutable bundle at one URL; preserve a disconnected player's hero, wallet, and run-only equipment through bounded reconnects without adding persistence; and prove the supported room and snapshot scale. A configured Bun/WebSocket target must then pass the complete rendered run and diagnostics live. Until those gates pass, only the companion site is deployed.
+Content-fingerprinted immutable client assets and bounded in-memory defender resume shipped in `0.1.24`. Before claiming a public playable deployment, disable or protect debug mutation routes; enforce WebSocket Origin, payload-size, and input-rate limits; and prove the supported room and snapshot scale. A configured Bun/WebSocket target must then pass the complete rendered run and diagnostics live. Until those gates pass, only the companion site is deployed.
 
 ## Deferred beyond the slice
 
 - Larger wave and boss catalogs.
 - Broad loot rarity catalogs, recipe trees, crafting systems, and permanent equipment progression beyond the approved Armory arc.
 - Permanent Citadel Renown and corruption difficulties.
-- Matchmaking, public rooms, reconnection, and join-in-progress polish.
+- Matchmaking, public rooms, join-in-progress, and reconnection beyond the bounded same-run recovery window.
 - Mobile and controller input implementations.
 - Additional maps, modes, heroes, or long-form campaign content.
 

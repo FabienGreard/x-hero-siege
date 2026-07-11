@@ -32,6 +32,39 @@ describe("authoritative siege world", () => {
       type: "level_ability",
       slot: "ability2",
     });
+    expect(parseClientMessage(JSON.stringify({ type: "hello", name: "Ada", resumeToken: "opaque-token" }))).toEqual({
+      type: "hello",
+      name: "Ada",
+      resumeToken: "opaque-token",
+    });
+    expect(parseClientMessage(JSON.stringify({ type: "hello", name: "Ada", resumeToken: 42 }))).toBeNull();
+  });
+
+  test("a reserved defender becomes inert without losing authoritative run state", () => {
+    const game = new GameWorld({ timings: { defenseDuration: 20 } });
+    readySolo(game);
+    const state = game.players.get("p1")!;
+    state.goldUnits = 360;
+    state.equipment[0] = "fleetstep_greaves";
+    game.handleMessage("p1", {
+      type: "input",
+      seq: 7,
+      move: { x: 1, z: 0 },
+      aim: { x: 0, z: -1 },
+      attacking: true,
+    });
+
+    expect(game.setPlayerConnected("p1", false).ok).toBe(true);
+    const reserved = game.getSnapshot().players[0]!;
+    expect(reserved.connected).toBe(false);
+    expect(reserved.velocity).toEqual({ x: 0, z: 0 });
+    expect(reserved.gold).toBe(30);
+    expect(reserved.equipment[0]).toBe("fleetstep_greaves");
+    expect(reserved.lastInputSeq).toBe(7);
+    expect(game.handleMessage("p1", { type: "cast", slot: "ability1" }).code).toBe("PLAYER_DISCONNECTED");
+
+    expect(game.setPlayerConnected("p1", true).ok).toBe(true);
+    expect(game.getSnapshot().players[0]!.connected).toBe(true);
   });
 
   test("a hero can only be claimed by one of up to four players", () => {
@@ -68,6 +101,18 @@ describe("authoritative siege world", () => {
     expect(snapshot.phase).toBe("lobby");
     expect(snapshot.players[0]!.heroId).toBe("warden");
     expect(snapshot.players[0]!.ready).toBe(false);
+  });
+
+  test("authoritative run time survives clients and freezes with the outcome", () => {
+    const game = new GameWorld({ timings: { defenseDuration: 20 } });
+    readySolo(game);
+    advance(game, 1.25);
+    const activeTime = game.getSnapshot().runElapsed;
+    expect(activeTime).toBeCloseTo(1.25);
+
+    game.damageNexus(10_000);
+    advance(game, 1);
+    expect(game.getSnapshot().runElapsed).toBe(activeTime);
   });
 
   test("solo defense opens one clearly signalled front", () => {

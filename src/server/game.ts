@@ -79,6 +79,7 @@ export interface GameActionResult {
 interface PlayerState {
   id: string;
   name: string;
+  connected: boolean;
   heroId: HeroId | null;
   ready: boolean;
   position: Vec2;
@@ -222,6 +223,7 @@ export class GameWorld {
   private pendingEvents: GameEvent[] = [];
   private recentEvents: GameEvent[] = [];
   private elapsed = 0;
+  private runElapsed = 0;
   private totalTime = 0;
   private tickNumber = 0;
   private idCounter = 0;
@@ -251,6 +253,7 @@ export class GameWorld {
     this.players.set(id, {
       id,
       name: cleanName,
+      connected: true,
       heroId: null,
       ready: false,
       position: { x: 0, z: 8 },
@@ -280,7 +283,21 @@ export class GameWorld {
 
   removePlayer(id: string): void {
     this.players.delete(id);
-    if (this.hostId === id) this.hostId = this.players.keys().next().value ?? null;
+    if (this.hostId === id) {
+      this.hostId = [...this.players.values()].find((player) => player.connected)?.id
+        ?? this.players.keys().next().value
+        ?? null;
+    }
+  }
+
+  setPlayerConnected(id: string, connected: boolean): GameActionResult {
+    const player = this.players.get(id);
+    if (!player) return this.failure("PLAYER_UNKNOWN", "Player is not in this room.");
+    player.connected = connected;
+    player.move = { x: 0, z: 0 };
+    player.attacking = false;
+    player.velocity = { x: 0, z: 0 };
+    return { ok: true };
   }
 
   setPlayerName(id: string, name: string): GameActionResult {
@@ -341,6 +358,7 @@ export class GameWorld {
     this.timings = { ...(accelerated ? DEBUG_TIMINGS : DEFAULT_TIMINGS) };
     this.phase = "lobby";
     this.elapsed = 0;
+    this.runElapsed = 0;
     this.totalTime = 0;
     this.currentWave = 0;
     this.activeLanes = [];
@@ -366,6 +384,8 @@ export class GameWorld {
   }
 
   handleMessage(playerId: string, message: ClientMessage): GameActionResult {
+    if (message.type === "hello") return this.failure("ALREADY_ADMITTED", "This connection already has a defender.");
+    if (!this.players.get(playerId)?.connected) return this.failure("PLAYER_DISCONNECTED", "Player is not connected.");
     switch (message.type) {
       case "join": return this.setPlayerName(playerId, message.name);
       case "claim_hero": return this.claimHero(playerId, message.heroId);
@@ -390,6 +410,7 @@ export class GameWorld {
     this.updateTransient(dt);
     if (this.phase !== "lobby") this.elapsed += dt;
     if (this.phase === "lobby" || this.phase === "victory" || this.phase === "defeat") return;
+    this.runElapsed += dt;
     this.updatePlayers(dt);
     this.updateProjectiles(dt);
     this.updateSummons(dt);
@@ -489,6 +510,7 @@ export class GameWorld {
     return {
       tick: this.tickNumber,
       serverTime: Date.now(),
+      runElapsed: this.runElapsed,
       debug: this.accelerated,
       phase: this.phase,
       phaseElapsed: this.elapsed,
@@ -526,6 +548,7 @@ export class GameWorld {
 
   private resetRunState(): void {
     this.elapsed = 0;
+    this.runElapsed = 0;
     this.totalTime = 0;
     this.currentWave = 0;
     this.spawned = 0;
@@ -572,7 +595,7 @@ export class GameWorld {
   }
 
   private canStart(): boolean {
-    return this.phase === "lobby" && this.players.size > 0 && [...this.players.values()].every((player) => player.heroId && player.ready);
+    return this.phase === "lobby" && this.players.size > 0 && [...this.players.values()].every((player) => player.connected && player.heroId && player.ready);
   }
 
   private setInput(playerId: string, seq: number, move: Vec2, aim: Vec2, attacking: boolean): GameActionResult {
@@ -1483,7 +1506,7 @@ export class GameWorld {
   private playerSnapshot(player: PlayerState): PlayerSnapshot {
     const stats = this.heroStats(player);
     return {
-      id: player.id, name: player.name, heroId: player.heroId, ready: player.ready, position: copy(player.position),
+      id: player.id, name: player.name, connected: player.connected, heroId: player.heroId, ready: player.ready, position: copy(player.position),
       velocity: copy(player.velocity), aim: copy(player.aim), hp: player.hp, maxHp: stats.maxHp, stats, barrier: player.barrier,
       maxBarrier: player.maxBarrier, level: player.level, xp: player.xp, nextLevelXp: this.nextLevelXp(player.level), gold: goldFromUnits(player.goldUnits),
       equipment: [...player.equipment] as EquipmentSlots, kills: player.kills, abilityRanks: { ...player.abilityRanks }, skillPoints: player.skillPoints,
