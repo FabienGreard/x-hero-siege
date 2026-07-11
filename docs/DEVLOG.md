@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A carried step should leave a trace
+
+`0.1.24` made Combat Stride mechanically true, but replaying the four-Greaves Warden exposed a gap between that truth and its battlefield read. The Attuned primary carried `15%` of current Move Speed through windup and impact, yet the resulting displacement was small enough to disappear under the hero in a crowded defense. The cyan signature said Fleetstep; it did not quite say that the swing had carried a step.
+
+`0.1.25` lets Fleetstep's existing lower chevrons leave one restrained cyan echo opposite the hero's actual velocity during a moving Attuned primary windup and impact. It settles home through recovery instead of lingering, and an ally's echo stays quieter than the local defender's. Strafing reads as strafing rather than following aim, while a stationary swing, an ability, or a three-Greaves build receives nothing new.
+
+The answer remains inside the visual language the ware already earned. There is no new particle, ring, sound, HUD meter, combat event, or parallel system; the existing signature simply separates far enough for the carried movement to survive battlefield density. Hero silhouette, enemy warnings, impact timing, and the fourth-copy awakening remain the louder truths.
+
 ## 2026-07-11 — A dropped connection should not erase a decision
 
 The `0.1.23` replay began where the Armory wanted it to begin: a normal Warden left North for the Forge, returned wearing Greaves, fought for another window, then crossed the Citadel for Focus. One ordinary network drop erased the whole sentence. The server removed the defender immediately; the browser returned as a stranger after the gates had opened, so hero selection could only repeat that the siege had already begun. Gold, equipment, champion stats, and control of the run disappeared together.

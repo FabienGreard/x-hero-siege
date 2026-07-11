@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.25` — Leave the Step
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending release proof; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
+
+- Correct the battlefield-read weakness exposed by normal authoritative `0.1.24` play: four real Forge trips produced an Attuned four-Greaves Warden by `86.061s` with the Nexus untouched, but Combat Stride moved only `0.607` world units across windup and impact and had no renderer-specific read.
+- Reuse the established cyan Attuned Fleetstep lower-chevron echo. During a moving basic windup or active impact, leave it opposite authoritative velocity by up to `0.18` hero scale; settle it home through recovery and keep the allied read quieter than the local one.
+- Derive the whole treatment from each current snapshot without retained timers, events, or replayable history. Keep the Attunement transition centered so a newly earned ceremony is not displaced by movement presentation.
+- Preserve Combat Stride's exact movement, timing, recovery, ability isolation, damage, cadence, aim, prices, stats, shops, routes, six unrestricted slots, Attunement, balance, and authority. This is one visual consequence for an existing earned effect, not a new mechanic or catalog obligation.
+- Compare the actual `0.1.24` baseline, corrected four-copy read, unchanged three-copy threshold, and quieter allied read at native `1280×720` against the approved gameplay triptych. Prove directional strafing, recovery settling, hydration safety, clean diagnostics, typecheck, authoritative suite, production assets, and real four-client convergence.
+
+**Next-cycle nomination:** replay shipped `0.1.25` at normal timing and choose the highest-leverage shop, item, or champion-stat weakness from actual play. If pre-purchase comprehension leads, test Quickening Sigil's exact learned-cast returns before adding another ware evolution or any catalog breadth.
+
 ## `0.1.24` — Hold Your Place
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.

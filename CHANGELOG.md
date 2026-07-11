@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## [0.1.25] - 2026-07-11
+
+### Added
+
+- Added one restrained cyan Combat Stride step to the existing Attuned Fleetstep Greaves lower-chevron echo during a moving primary windup and impact.
+- Added pure presentation coverage for direction, local-versus-ally hierarchy, action phases, recovery settling, stationary and ability isolation, and non-Attuned builds.
+- Added controlled native `1280×720` comparison evidence for the actual `0.1.24` baseline, the current four-Greaves read, the unchanged three-Greaves threshold, and a quieter allied step.
+
+### Changed
+
+- Offset the existing lower-chevron echo opposite the hero's authoritative velocity by up to `0.18` hero scale while Combat Stride is active, then settle it home through recovery without retaining visual state.
+- Feed the renderer the authoritative velocity vector instead of a movement boolean so strafing follows actual movement rather than aim; local and allied opacity remain deliberately distinct.
+
+### Preserved
+
+- Combat Stride's `15%` movement retention, primary power and timing, recovery, abilities, damage, cadence, aim, Fleetstep price and stats, both physical shops, routes, six unrestricted equipment slots, Attunement, balance, and server authority are unchanged.
+- No particle system, ground ring, sound, HUD meter, network event, ware, evolution, stat, vendor, slot type, currency, progression system, or catalog breadth was added.
+
 ## [0.1.24] - 2026-07-11
 
 ### Added

@@ -12,6 +12,7 @@ import type {
 } from "../shared/protocol";
 import { VENDOR_DEFINITIONS } from "../shared/armory-data";
 import { HERO_DEFINITIONS, WORLD_LAYOUT } from "../shared/game-data";
+import { deriveCombatStrideEcho } from "./combat-stride-visual";
 
 export const HERO_PRESENTATION: Record<HeroId, {
   symbol: string;
@@ -648,7 +649,7 @@ export function setEntityFlash(visual: EntityVisual, now: number, color = 0xffff
 export function updateEntityVisual(
   visual: EntityVisual,
   now: number,
-  moving: boolean,
+  velocity: Vec2,
   elapsed: number,
   facing: Vec2,
   action: ActionSnapshot | null,
@@ -662,6 +663,7 @@ export function updateEntityVisual(
   const wareReceipt = visual.userData.wareReceipt;
   const baseScale = visual.userData.baseScale;
   const hero = visual.userData.entityKind === "hero";
+  const moving = Math.hypot(velocity.x, velocity.z) > 0.1;
   if (now >= visual.userData.flashUntil) (sprite.material as THREE.SpriteMaterial).color.setHex(0xffffff);
 
   const actionDirection = action && Math.hypot(action.direction.x, action.direction.z) > 0.01
@@ -773,7 +775,21 @@ export function updateEntityVisual(
           : 1;
         const echoScale = breath * gainBloom * lossCollapse;
         buildSignatureEcho.scale.set(scaleX * 1.64 * echoScale, scaleY * 1.46 * echoScale, 1);
-        buildSignatureEcho.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.008);
+        const combatStrideEcho = transitionActive
+          ? { offset: { x: 0, z: 0 }, opacityBoost: 0 }
+          : deriveCombatStrideEcho({
+              itemId: visual.userData.buildSignatureItemId,
+              attuned,
+              velocity,
+              action,
+              baseScale,
+              isLocal: visual.userData.isLocal,
+            });
+        buildSignatureEcho.position.set(
+          sprite.position.x + combatStrideEcho.offset.x,
+          sprite.position.y,
+          sprite.position.z + combatStrideEcho.offset.z + 0.008,
+        );
         const echoMaterial = buildSignatureEcho.material as THREE.SpriteMaterial;
         echoMaterial.rotation = lean;
         const settledOpacity = visual.userData.isLocal ? 0.24 : 0.12;
@@ -783,7 +799,7 @@ export function updateEntityVisual(
         } else if (transitionActive && transitionChange === "lost") {
           echoMaterial.opacity = settledOpacity * (1 - transitionProgress);
         } else {
-          echoMaterial.opacity = settledOpacity;
+          echoMaterial.opacity = settledOpacity + combatStrideEcho.opacityBoost;
         }
       }
     }

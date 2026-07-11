@@ -2687,11 +2687,11 @@ function updateWorld(now: number, delta: number): void {
   const elapsed = now / 1000;
   for (const tracked of playerVisuals.values()) {
     tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 17));
-    updateEntityVisual(tracked.visual, now, Math.hypot(tracked.velocity.x, tracked.velocity.z) > 0.1, elapsed, tracked.facing, tracked.action);
+    updateEntityVisual(tracked.visual, now, tracked.velocity, elapsed, tracked.facing, tracked.action);
   }
   for (const tracked of enemyVisuals.values()) {
     tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 15));
-    updateEntityVisual(tracked.visual, now, Math.hypot(tracked.velocity.x, tracked.velocity.z) > 0.1, elapsed + tracked.target.x * 0.03, tracked.facing, tracked.action);
+    updateEntityVisual(tracked.visual, now, tracked.velocity, elapsed + tracked.target.x * 0.03, tracked.facing, tracked.action);
   }
   for (const tracked of projectileVisuals.values()) tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 28));
   for (const tracked of summonVisuals.values()) {
