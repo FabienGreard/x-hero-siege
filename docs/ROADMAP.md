@@ -4,7 +4,7 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## `0.1.28` — Trust the Shot
 
-**Status:** implemented and locally verified on 2026-07-11; companion site update prepared; push and live companion verification pending.
+**Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.
 
 - Correct the ranged-combat failure reproduced after shipped `0.1.27`: with primary-only legal input and perfect current target aim, Riftstalker lost the Nexus around `0:56` with `32` kills and Ashcaller around `0:55` with `31`. Their declared `22`/`20` range was unused, aim froze at windup start, a `0.1s` step could tunnel through enemies, and tiny travel forms disappeared beneath oversized generic impact aftermath.
 - Resolve ranged basics toward the latest server-accepted aim at release, stop them at the champion's canonical range, give only those basics an honest `0.75` collision envelope, and sweep traveled segments in deterministic nearest-first order. Keep Warden and Gravebinder committed to windup direction.
