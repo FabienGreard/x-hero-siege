@@ -4,6 +4,7 @@ import {
   VENDOR_DEFINITIONS,
   createEmptyEquipment,
   dominantEquipmentItem,
+  legalEquipmentReplacementSlots,
   projectEquipmentChange,
   summarizeEquipment,
 } from "../src/shared/armory-data";
@@ -28,6 +29,17 @@ const ITEM_VENDOR: Record<ItemId, VendorId> = {
 };
 
 describe("canonical equipment projections", () => {
+  test("replacement targets exist only for full occupied slots that would change", () => {
+    expect(legalEquipmentReplacementSlots(createEmptyEquipment(), "tempered_edge")).toEqual([]);
+    for (const itemId of ITEM_IDS) {
+      const sixMatching = Array.from({ length: 6 }, () => itemId) as EquipmentSlots;
+      expect(legalEquipmentReplacementSlots(sixMatching, itemId)).toEqual([]);
+      const fiveMatching = [...sixMatching] as EquipmentSlots;
+      fiveMatching[5] = itemId === "tempered_edge" ? "fleetstep_greaves" : "tempered_edge";
+      expect(legalEquipmentReplacementSlots(fiveMatching, itemId)).toEqual([5]);
+    }
+  });
+
   test("normal purchases take the first empty unrestricted slot without mutating the current build", () => {
     const equipment: EquipmentSlots = [
       "tempered_edge",

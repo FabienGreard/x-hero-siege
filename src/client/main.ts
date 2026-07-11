@@ -14,6 +14,7 @@ import {
   effectiveStackCopies,
   equipmentCopyCount,
   isStackAttuned,
+  legalEquipmentReplacementSlots,
   projectEquipmentChange,
   summarizeEquipment,
 } from "../shared/armory-data";
@@ -59,6 +60,7 @@ import {
   deriveLocalShopReadiness,
   type LocalShopReadiness,
 } from "./shop-readiness";
+import { deriveShopReplacementOffer } from "./shop-replacement-offer";
 import {
   BUILD_SIGNATURE_COLORS,
   HERO_PRESENTATION,
@@ -672,6 +674,9 @@ function renderEquipmentSlots(
   if (container.dataset.equipment === key) return;
   container.dataset.equipment = key;
   container.replaceChildren();
+  const legalReplacementSlots = incomingItemId
+    ? new Set(legalEquipmentReplacementSlots(equipment, incomingItemId))
+    : null;
   for (let index = 0; index < EQUIPMENT_SLOT_COUNT; index += 1) {
     const itemId = equipment[index] ?? null;
     const interactive = Boolean(incomingItemId);
@@ -684,7 +689,7 @@ function renderEquipmentSlots(
       slot.classList.add("is-replace-target");
       slot.classList.toggle("is-unchanged", unchanged);
       slot.classList.toggle("is-selected", index === selectedSlotIndex);
-      slot.disabled = !itemId || unchanged || replacementRequestPending;
+      slot.disabled = !legalReplacementSlots?.has(index as EquipmentSlotIndex) || replacementRequestPending;
       slot.addEventListener("click", () => selectReplacementSlot(index as EquipmentSlotIndex));
     }
     if (itemId) {
@@ -878,6 +883,16 @@ function selectReplacementItem(itemId: ItemId): void {
     clearReplacementSelection(true);
     return;
   }
+  const self = currentPlayer();
+  const offer = self ? deriveShopReplacementOffer(self.equipment, itemId) : null;
+  if (!offer || offer.state !== "replace") {
+    if (offer?.state === "full-stack") {
+      const item = ITEM_DEFINITIONS[itemId];
+      shopAnnouncement.textContent = `${offer.actionLabel} No gold was spent.`;
+      toast(`${item.name} already fills all six slots.`, "warning");
+    }
+    return;
+  }
   replacementItemId = itemId;
   replacementSlotIndex = null;
   replacementExpectedItemId = null;
@@ -990,7 +1005,9 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const selected = replacementItemId === itemId;
     const purchasePending = ordinaryPurchaseRequest !== null;
     const pendingThisItem = ordinaryPurchaseRequest?.itemId === itemId;
-    const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending && !purchasePending;
+    const replacementOffer = deriveShopReplacementOffer(self.equipment, itemId);
+    const fullStack = replacementOffer.state === "full-stack";
+    const canBuy = !self.downed && withinPurchaseRange && affordable && !replacementRequestPending && !purchasePending && !fullStack;
     const status = button.querySelector<HTMLElement>("[data-shop-status]");
     const owned = equipmentCopyCount(self.equipment, itemId);
     const attunementProgress = deriveAttunementProgress(owned);
@@ -1029,36 +1046,41 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     button.classList.toggle("can-buy", canBuy);
     button.classList.toggle("is-selected", selected);
     button.classList.toggle("is-pending", pendingThisItem);
+    button.classList.toggle("is-full-stack", fullStack);
     const actionLabel = purchasePending
       ? pendingThisItem ? "Purchase request pending." : "Another purchase request is pending."
-      : !withinPurchaseRange
-        ? `Move closer to ${vendorName}.`
-        : replacementRequestPending && selected
-          ? "Replacement request pending."
-          : slotsFull && selected && replacementSlotIndex !== null
-            ? "Selected. Confirm the exact replacement below."
-            : slotsFull && selected
-              ? "Selected. Choose equipment slot 1 through 6 to replace."
-              : slotsFull && affordable
-                ? "Select this ware, then choose an occupied equipment slot to replace."
-                : affordable
-                  ? "Buy and equip."
-                  : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`;
+      : fullStack
+        ? replacementOffer.actionLabel!
+        : !withinPurchaseRange
+          ? `Move closer to ${vendorName}.`
+          : replacementRequestPending && selected
+            ? "Replacement request pending."
+            : slotsFull && selected && replacementSlotIndex !== null
+              ? "Selected. Confirm the exact replacement below."
+              : slotsFull && selected
+                ? "Selected. Choose equipment slot 1 through 6 to replace."
+                : slotsFull && affordable
+                  ? replacementOffer.actionLabel!
+                  : affordable
+                    ? "Buy and equip."
+                    : `Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`;
     const statusLabel = purchasePending
       ? pendingThisItem ? "PURCHASING" : "WAIT"
-      : !withinPurchaseRange
-        ? "MOVE CLOSER"
-        : replacementRequestPending && selected
-          ? "REFORGING"
-          : slotsFull && selected && replacementSlotIndex !== null
-            ? "CONFIRM BELOW"
-            : slotsFull && selected
-              ? "SELECT SLOT"
-              : slotsFull
-                ? "REPLACE ITEM"
-                : affordable
-                  ? "BUY & EQUIP"
-                  : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
+      : fullStack
+        ? replacementOffer.statusLabel!
+        : !withinPurchaseRange
+          ? "MOVE CLOSER"
+          : replacementRequestPending && selected
+            ? "REFORGING"
+            : slotsFull && selected && replacementSlotIndex !== null
+              ? "CONFIRM BELOW"
+              : slotsFull && selected
+                ? "SELECT SLOT"
+                : slotsFull
+                  ? replacementOffer.statusLabel!
+                  : affordable
+                    ? "BUY & EQUIP"
+                    : `NEED ${Math.max(1, Math.ceil(item.price - self.gold))}`;
     if (status) status.textContent = statusLabel;
     const attunementDescription = ` ${attunementProgress.accessibleDescription}`;
     const previewDescription = purchasePreview
@@ -1131,6 +1153,12 @@ function buyShopItem(itemId: ItemId): void {
     return;
   }
   const item = ITEM_DEFINITIONS[itemId];
+  const replacementOffer = deriveShopReplacementOffer(self.equipment, itemId);
+  if (replacementOffer.state === "full-stack") {
+    shopAnnouncement.textContent = `${replacementOffer.actionLabel} No gold was spent.`;
+    toast(`${item.name} already fills all six slots.`, "warning");
+    return;
+  }
   if (self.gold < item.price) {
     toast(`Need ${Math.max(1, Math.ceil(item.price - self.gold))} more gold.`, "warning");
     return;
@@ -1169,6 +1197,15 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
     isHeroStatsPhase(state.phase),
   );
   if (replacementItemId && !equipmentIsFull(self.equipment)) clearReplacementSelection();
+  if (
+    replacementItemId &&
+    !replacementRequestPending &&
+    deriveShopReplacementOffer(self.equipment, replacementItemId).state === "full-stack"
+  ) {
+    const item = ITEM_DEFINITIONS[replacementItemId];
+    clearReplacementSelection();
+    shopAnnouncement.textContent = `${item.name} now fills all six equipment slots. Choose another ware to reforge.`;
+  }
   if (
     replacementSlotIndex !== null &&
     replacementExpectedItemId &&

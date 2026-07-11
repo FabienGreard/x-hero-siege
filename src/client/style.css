@@ -973,6 +973,10 @@ button.equipment-slot {
   filter: saturate(0.55) brightness(0.72);
 }
 
+.shop-item.is-full-stack .shop-item-price small {
+  color: #b7a982;
+}
+
 .shop-item-key {
   position: absolute;
   top: 4px;

@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## `0.1.22` — Every Trade Must Change
+
+**Status:** implemented and locally verified on 2026-07-11; push and companion-site deployment pending; playable game deployment pending a configured Bun/WebSocket host.
+
+- Correct the player-visible dead end exposed by replaying shipped `0.1.21`: at six identical wares, the matching local card still promised `REPLACE ITEM`, then opened a socket picker in which all six targets were disabled.
+- Derive the legal full-build targets from the canonical equipment projection. If no socket can produce a different build, expose a disabled `FULL STACK` card and an exact no-change explanation instead of beginning a reforge.
+- Give mouse, number shortcuts, visible status, accessible naming, socket selection, and post-acceptance reconciliation the same eligibility answer. An impossible activation must spend no gold and send no purchase request.
+- Preserve the legal specialization edge case: five matching copies plus one different ware can still replace that one socket and reach six. Preserve every cross-ware reforge unchanged.
+- Prove all four wares across both physical shops, six-matching and `5 + 1` builds, mouse and keyboard behavior, accepted authoritative reforge reconciliation, native `1280×720` fit, clean diagnostics, typecheck, production build, authoritative suite, and four-client convergence.
+
+**Next-cycle nomination:** replay shipped `0.1.22` at normal timing and choose the next highest-leverage shop, item, or champion-stat weakness from actual use. Prefer one deeper decision or payoff for an established ware; do not add catalog breadth to compensate for a weakness in the existing four.
+
 ## `0.1.21` — Read the Commitment
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host.

@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## [0.1.22] - 2026-07-11
+
+### Added
+
+- Added one canonical full-build eligibility answer derived from the real equipment projection: a ware is offered only when at least one occupied socket can produce a changed build.
+- Added a disabled `FULL STACK` state to both physical shops when their matching ware already occupies all six sockets, with explicit accessible no-change guidance.
+- Added focused coverage for all four six-duplicate builds, every retained cross-ware target, and the legal `5 + 1 → 6` specialization path.
+
+### Changed
+
+- Make mouse activation and `1`/`2` shop shortcuts refuse an impossible same-ware reforge before any request can be sent; the player is told that no gold was spent and to choose the other local ware.
+- Derive selectable socket buttons from the same canonical legal-target list as the shop card instead of reconstructing same-item eligibility in the DOM.
+
+### Preserved
+
+- Five matching copies can still replace the one different socket to reach six, and every cross-ware reforge retains its exact legal targets, preview, confirmation, price, and authoritative acceptance.
+- The four wares, six unrestricted duplicate-ready slots, Attunement, stats, item power, vendors, routes, economy, balance, controls, art, audio, and server authority are unchanged.
+
 ## [0.1.21] - 2026-07-11
 
 ### Added

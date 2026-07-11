@@ -2,6 +2,14 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A trade must have somewhere to go
+
+`0.1.21` made investment readable from the first copy, then a completed specialization exposed a small but absolute lie. A Warden wearing six Tempered Edges could click the matching Forge card because it still promised `REPLACE ITEM`. The next step displayed all six sockets as disabled. Nothing could be sacrificed for another Edge because every possible outcome was the same build, yet the shop had invited the player into the flow anyway.
+
+`0.1.22` makes the offer answer the same question as the actual trade. The canonical equipment projection now supplies every socket that would produce a changed build. When that list is empty, the matching card settles into a disabled `FULL STACK` state and tells mouse, keyboard, and assistive technology to choose the other local ware. No request leaves the client and no gold can be placed at risk.
+
+This does not turn unrestricted sockets into a typed inventory. Five Edges and one Greaves still allow the Greaves socket to become the sixth Edge, while every cross-ware reforge retains its exact targets and confirmation. The rule is narrower: if the shop offers a trade, the trade must have somewhere real to go.
+
 ## 2026-07-11 — Commitment should read before it pays off
 
 `0.1.20` completed the champion-stat sentence. In the next normal Warden run, one Edge and one Focus resolved into exact primary and cast consequences while the siege continued. The build still hid a quieter strategic sentence: each stack said only `×1` and its current percentage, then waited until three matching copies to announce that the next one Attuned. The payoff was legible; the road toward it was not.

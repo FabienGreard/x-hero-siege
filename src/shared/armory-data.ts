@@ -204,6 +204,20 @@ export function projectEquipmentChange(
   return { equipment: nextEquipment, slotIndex, replacedItemId };
 }
 
+/** Every authoritative full-build target that would produce a real equipment change. */
+export function legalEquipmentReplacementSlots(
+  equipment: EquipmentSlots,
+  incomingItemId: ItemId,
+): EquipmentSlotIndex[] {
+  if (equipment.some((itemId) => itemId === null)) return [];
+  const slots: EquipmentSlotIndex[] = [];
+  for (let index = 0; index < EQUIPMENT_SLOT_COUNT; index += 1) {
+    const slotIndex = index as EquipmentSlotIndex;
+    if (projectEquipmentChange(equipment, incomingItemId, slotIndex)) slots.push(slotIndex);
+  }
+  return slots;
+}
+
 function formatPercent(value: number): string {
   const percent = value * 100;
   return Number.isInteger(percent) ? String(percent) : String(Number(percent.toFixed(1)));
