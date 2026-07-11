@@ -3,22 +3,17 @@ import { deriveShopReplacementOffer } from "../src/client/shop-replacement-offer
 import {
   ARMORY_REFORGE_NET_COST,
   ARMORY_SELL_VALUE,
+  ITEM_IDS,
   ITEM_DEFINITIONS,
 } from "../src/shared/armory-data";
 import type { EquipmentSlots, ItemId } from "../src/shared/protocol";
-
-const ITEM_IDS = [
-  "tempered_edge",
-  "fleetstep_greaves",
-  "runebound_focus",
-  "quickening_sigil",
-] as const satisfies readonly ItemId[];
 
 const OTHER_ITEM: Record<ItemId, ItemId> = {
   tempered_edge: "fleetstep_greaves",
   fleetstep_greaves: "tempered_edge",
   runebound_focus: "quickening_sigil",
   quickening_sigil: "runebound_focus",
+  gateward_plate: "tempered_edge",
 };
 
 describe("full-build shop replacement offers", () => {
@@ -38,7 +33,7 @@ describe("full-build shop replacement offers", () => {
     });
   });
 
-  test("all four six-duplicate builds truthfully expose no same-ware trade", () => {
+  test("all six-duplicate builds truthfully expose no same-ware trade", () => {
     for (const itemId of ITEM_IDS) {
       const equipment = Array.from({ length: 6 }, () => itemId) as EquipmentSlots;
       expect(deriveShopReplacementOffer(equipment, itemId)).toEqual({

@@ -1,4 +1,5 @@
 import {
+  ITEM_DEFINITIONS,
   effectiveStackCopies,
   equipmentCopyCount,
   isStackAttuned,
@@ -17,6 +18,7 @@ import type {
 
 export const EQUIPMENT_STAT_FIELDS = [
   { key: "basicDamage", label: "Basic Damage" },
+  { key: "maxHp", label: "Max Health" },
   { key: "moveSpeed", label: "Move Speed" },
   { key: "abilityPower", label: "Skill Power" },
   { key: "cooldownRecovery", label: "Cooldown Speed" },
@@ -25,15 +27,11 @@ export const EQUIPMENT_STAT_FIELDS = [
 
 export type EquipmentStatKey = (typeof EQUIPMENT_STAT_FIELDS)[number]["key"];
 
-const ITEM_STAT_FIELDS: Record<ItemId, (typeof EQUIPMENT_STAT_FIELDS)[number]> = {
-  tempered_edge: EQUIPMENT_STAT_FIELDS[0],
-  fleetstep_greaves: EQUIPMENT_STAT_FIELDS[1],
-  runebound_focus: EQUIPMENT_STAT_FIELDS[2],
-  quickening_sigil: EQUIPMENT_STAT_FIELDS[3],
-};
-
 export function equipmentStatFieldForItem(itemId: ItemId): (typeof EQUIPMENT_STAT_FIELDS)[number] {
-  return ITEM_STAT_FIELDS[itemId];
+  const statKey = ITEM_DEFINITIONS[itemId].primaryStatKey;
+  const field = EQUIPMENT_STAT_FIELDS.find((candidate) => candidate.key === statKey);
+  if (!field) throw new Error(`No equipment preview field for ${itemId}.`);
+  return field;
 }
 
 function formatNumber(value: number, decimals = 0): string {
@@ -46,6 +44,7 @@ function formatNumber(value: number, decimals = 0): string {
 
 export function formatEquipmentStat(key: EquipmentStatKey, value: number): string {
   if (key === "moveSpeed") return formatNumber(value, 1);
+  if (key === "maxHp") return formatNumber(value);
   if (key === "abilityPower" || key === "cooldownRecovery" || key === "basicMoveRetention") {
     return `${formatNumber(value * 100)}%`;
   }
@@ -227,13 +226,13 @@ export function projectOrdinaryPurchasePreview(
   const projection = projectEquipmentChange(source.equipment, itemId);
   if (!projection || projection.replacedItemId !== null) return null;
 
-  const field = ITEM_STAT_FIELDS[itemId];
+  const field = equipmentStatFieldForItem(itemId);
   const projectedStats = deriveHeroStats(source.heroId, source.level, projection.equipment);
   const currentCount = equipmentCopyCount(source.equipment, itemId);
   const projectedCount = equipmentCopyCount(projection.equipment, itemId);
   const attunes = !isStackAttuned(currentCount) && isStackAttuned(projectedCount);
   const combatStride = projectCombatStride(source.stats, projectedStats);
-  const learnedCooldowns = itemId === "quickening_sigil"
+  const learnedCooldowns = Math.abs(source.stats.cooldownRecovery - projectedStats.cooldownRecovery) > 1e-9
     ? projectLearnedAbilityCooldowns(
         source.heroId,
         source.abilityRanks,

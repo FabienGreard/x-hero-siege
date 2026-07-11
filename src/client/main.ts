@@ -23,7 +23,10 @@ import {
   projectEquipmentRemoval,
   summarizeEquipment,
 } from "../shared/armory-data";
-import { deriveHeroStats } from "../shared/hero-stats";
+import {
+  deriveHeroStats,
+  projectHealthAtPreservedRatio,
+} from "../shared/hero-stats";
 import { deriveAbilityImpactReadout } from "../shared/ability-impact";
 import { derivePrimaryImpactReadout } from "../shared/primary-impact";
 import {
@@ -62,6 +65,7 @@ import {
 } from "./ordinary-purchase-request";
 import {
   EQUIPMENT_STAT_FIELDS,
+  equipmentStatFieldForItem,
   formatEquipmentStat,
   projectAcceptedPurchaseImpact,
   projectLearnedAbilityCooldowns,
@@ -324,6 +328,7 @@ const ITEM_SYMBOLS: Record<ItemId, string> = {
   fleetstep_greaves: "»",
   runebound_focus: "◆",
   quickening_sigil: "◎",
+  gateward_plate: "⬟",
 };
 const VENDOR_PRESENTATION: Record<VendorId, { district: string; tagline: string }> = {
   ironbound_forge: {
@@ -825,6 +830,7 @@ const REFORGE_ITEM_NAMES: Record<ItemId, string> = {
   fleetstep_greaves: "Greaves",
   runebound_focus: "Focus",
   quickening_sigil: "Sigil",
+  gateward_plate: "Plate",
 };
 
 function replacementStackPreview(
@@ -857,12 +863,22 @@ function saleStackPreview(
 function replacementStatsPreview(
   current: HeroStatsSnapshot,
   projected: HeroStatsSnapshot,
+  currentHp: number,
   heroId: HeroId,
   abilityRanks: PlayerSnapshot["abilityRanks"],
 ): string {
   const changes = EQUIPMENT_STAT_FIELDS
     .filter(({ key }) => key !== "basicMoveRetention" && Math.abs(current[key] - projected[key]) > 1e-9)
     .map(({ key, label }) => `${label} ${formatEquipmentStat(key, current[key])} → ${formatEquipmentStat(key, projected[key])}`);
+  if (Math.abs(current.maxHp - projected.maxHp) > 1e-9) {
+    const projectedHp = projectHealthAtPreservedRatio(currentHp, current.maxHp, projected.maxHp);
+    const heldRatio = current.maxHp > 0
+      ? Math.max(0, Math.min(1, currentHp / current.maxHp))
+      : 0;
+    changes.push(
+      `Current HP ${formatHeroStat(currentHp, 1)}/${formatHeroStat(current.maxHp)} → ${formatHeroStat(projectedHp, 1)}/${formatHeroStat(projected.maxHp)} · ${formatHeroStat(heldRatio * 100, 1)}% HELD`,
+    );
+  }
   const currentStride = current.moveSpeed * current.basicMoveRetention;
   const projectedStride = projected.moveSpeed * projected.basicMoveRetention;
   if (Math.abs(currentStride - projectedStride) > 1e-9) {
@@ -1109,6 +1125,7 @@ function renderShopCatalog(vendorId: VendorId): void {
 function updateShopPresentation(vendorId: VendorId, name: string): void {
   const presentation = VENDOR_PRESENTATION[vendorId];
   shopPanel.dataset.vendor = vendorId;
+  shopPanel.dataset.stockCount = String(VENDOR_DEFINITIONS[vendorId].itemIds.length);
   shopDistrict.textContent = presentation.district;
   shopTitle.textContent = name;
   shopTagline.textContent = presentation.tagline;
@@ -1184,6 +1201,7 @@ function refreshShopTradeState(self: PlayerSnapshot | undefined = currentPlayer(
       shopReplaceStats.textContent = replacementStatsPreview(
         self.stats,
         projectedStats,
+        self.hp,
         self.heroId,
         self.abilityRanks,
       ) || "No Hero Stat change";
@@ -1203,6 +1221,7 @@ function refreshShopTradeState(self: PlayerSnapshot | undefined = currentPlayer(
       shopReplaceStats.textContent = replacementStatsPreview(
         self.stats,
         projectedStats,
+        self.hp,
         self.heroId,
         self.abilityRanks,
       ) || "No Hero Stat change";
@@ -1812,20 +1831,24 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
 }
 
 function pulsePurchasedStat(itemId: ItemId | undefined): void {
-  const value = itemId === "tempered_edge"
+  if (!itemId) return;
+  const statKey = equipmentStatFieldForItem(itemId).key;
+  const value = statKey === "basicDamage"
     ? statBasicDamage
-    : itemId === "fleetstep_greaves"
+    : statKey === "maxHp"
+      ? statMaxHealth
+      : statKey === "moveSpeed"
       ? statMoveSpeed
-      : itemId === "runebound_focus"
+      : statKey === "abilityPower"
         ? statAbilityPower
-        : itemId === "quickening_sigil"
+        : statKey === "cooldownRecovery"
           ? statCooldownRecovery
           : null;
   const stat = value?.closest<HTMLElement>(".hero-stat");
   const targets = [
     ...(stat ? [stat] : []),
-    ...(itemId === "tempered_edge" || itemId === "fleetstep_greaves" ? [heroPrimaryImpact] : []),
-    ...(itemId === "runebound_focus" || itemId === "quickening_sigil" ? [abilityImpactReadout] : []),
+    ...(statKey === "basicDamage" || statKey === "moveSpeed" || statKey === "basicMoveRetention" ? [heroPrimaryImpact] : []),
+    ...(statKey === "abilityPower" || statKey === "cooldownRecovery" ? [abilityImpactReadout] : []),
   ];
   if (targets.length === 0) return;
   for (const target of targets) target.classList.remove("is-purchased");
@@ -2009,6 +2032,7 @@ function playAttunementTransition(
 
 const PURCHASE_STAT_SHORT_LABELS = {
   basicDamage: "BASIC",
+  maxHp: "MAX HP",
   moveSpeed: "MOVE",
   abilityPower: "SKILL",
   cooldownRecovery: "COOLDOWN",
@@ -2264,7 +2288,16 @@ function syncPlayers(players: PlayerSnapshot[]): void {
     const dominantStack = dominantEquipmentStack(player.equipment);
     setEntityBuildSignature(tracked.visual, dominantStack?.itemId ?? null, dominantStack?.attuned ?? false);
     const oldHp = previousHp.get(`p-${player.id}`);
-    if (oldHp !== undefined && player.hp < oldHp) damageFeedback(tracked, oldHp - player.hp, player.position, true);
+    if (oldHp !== undefined) {
+      const comparableOldHp = projectHealthAtPreservedRatio(
+        oldHp,
+        tracked.maxHp,
+        player.maxHp,
+      );
+      if (player.hp < comparableOldHp - 1e-6) {
+        damageFeedback(tracked, comparableOldHp - player.hp, player.position, true);
+      }
+    }
     previousHp.set(`p-${player.id}`, player.hp);
     tracked.hp = player.hp;
     tracked.maxHp = player.maxHp;
@@ -2950,9 +2983,12 @@ window.addEventListener("keydown", (event) => {
       selectReplacementSlot((number - 1) as EquipmentSlotIndex);
       return;
     }
-    const itemIndex = number >= 1 && number <= 2 ? number - 1 : -1;
-    const itemId = itemIndex >= 0 && activeVendorId
-      ? VENDOR_DEFINITIONS[activeVendorId].itemIds[itemIndex]
+    const activeStock = activeVendorId
+      ? VENDOR_DEFINITIONS[activeVendorId].itemIds
+      : [];
+    const itemIndex = number >= 1 && number <= activeStock.length ? number - 1 : -1;
+    const itemId = itemIndex >= 0
+      ? activeStock[itemIndex]
       : undefined;
     if (itemId) {
       event.preventDefault();

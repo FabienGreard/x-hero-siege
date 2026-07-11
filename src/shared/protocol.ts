@@ -1,4 +1,7 @@
 import { isItemId, isVendorId } from "./armory-data";
+import type { ItemId } from "./item-ids";
+
+export type { ItemId } from "./item-ids";
 
 export type HeroId =
   | "warden"
@@ -17,11 +20,6 @@ export type GamePhase =
 export type AbilitySlot = "ability1" | "ability2" | "ability3" | "ultimate";
 export type ActionSlot = "basic" | AbilitySlot;
 export type ActionPhase = "idle" | "windup" | "active" | "recovery";
-export type ItemId =
-  | "tempered_edge"
-  | "fleetstep_greaves"
-  | "runebound_focus"
-  | "quickening_sigil";
 export type VendorId = "ironbound_forge" | "veilglass_reliquary";
 export type EquipmentSlotIndex = 0 | 1 | 2 | 3 | 4 | 5;
 export type EquipmentSlots = [

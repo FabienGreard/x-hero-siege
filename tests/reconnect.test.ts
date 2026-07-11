@@ -230,7 +230,7 @@ describe("authoritative reconnect lifecycle", () => {
         "fleetstep_greaves",
         "fleetstep_greaves",
         "tempered_edge",
-        "runebound_focus",
+        "gateward_plate",
       ];
       const authoritative = harness.instance.game.players.get(playerId)!;
       authoritative.level = 8;

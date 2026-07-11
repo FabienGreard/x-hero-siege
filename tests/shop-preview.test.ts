@@ -8,6 +8,7 @@ import {
 } from "../src/client/shop-preview";
 import {
   ARMORY_WARE_PRICE,
+  ITEM_IDS,
   VENDOR_DEFINITIONS,
 } from "../src/shared/armory-data";
 import { HERO_DEFINITIONS, HERO_IDS } from "../src/shared/game-data";
@@ -22,18 +23,12 @@ import type {
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
 
-const ITEM_IDS = [
-  "tempered_edge",
-  "fleetstep_greaves",
-  "runebound_focus",
-  "quickening_sigil",
-] as const satisfies readonly ItemId[];
-
 const ITEM_VENDORS = {
   tempered_edge: "ironbound_forge",
   fleetstep_greaves: "ironbound_forge",
   runebound_focus: "veilglass_reliquary",
   quickening_sigil: "veilglass_reliquary",
+  gateward_plate: "ironbound_forge",
 } as const satisfies Record<ItemId, VendorId>;
 
 function equipmentOf(itemId: ItemId, count: number): EquipmentSlots {
@@ -279,6 +274,7 @@ describe("ordinary shop purchase previews", () => {
       "MOVE SPEED 10.5 → 11.6",
       "SKILL POWER 100% → 115%",
       "COOLDOWN SPEED 100% → 115%",
+      "MAX HEALTH 190 → 205",
     ]);
   });
 
@@ -288,6 +284,7 @@ describe("ordinary shop purchase previews", () => {
       ["MOVE SPEED 13.7 → 15.8", "13.7", "15.8"],
       ["SKILL POWER 145% → 175%", "145%", "175%"],
       ["COOLDOWN SPEED 145% → 175%", "145%", "175%"],
+      ["MAX HEALTH 235 → 265", "235", "265"],
     ];
     for (const [index, itemId] of ITEM_IDS.entries()) {
       const preview = projectOrdinaryPurchasePreview(source("warden", 1, equipmentOf(itemId, 3)), itemId);
@@ -482,7 +479,7 @@ describe("accepted purchase impact receipts", () => {
     });
   });
 
-  test("all four heroes and wares reconstruct the same canonical post-purchase stat", () => {
+  test("all four heroes and every ware reconstruct the same canonical post-purchase stat", () => {
     for (const heroId of HERO_IDS) {
       for (const itemId of ITEM_IDS) {
         const equipment: EquipmentSlots = [null, null, null, null, null, null];

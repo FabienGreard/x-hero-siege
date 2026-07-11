@@ -3,6 +3,7 @@ import {
   ARMORY_REFORGE_NET_COST,
   ARMORY_SELL_VALUE,
   ARMORY_WARE_PRICE,
+  ITEM_IDS,
   VENDOR_DEFINITIONS,
   armoryReforgeNetCost,
   projectEquipmentRemoval,
@@ -19,13 +20,6 @@ import {
 } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
-
-const ITEM_IDS: ItemId[] = [
-  "tempered_edge",
-  "fleetstep_greaves",
-  "runebound_focus",
-  "quickening_sigil",
-];
 
 function readyParty(game: GameWorld, heroIds: HeroId[]): void {
   for (const [index, heroId] of heroIds.entries()) {

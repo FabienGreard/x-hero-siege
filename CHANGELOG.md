@@ -2,6 +2,27 @@
 
 All notable project changes are recorded here.
 
+## [0.1.32] - 2026-07-11
+
+### Added
+
+- Added Gateward Plate as one identity-bearing fifth ware at the Ironbound Forge. Each effective copy grants exactly `+15 Max Health`; the fourth raw copy Attunes and contributes the established doubled scalar once.
+- Added exact current-to-projected Max Health consequences to ordinary purchase, sale, and full-build reforge review, including preserved-health-percentage arithmetic before commitment.
+- Added a canonical exhaustive item-ID and item-owned modifier path so an unknown or newly added ware can no longer silently inherit Quickening Sigil's Cooldown Speed behavior.
+- Added native `1280×720` before, ordinary purchase, fourth-copy Attunement, full-build reforge, and cross-vendor sale evidence for the three-card Forge.
+
+### Changed
+
+- The Forge now offers three distinct `60`-gold answers—Basic Damage, Move Speed, or Max Health—through mouse or `1`–`3`, while the Reliquary retains its two ability-focused wares. Every ware still sells for `30`, and a legal full-build reforge still costs `30` net.
+- Buying, selling, or reforging Max Health preserves the hero's current health percentage instead of granting a hidden heal or causing proportional harm. Gateward changes capacity only; it adds no armor, regeneration, proc, active, or ability scaling.
+- The wider Forge keeps all three cards simultaneously visible at native resolution with the established tactical-copy floor, no scrolling, and no battlefield, minimap, controls, or action-bar overlap.
+
+### Preserved
+
+- Both physical local shops, route strategy, personal co-op ownership, exactly six unrestricted duplicate-capable run-only slots, Attunement, exact-slot selling, atomic reforging, prices, rewards, controls, art, audio, and server authority remain established.
+- Gateward Plate does not scale Soul Scythe healing, Bone Ward, Wraith Host, any other ability magnitude, Basic Damage, Move Speed, Skill Power, or Cooldown Speed. Gravebinder sustain and ranged-class difficulty remain separate champion checkpoints.
+- No sixth ware, armor stat, regeneration system, rarity, recipe, typed slot, permanent inventory, reward increase, champion-kit rewrite, or new sound was added.
+
 ## [0.1.31] - 2026-07-11
 
 ### Added

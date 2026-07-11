@@ -72,7 +72,7 @@ import type {
   Vec2,
 } from "../shared/protocol";
 import { ENEMY_GOLD_REWARDS, goldFromUnits, goldRewardShareUnits, goldToUnits } from "./economy";
-import { deriveHeroStats } from "./hero-stats";
+import { deriveHeroStats, projectHealthAtPreservedRatio } from "./hero-stats";
 
 export interface GameTimings {
   defenseDuration: number;
@@ -665,21 +665,24 @@ export class GameWorld {
     return { player, vendor };
   }
 
-  private cooldownsAfterEquipmentChange(
+  private stateAfterEquipmentChange(
     player: PlayerState,
     nextEquipment: EquipmentSlots,
-  ): Record<ActionSlot, number> {
-    if (!player.heroId) return { ...player.cooldowns };
-    const previousRecovery = this.heroStats(player).cooldownRecovery;
-    const nextRecovery = deriveHeroStats(player.heroId, player.level, nextEquipment).cooldownRecovery;
+  ): { cooldowns: Record<ActionSlot, number>; hp: number } {
+    if (!player.heroId) return { cooldowns: { ...player.cooldowns }, hp: player.hp };
+    const previousStats = this.heroStats(player);
+    const nextStats = deriveHeroStats(player.heroId, player.level, nextEquipment);
     const nextCooldowns = { ...player.cooldowns };
-    if (nextRecovery !== previousRecovery) {
-      const progressScale = previousRecovery / nextRecovery;
+    if (nextStats.cooldownRecovery !== previousStats.cooldownRecovery) {
+      const progressScale = previousStats.cooldownRecovery / nextStats.cooldownRecovery;
       for (const slot of ["ability1", "ability2", "ability3", "ultimate"] as const) {
         nextCooldowns[slot] *= progressScale;
       }
     }
-    return nextCooldowns;
+    return {
+      cooldowns: nextCooldowns,
+      hp: projectHealthAtPreservedRatio(player.hp, previousStats.maxHp, nextStats.maxHp),
+    };
   }
 
   private replaceItem(
@@ -729,10 +732,11 @@ export class GameWorld {
           toCount: afterCount,
         }
       : undefined;
-    const nextCooldowns = this.cooldownsAfterEquipmentChange(player, projection.equipment);
+    const nextState = this.stateAfterEquipmentChange(player, projection.equipment);
     player.goldUnits += goldToUnits(ARMORY_SELL_VALUE);
     player.equipment = projection.equipment;
-    player.cooldowns = nextCooldowns;
+    player.cooldowns = nextState.cooldowns;
+    player.hp = nextState.hp;
     this.emit(
       "item_sold",
       `${player.name} sold ${ITEM_DEFINITIONS[expectedItemId].name} at ${vendor.name} for ${ARMORY_SELL_VALUE} gold.`,
@@ -840,10 +844,11 @@ export class GameWorld {
             toCount: outgoingAfterCount,
           }
         : undefined;
-    const nextCooldowns = this.cooldownsAfterEquipmentChange(player, nextEquipment);
+    const nextState = this.stateAfterEquipmentChange(player, nextEquipment);
     player.goldUnits -= priceUnits;
     player.equipment = nextEquipment;
-    player.cooldowns = nextCooldowns;
+    player.cooldowns = nextState.cooldowns;
+    player.hp = nextState.hp;
 
     const eventText = attunementTransition?.change === "gained"
       ? `${player.name} attuned ${ITEM_DEFINITIONS[attunementTransition.itemId].name} at ${vendor.name}.`

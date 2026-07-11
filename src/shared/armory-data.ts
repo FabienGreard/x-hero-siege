@@ -1,4 +1,7 @@
-import type { EquipmentSlotIndex, EquipmentSlots, ItemId, VendorId, Vec2 } from "./protocol";
+import { ITEM_IDS, type ItemId } from "./item-ids";
+import type { EquipmentSlotIndex, EquipmentSlots, VendorId, Vec2 } from "./protocol";
+
+export { ITEM_IDS } from "./item-ids";
 
 export const EQUIPMENT_SLOT_COUNT = 6;
 export const ARMORY_WARE_PRICE = 60;
@@ -11,12 +14,21 @@ export const ARMORY_REFORGE_NET_COST = armoryReforgeNetCost(ARMORY_WARE_PRICE);
 export const ITEM_ATTUNEMENT_THRESHOLD = 4;
 export const FLEETSTEP_COMBAT_STRIDE_RETENTION = 0.15;
 
+export type EquipmentPrimaryStatKey =
+  | "maxHp"
+  | "basicDamage"
+  | "moveSpeed"
+  | "abilityPower"
+  | "cooldownRecovery";
+
 export interface ItemDefinition {
   id: ItemId;
   name: string;
   description: string;
   effectLabel: string;
+  primaryStatKey: EquipmentPrimaryStatKey;
   price: number;
+  maxHealthFlat: number;
   basicDamagePercent: number;
   moveSpeedPercent: number;
   abilityPowerPercent: number;
@@ -77,13 +89,23 @@ export interface EquipmentRemovalProjection {
   removedItemId: ItemId;
 }
 
+export interface EquipmentModifiers {
+  maxHealthFlat: number;
+  basicDamagePercent: number;
+  moveSpeedPercent: number;
+  abilityPowerPercent: number;
+  cooldownRecoveryPercent: number;
+}
+
 export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
   tempered_edge: {
     id: "tempered_edge",
     name: "Tempered Edge",
     description: "City steel honed against the horde.",
     effectLabel: "+20% Basic Damage",
+    primaryStatKey: "basicDamage",
     price: ARMORY_WARE_PRICE,
+    maxHealthFlat: 0,
     basicDamagePercent: 0.2,
     moveSpeedPercent: 0,
     abilityPowerPercent: 0,
@@ -94,7 +116,9 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     name: "Fleetstep Greaves",
     description: "Messenger gear made to outrun a breach.",
     effectLabel: "+10% Move Speed",
+    primaryStatKey: "moveSpeed",
     price: ARMORY_WARE_PRICE,
+    maxHealthFlat: 0,
     basicDamagePercent: 0,
     moveSpeedPercent: 0.1,
     abilityPowerPercent: 0,
@@ -105,7 +129,9 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     name: "Runebound Focus",
     description: "A caged star that sharpens every invocation.",
     effectLabel: "+15% Skill Power",
+    primaryStatKey: "abilityPower",
     price: ARMORY_WARE_PRICE,
+    maxHealthFlat: 0,
     basicDamagePercent: 0,
     moveSpeedPercent: 0,
     abilityPowerPercent: 0.15,
@@ -116,11 +142,26 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     name: "Quickening Sigil",
     description: "A sliver of time held under glass.",
     effectLabel: "+15% Cooldown Speed",
+    primaryStatKey: "cooldownRecovery",
     price: ARMORY_WARE_PRICE,
+    maxHealthFlat: 0,
     basicDamagePercent: 0,
     moveSpeedPercent: 0,
     abilityPowerPercent: 0,
     cooldownRecoveryPercent: 0.15,
+  },
+  gateward_plate: {
+    id: "gateward_plate",
+    name: "Gateward Plate",
+    description: "Layered Citadel plate made for the stand after the wall falls.",
+    effectLabel: "+15 Max Health",
+    primaryStatKey: "maxHp",
+    price: ARMORY_WARE_PRICE,
+    maxHealthFlat: 15,
+    basicDamagePercent: 0,
+    moveSpeedPercent: 0,
+    abilityPowerPercent: 0,
+    cooldownRecoveryPercent: 0,
   },
 };
 
@@ -130,7 +171,7 @@ export const VENDOR_DEFINITIONS: Record<VendorId, VendorDefinition> = {
     name: "Ironbound Forge",
     position: { x: -20, z: -14.5 },
     interactionRadius: 7,
-    itemIds: ["tempered_edge", "fleetstep_greaves"],
+    itemIds: ["tempered_edge", "fleetstep_greaves", "gateward_plate"],
   },
   veilglass_reliquary: {
     id: "veilglass_reliquary",
@@ -245,6 +286,33 @@ export function equipmentCopyCount(
   return count;
 }
 
+/** Exhaustive, item-owned modifier aggregation shared by authority and previews. */
+export function deriveEquipmentModifiers(
+  equipment: ReadonlyArray<ItemId | null>,
+): EquipmentModifiers {
+  const counts = new Map<ItemId, number>();
+  for (const itemId of equipment) {
+    if (itemId) counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
+  }
+  const modifiers: EquipmentModifiers = {
+    maxHealthFlat: 0,
+    basicDamagePercent: 0,
+    moveSpeedPercent: 0,
+    abilityPowerPercent: 0,
+    cooldownRecoveryPercent: 0,
+  };
+  for (const [itemId, count] of counts) {
+    const item = ITEM_DEFINITIONS[itemId];
+    const effectiveCount = effectiveStackCopies(count);
+    modifiers.maxHealthFlat += item.maxHealthFlat * effectiveCount;
+    modifiers.basicDamagePercent += item.basicDamagePercent * effectiveCount;
+    modifiers.moveSpeedPercent += item.moveSpeedPercent * effectiveCount;
+    modifiers.abilityPowerPercent += item.abilityPowerPercent * effectiveCount;
+    modifiers.cooldownRecoveryPercent += item.cooldownRecoveryPercent * effectiveCount;
+  }
+  return modifiers;
+}
+
 /** Mirrors the six-slot mutation rule without spending or changing authoritative state. */
 export function projectEquipmentChange(
   equipment: EquipmentSlots,
@@ -297,16 +365,17 @@ function formatPercent(value: number): string {
 
 function totalEffectLabel(itemId: ItemId, effectiveCount: number): string {
   const item = ITEM_DEFINITIONS[itemId];
-  const effects = [
+  const percentageEffects = [
     [item.basicDamagePercent, "Basic Damage"],
     [item.moveSpeedPercent, "Move Speed"],
     [item.abilityPowerPercent, "Skill Power"],
     [item.cooldownRecoveryPercent, "Cooldown Speed"],
   ] as const;
-  return effects
+  const labels = percentageEffects
     .filter(([value]) => value !== 0)
-    .map(([value, label]) => `+${formatPercent(value * effectiveCount)}% ${label}`)
-    .join(" · ");
+    .map(([value, label]) => `+${formatPercent(value * effectiveCount)}% ${label}`);
+  if (item.maxHealthFlat !== 0) labels.unshift(`+${item.maxHealthFlat * effectiveCount} Max Health`);
+  return labels.join(" · ");
 }
 
 export function summarizeEquipment(equipment: EquipmentSlots): EquipmentStackSummary[] {
@@ -343,7 +412,7 @@ export function dominantEquipmentItem(equipment: EquipmentSlots): ItemId | null 
 }
 
 export function isItemId(value: unknown): value is ItemId {
-  return typeof value === "string" && Object.hasOwn(ITEM_DEFINITIONS, value);
+  return typeof value === "string" && (ITEM_IDS as readonly string[]).includes(value);
 }
 
 export function isVendorId(value: unknown): value is VendorId {

@@ -111,13 +111,13 @@ describe("canonical current-build primary impact", () => {
     }
   });
 
-  test("Greaves expose only Combat Stride while Focus and Sigil leave the primary unchanged", () => {
+  test("Greaves expose only Combat Stride while Focus, Sigil, and Plate leave the primary unchanged", () => {
     for (const heroId of HERO_IDS) {
       const game = new GameWorld();
       readyHero(game, heroId);
       const player = game.players.get("p1")!;
       const baseline = derivePrimaryImpactReadout(heroId, game.getSnapshot().players[0]!.stats);
-      for (const itemId of ["fleetstep_greaves", "runebound_focus", "quickening_sigil"] as const) {
+      for (const itemId of ["fleetstep_greaves", "runebound_focus", "quickening_sigil", "gateward_plate"] as const) {
         player.equipment = equipmentOf(itemId, 6);
         const readout = derivePrimaryImpactReadout(heroId, game.getSnapshot().players[0]!.stats);
         expect(readout.metrics).toEqual(baseline.metrics);
@@ -148,30 +148,33 @@ describe("canonical current-build primary impact", () => {
     }
   });
 
-  test("the shared Gravebinder healing constant matches one real Soul Scythe target", () => {
-    const game = new GameWorld({ accelerated: true, enemyCap: 10, random: () => 0.5 });
-    readyHero(game, "gravebinder");
-    expect(game.debugAdvance().ok).toBe(true);
-    const player = game.players.get("p1")!;
-    player.position = { x: 0, z: 0 };
-    player.hp = 100;
-    const internals = game as unknown as {
-      enemies: Map<string, { position: Vec2; hp: number; radius: number }>;
-      basicAttackImpact(source: typeof player, direction: Vec2): void;
-    };
-    const target = internals.enemies.values().next().value;
-    expect(target).toBeDefined();
-    internals.enemies.clear();
-    target!.position = { x: 0, z: -3 };
-    target!.hp = 10_000;
-    internals.enemies.set("primary-target", target!);
-    const before = player.hp;
-    internals.basicAttackImpact(player, { x: 0, z: -1 });
-    expect(player.hp - before).toBe(GRAVEBINDER_BASIC_HEAL_PER_TARGET);
-    expect(derivePrimaryImpactReadout("gravebinder", game.getSnapshot().players[0]!.stats).metrics[1]).toEqual({
-      id: "healing",
-      label: "HEAL / TARGET",
-      value: GRAVEBINDER_BASIC_HEAL_PER_TARGET,
-    });
+  test("the shared Gravebinder healing constant matches one real Soul Scythe target with or without Plate", () => {
+    for (const plateCount of [0, 6]) {
+      const game = new GameWorld({ accelerated: true, enemyCap: 10, random: () => 0.5 });
+      readyHero(game, "gravebinder");
+      expect(game.debugAdvance().ok).toBe(true);
+      const player = game.players.get("p1")!;
+      player.equipment = equipmentOf("gateward_plate", plateCount);
+      player.position = { x: 0, z: 0 };
+      player.hp = 100;
+      const internals = game as unknown as {
+        enemies: Map<string, { position: Vec2; hp: number; radius: number }>;
+        basicAttackImpact(source: typeof player, direction: Vec2): void;
+      };
+      const target = internals.enemies.values().next().value;
+      expect(target).toBeDefined();
+      internals.enemies.clear();
+      target!.position = { x: 0, z: -3 };
+      target!.hp = 10_000;
+      internals.enemies.set("primary-target", target!);
+      const before = player.hp;
+      internals.basicAttackImpact(player, { x: 0, z: -1 });
+      expect(player.hp - before).toBe(GRAVEBINDER_BASIC_HEAL_PER_TARGET);
+      expect(derivePrimaryImpactReadout("gravebinder", game.getSnapshot().players[0]!.stats).metrics[1]).toEqual({
+        id: "healing",
+        label: "HEAL / TARGET",
+        value: GRAVEBINDER_BASIC_HEAL_PER_TARGET,
+      });
+    }
   });
 });

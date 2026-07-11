@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   ARMORY_REFORGE_NET_COST,
   ARMORY_WARE_PRICE,
+  ITEM_IDS,
   ITEM_ATTUNEMENT_THRESHOLD,
   VENDOR_DEFINITIONS,
   deriveAttunementProgress,
@@ -23,18 +24,12 @@ import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
 import { deriveHeroStats } from "../src/shared/hero-stats";
 
-const ITEM_IDS = [
-  "tempered_edge",
-  "fleetstep_greaves",
-  "runebound_focus",
-  "quickening_sigil",
-] as const satisfies readonly ItemId[];
-
 const ITEM_VENDORS = {
   tempered_edge: "ironbound_forge",
   fleetstep_greaves: "ironbound_forge",
   runebound_focus: "veilglass_reliquary",
   quickening_sigil: "veilglass_reliquary",
+  gateward_plate: "ironbound_forge",
 } as const satisfies Record<ItemId, VendorId>;
 
 function equipmentOf(itemId: ItemId, count: number): EquipmentSlots {
@@ -184,7 +179,9 @@ describe("canonical four-copy item attunement", () => {
           expect(stats.cooldownRecovery).toBeCloseTo(
             1 + (itemId === "quickening_sigil" ? 0.15 * effectiveCount : 0),
           );
-          expect(stats.maxHp).toBe(baseline.maxHp);
+          expect(stats.maxHp).toBe(
+            baseline.maxHp + (itemId === "gateward_plate" ? 15 * effectiveCount : 0),
+          );
           expect(stats.basicAttackInterval).toBe(baseline.basicAttackInterval);
           const stack = summarizeEquipment(equipment)[0];
           if (count === 0) {
@@ -225,7 +222,7 @@ describe("canonical four-copy item attunement", () => {
 
     expect(multipleAttunements).toBe(0);
     expect(attunedDominanceMismatches).toBe(0);
-    expect(attunedBuilds).toBe(616);
+    expect(attunedBuilds).toBe(1325);
     expect(dominantEquipmentStack([
       "runebound_focus",
       "tempered_edge",

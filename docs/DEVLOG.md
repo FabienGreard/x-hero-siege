@@ -2,6 +2,20 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-11 — A fifth ware should answer a different question
+
+`0.1.31` made an Armory choice expensive enough to matter and reversible enough to learn from. Playing that shipped Forge made the next gap sharper. Its two cards still asked only how to act harder or move faster. Adding several more percentages would have made a larger catalog, but not a deeper decision.
+
+`0.1.32` adds one third answer to the Forge: endure. Gateward Plate grants 15 Max Health for each effective copy. Like every established ware, its fourth raw copy Attunes and contributes one bonus copy; the fifth and sixth return to the ordinary step. A Warden at level five therefore sees `222 → 237` on the first Plate and `267 → 297` when a fourth copy crosses the threshold. The card says that consequence before gold leaves, and the paired copper plates settle around the hero after acceptance.
+
+Capacity must not pretend to be recovery. Buying, selling, or reforging Plate keeps the same current-health percentage and shows the exact current/max arithmetic during a reviewed trade. The ware gives no armor, regeneration, proc, active, barrier, or stronger Soul Scythe. Its ordinary receipt and Attunement reuse the Armory's existing language without adding another ring, beam, particle field, or sound.
+
+The screen had to prove the choice as carefully as the server. Edge, Greaves, and Plate all remain visible at once in a wider two-plus-one Forge, still readable at `1280×720` while the siege moves behind it. Mouse and `1`–`3` buy immediately; six unrestricted sockets, selling, the 60-gold price, 30-gold sellback, and 30-gold net reforge remain exactly the same. The Reliquary keeps its separate ability-focused identity.
+
+Matched combat evidence keeps the claim modest. Plate improves Ashcaller's clean-run count over Edge in the sampled controller, but Edge still protects the gate slightly better. Riftstalker remains difficult and performs better with Edge in the recorded comparison. Gateward is a useful survival commitment, not a universal best item and not a substitute for fixing ranged execution. The comparison also exposed an old technical caveat: gameplay and presentation still share random draws and one ID stream, so broad outcomes are trustworthy while exact same-seed deltas are not yet a tuning contract.
+
+Before the fifth ware existed, the item model itself also had to become honest. The old final branch assumed any unrecognized item was Quickening. Every ware now owns its explicit stat and modifiers through one exhaustive ID set. Gateward can be different because the code can no longer make “new” secretly mean “cooldown.”
+
 ## 2026-07-11 — The Armory should buy back what it forged
 
 The first shop route after `0.1.30` made the economy problem concrete. A card still asked only 30 gold, a full build could be reshaped for the same price, and an equipped choice had no path back at all. The six unrestricted sockets created a build, but the Armory treated each decision as cheap and disposable while making an actual mistake permanent.

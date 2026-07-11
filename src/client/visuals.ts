@@ -174,6 +174,7 @@ export const BUILD_SIGNATURE_COLORS: Record<ItemId, string> = {
   fleetstep_greaves: "#91e8ff",
   runebound_focus: "#c6a4ff",
   quickening_sigil: "#d7f5ff",
+  gateward_plate: "#d99a72",
 };
 
 function buildSignatureTexture(itemId: ItemId): THREE.CanvasTexture {
@@ -214,7 +215,7 @@ function buildSignatureTexture(itemId: ItemId): THREE.CanvasTexture {
       diamond(9, 28);
       diamond(55, 28);
       diamond(32, 10);
-    } else {
+    } else if (itemId === "quickening_sigil") {
       for (const [x, y, width, height] of [
         [19, 13, 9, 3], [36, 13, 9, 3],
         [19, 65, 9, 3], [36, 65, 9, 3],
@@ -223,6 +224,18 @@ function buildSignatureTexture(itemId: ItemId): THREE.CanvasTexture {
         [10, 19, 5, 3], [49, 19, 5, 3],
         [10, 59, 5, 3], [49, 59, 5, 3],
       ] as const) pixel(x, y, width, height);
+    } else if (itemId === "gateward_plate") {
+      // Two solid, tapered plates flank the champion's midsection without
+      // adding another ring or beam to the already effect-heavy battlefield.
+      for (const [x, y, width, height] of [
+        [6, 27, 13, 4], [7, 31, 12, 5], [8, 36, 11, 5],
+        [9, 41, 9, 5], [11, 46, 6, 4],
+        [45, 27, 13, 4], [45, 31, 12, 5], [45, 36, 11, 5],
+        [46, 41, 9, 5], [47, 46, 6, 4],
+      ] as const) pixel(x, y, width, height);
+    } else {
+      const exhaustiveItem: never = itemId;
+      throw new Error(`Missing build signature for ${exhaustiveItem}`);
     }
     ctx.globalAlpha = 1;
   });

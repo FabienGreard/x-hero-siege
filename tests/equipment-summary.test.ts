@@ -34,7 +34,7 @@ describe("equipment build summaries", () => {
       "fleetstep_greaves",
       "runebound_focus",
       "quickening_sigil",
-      null,
+      "gateward_plate",
       null,
     ];
 
@@ -43,6 +43,7 @@ describe("equipment build summaries", () => {
       "+10% Move Speed",
       "+15% Skill Power",
       "+15% Cooldown Speed",
+      "+15 Max Health",
     ]);
   });
 
@@ -52,6 +53,7 @@ describe("equipment build summaries", () => {
       ["fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves"],
       ["runebound_focus", "runebound_focus", "runebound_focus", "runebound_focus", "runebound_focus", "runebound_focus"],
       ["quickening_sigil", "quickening_sigil", "quickening_sigil", "quickening_sigil", "quickening_sigil", "quickening_sigil"],
+      ["gateward_plate", "gateward_plate", "gateward_plate", "gateward_plate", "gateward_plate", "gateward_plate"],
     ];
 
     expect(builds.map((build) => summarizeEquipment(build)[0]?.totalEffectLabel)).toEqual([
@@ -59,6 +61,7 @@ describe("equipment build summaries", () => {
       "+70% Move Speed",
       "+105% Skill Power",
       "+105% Cooldown Speed",
+      "+105 Max Health",
     ]);
   });
 

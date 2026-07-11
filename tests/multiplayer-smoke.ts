@@ -121,7 +121,7 @@ try {
     assert.deepEqual(snapshot.activeLanes, ["north", "east", "south", "west"]);
     assert.deepEqual(snapshot.vendors.map((vendor) => vendor.id), ["ironbound_forge", "veilglass_reliquary"]);
     assert.deepEqual(snapshot.vendors.map((vendor) => vendor.itemIds), [
-      ["tempered_edge", "fleetstep_greaves"],
+      ["tempered_edge", "fleetstep_greaves", "gateward_plate"],
       ["runebound_focus", "quickening_sigil"],
     ]);
     assert.deepEqual(new Set(snapshot.players.map((player) => player.heroId)), new Set(heroes));

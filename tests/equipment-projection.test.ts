@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   ARMORY_REFORGE_NET_COST,
   ARMORY_WARE_PRICE,
+  ITEM_IDS,
   VENDOR_DEFINITIONS,
   createEmptyEquipment,
   dominantEquipmentItem,
@@ -15,18 +16,12 @@ import type { EquipmentSlots, ItemId, VendorId } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
 
-const ITEM_IDS = [
-  "tempered_edge",
-  "fleetstep_greaves",
-  "runebound_focus",
-  "quickening_sigil",
-] as const satisfies readonly ItemId[];
-
 const ITEM_VENDOR: Record<ItemId, VendorId> = {
   tempered_edge: "ironbound_forge",
   fleetstep_greaves: "ironbound_forge",
   runebound_focus: "veilglass_reliquary",
   quickening_sigil: "veilglass_reliquary",
+  gateward_plate: "ironbound_forge",
 };
 
 describe("canonical equipment projections", () => {
