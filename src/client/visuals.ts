@@ -46,6 +46,19 @@ export const LANE_COLOR: Record<LaneId, number> = {
 export const GREATSWORD_SLASH_OUTER_COLOR = 0xf1e6d0;
 export const GREATSWORD_SLASH_EDGE_COLOR = 0xd8bd78;
 export const GREATSWORD_SLASH_DECAY_SECONDS = 0.18;
+export const ALLIED_GREATSWORD_SLASH_OPACITY = 0.52;
+export const ALLIED_GREATSWORD_IMPACT_OPACITY = 0.46;
+
+export function playerEffectOpacityMultiplier(
+  kind: EffectKind,
+  ownerId: string | null,
+  localPlayerId: string | null,
+): number {
+  if (!ownerId || !localPlayerId || ownerId === localPlayerId) return 1;
+  if (kind === "slash") return ALLIED_GREATSWORD_SLASH_OPACITY;
+  if (kind === "impact") return ALLIED_GREATSWORD_IMPACT_OPACITY;
+  return 1;
+}
 
 export interface WardenChargeStreakStyle {
   length: number;
@@ -1325,6 +1338,11 @@ export function updateEffectVisual(group: THREE.Group, remaining: number, elapse
       ? THREE.MathUtils.clamp(remaining / 0.16, 0, 1)
       : THREE.MathUtils.clamp(remaining * 2.5, 0, 1);
   const pulse = 1 + (1 - THREE.MathUtils.clamp(remaining, 0, 1)) * 0.2;
+  const ownerOpacityMultiplier = THREE.MathUtils.clamp(
+    Number(group.userData.ownerOpacityMultiplier ?? 1),
+    0,
+    1,
+  );
 
   if (kind === "meteor_warning") {
     const warningPulse = 0.36 + Math.abs(Math.sin(elapsed * 10)) * 0.64;
@@ -1334,7 +1352,8 @@ export function updateEffectVisual(group: THREE.Group, remaining: number, elapse
   }
 
   for (const piece of pieces) {
-    (piece.mesh.material as THREE.MeshBasicMaterial).opacity = piece.baseOpacity * fade;
+    (piece.mesh.material as THREE.MeshBasicMaterial).opacity =
+      piece.baseOpacity * fade * ownerOpacityMultiplier;
   }
   if (compactImpact) {
     group.scale.setScalar(1);

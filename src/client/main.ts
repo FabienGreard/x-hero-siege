@@ -109,6 +109,7 @@ import {
   createProjectileVisual,
   createWraithVisual,
   pulseEntityWareReceipt,
+  playerEffectOpacityMultiplier,
   removeEntityFallback,
   setEntityFlash,
   setEntityBuildSignature,
@@ -332,7 +333,7 @@ if (defenderProofAsset) {
 const pickupVisuals = new Map<string, TrackedObject>();
 const effectVisuals = new Map<string, { visual: THREE.Group; snapshot: EffectSnapshot }>();
 const floatingTexts: THREE.Sprite[] = [];
-const particles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; born: number; life: number }> = [];
+const particles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; born: number; life: number; baseOpacity: number }> = [];
 const previousHp = new Map<string, number>();
 const seenEvents = new Set<string>();
 if (visualCaptureEnabled) {
@@ -2757,6 +2758,12 @@ function syncEffects(effects: EffectSnapshot[]): void {
         visual.userData.kind = effect.kind;
         visual.userData.pieces = [];
       }
+      const ownerOpacityMultiplier = playerEffectOpacityMultiplier(
+        effect.kind,
+        effect.ownerId,
+        localPlayerId,
+      );
+      visual.userData.ownerOpacityMultiplier = ownerOpacityMultiplier;
       visual.position.set(effect.position.x, 0, effect.position.z);
       world.add(visual);
       tracked = { visual, snapshot: effect };
@@ -2771,11 +2778,22 @@ function syncEffects(effects: EffectSnapshot[]): void {
         effect.kind !== "ember_impact"
       ) {
         const effectColor = effect.kind === "fire" || effect.kind === "meteor" ? 0xff7442 : effect.kind === "souls" || effect.kind === "heal" ? 0x6be3ad : 0x8cdcff;
-        spawnBurst(effect.position, effectColor, effect.kind === "meteor" ? 20 : 7, Math.min(2.2, effect.radius * 0.25));
+        spawnBurst(
+          effect.position,
+          effectColor,
+          effect.kind === "meteor" ? 20 : 7,
+          Math.min(2.2, effect.radius * 0.25),
+          ownerOpacityMultiplier,
+        );
       }
       if (effect.kind === "meteor" || effect.kind === "nexus_hit" || effect.kind === "gate_hit") screenShake = Math.max(screenShake, effect.kind === "meteor" ? 1.1 : 0.55);
     }
     tracked.snapshot = effect;
+    tracked.visual.userData.ownerOpacityMultiplier = playerEffectOpacityMultiplier(
+      effect.kind,
+      effect.ownerId,
+      localPlayerId,
+    );
     tracked.visual.position.set(effect.position.x, 0, effect.position.z);
   }
   for (const [id, tracked] of effectVisuals) {
@@ -2785,8 +2803,8 @@ function syncEffects(effects: EffectSnapshot[]): void {
   }
 }
 
-function spawnBurst(position: Vec2, color: number, count: number, force: number): void {
-  const material = new THREE.MeshBasicMaterial({ color, transparent: true });
+function spawnBurst(position: Vec2, color: number, count: number, force: number, baseOpacity = 1): void {
+  const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: baseOpacity });
   for (let index = 0; index < count; index += 1) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.16 + Math.random() * 0.18, 0.16 + Math.random() * 0.18, 0.16), material.clone());
     mesh.position.set(position.x, 0.7 + Math.random() * 1.8, position.z);
@@ -2797,6 +2815,7 @@ function spawnBurst(position: Vec2, color: number, count: number, force: number)
       velocity: new THREE.Vector3(Math.cos(angle) * force * (1 + Math.random()), 1.6 + Math.random() * force * 1.8, Math.sin(angle) * force * (1 + Math.random())),
       born: performance.now(),
       life: 350 + Math.random() * 500,
+      baseOpacity,
     });
   }
 }
@@ -3614,7 +3633,7 @@ function updateWorld(now: number, delta: number): void {
     particle.mesh.rotation.x += delta * 5;
     particle.mesh.rotation.z += delta * 4;
     const material = particle.mesh.material as THREE.MeshBasicMaterial;
-    material.opacity = THREE.MathUtils.clamp(1 - age / particle.life, 0, 1);
+    material.opacity = particle.baseOpacity * THREE.MathUtils.clamp(1 - age / particle.life, 0, 1);
     if (particle.mesh.position.y < 0.1) {
       particle.mesh.position.y = 0.1;
       particle.velocity.y *= -0.25;
