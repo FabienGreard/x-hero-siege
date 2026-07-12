@@ -70,6 +70,10 @@ interface EncounterTelemetryEvent {
 
 The adapter must be test-only or server-internal, preserve authoritative event order, and consume no random draw or gameplay ID. It must not enter the WebSocket protocol. Damage reports resolved damage, not requested damage; control reports the resolved class-specific outcome, not the input intent. `outcomeEventsByAction` counts target-resolution events, not casts: one multi-target Cleave intentionally contributes several events. The gate must not infer cast counts unless the implementation owner later supplies a stable authoritative action-instance identifier.
 
+`withEncounterTelemetry` in [`tests/support/authoritative-telemetry-adapter.ts`](../tests/support/authoritative-telemetry-adapter.ts) attaches that callback structurally to server options. It deliberately imports neither `game.ts` nor `protocol.ts`, so the exclusive implementation owner can integrate it after the provisional seam stabilizes without creating a second gameplay path.
+
+Delayed resolution must carry the action identity captured when that authoritative strike was created. The consumer preserves the supplied identity even if another basic or skill has since become current; it does not derive delayed attribution from live player state.
+
 ## Artifact format
 
 Each recorded run exports one summary with:
