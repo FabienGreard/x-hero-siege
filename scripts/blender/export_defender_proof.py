@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 
 ROOT = Path(os.environ.get("SIEGEHEART_PROOF_ROOT", Path(__file__).resolve().parents[2])).resolve()
@@ -180,6 +180,38 @@ def duplicate_for_render(source: bpy.types.Object, name: str, target: bpy.types.
     return result
 
 
+def duplicate_posed_defender(
+    action_name: str,
+    frame: int,
+    render_collection: bpy.types.Collection,
+) -> tuple[bpy.types.Object, bpy.types.Object]:
+    """Bake one authored action frame and retain its rig for bone-parented gear."""
+    rig = bpy.data.objects["RIG_Defender"]
+    defender = bpy.data.objects["CHR_Defender"]
+    action = bpy.data.actions[action_name]
+    rig.animation_data.action = action
+    bpy.context.scene.frame_set(frame)
+    bpy.context.view_layer.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    evaluated = defender.evaluated_get(depsgraph)
+    baked_mesh = bpy.data.meshes.new_from_object(evaluated, depsgraph=depsgraph)
+    hero = bpy.data.objects.new("SHOT_Defender", baked_mesh)
+    render_collection.objects.link(hero)
+    return hero, rig
+
+
+def add_posed_sword(rig: bpy.types.Object, render_collection: bpy.types.Collection) -> bpy.types.Object:
+    sword = duplicate_for_render(bpy.data.objects["WPN_Greatsword_A"], "SHOT_Greatsword", render_collection)
+    sword.visible_shadow = False
+    sword.parent = rig
+    sword.parent_type = "BONE"
+    sword.parent_bone = "DEF_grip_secondary"
+    sword.matrix_parent_inverse = Matrix.Identity(4)
+    sword.location = (0, 0, 0)
+    sword.rotation_euler = (0, 0, 0)
+    return sword
+
+
 def setup_render_scene() -> tuple[bpy.types.Collection, bpy.types.Object]:
     render_collection = bpy.data.collections.get("REFERENCE_RENDER") or bpy.data.collections.new("REFERENCE_RENDER")
     if render_collection not in bpy.context.scene.collection.children.values():
@@ -288,7 +320,21 @@ def render_reference(name: str, arrangement: str, render_collection: bpy.types.C
     defender_source = bpy.data.objects["CHR_Defender"]
     sword_source = bpy.data.objects["WPN_Greatsword_A"]
     practice_source = bpy.data.objects["WPN_Practice_A"]
-    if arrangement == "neutral":
+    action_reference = {
+        "basic_windup": ("Basic_Windup", 9),
+        "basic_active": ("Basic_Active", 5),
+        "basic_recovery": ("Basic_Recovery", 5),
+        "dodge_before": ("Idle", 1),
+        "dodge_active": ("Dodge", 3),
+        "dodge_recovery": ("Dodge", 8),
+    }
+    action_key = arrangement.removesuffix("_close")
+    if action_key in action_reference:
+        action_name, frame = action_reference[action_key]
+        hero, rig = duplicate_posed_defender(action_name, frame, render_collection)
+        add_posed_sword(rig, render_collection)
+        fixed_camera(camera, (0, 0, 2.2), 8.2 if arrangement.endswith("_close") else 42)
+    elif arrangement == "neutral":
         hero = duplicate_for_render(defender_source, "SHOT_Defender", render_collection)
         hero.location = (0, 0, 0)
         weapon = duplicate_for_render(practice_source, "SHOT_Practice", render_collection)
@@ -344,6 +390,9 @@ def render_reference(name: str, arrangement: str, render_collection: bpy.types.C
     path = RENDER_ROOT / f"{name}.png"
     bpy.context.scene.render.filepath = str(path)
     bpy.ops.render.render(write_still=True)
+    if arrangement.removesuffix("_close") in action_reference:
+        bpy.data.objects["RIG_Defender"].animation_data.action = None
+        bpy.context.scene.frame_set(1)
     return {"path": path.relative_to(ROOT).as_posix(), "bytes": path.stat().st_size, "sha256": sha256(path)}
 
 
@@ -393,6 +442,18 @@ def main() -> None:
         "greatsword_native": render_reference("defender-greatsword-native-scale", "greatsword_native", render_collection, camera),
         "four_player": render_reference("four-defenders-fixed-camera", "four_player", render_collection, camera),
         "kit": render_reference("proof-kit-fixed-camera", "kit", render_collection, camera),
+        "basic_windup_native": render_reference("defender-basic-windup-native-scale", "basic_windup", render_collection, camera),
+        "basic_active_native": render_reference("defender-basic-active-native-scale", "basic_active", render_collection, camera),
+        "basic_recovery_native": render_reference("defender-basic-recovery-native-scale", "basic_recovery", render_collection, camera),
+        "dodge_before_native": render_reference("defender-dodge-before-native-scale", "dodge_before", render_collection, camera),
+        "dodge_active_native": render_reference("defender-dodge-active-native-scale", "dodge_active", render_collection, camera),
+        "dodge_recovery_native": render_reference("defender-dodge-recovery-native-scale", "dodge_recovery", render_collection, camera),
+        "basic_windup_close": render_reference("defender-basic-windup-close", "basic_windup_close", render_collection, camera),
+        "basic_active_close": render_reference("defender-basic-active-close", "basic_active_close", render_collection, camera),
+        "basic_recovery_close": render_reference("defender-basic-recovery-close", "basic_recovery_close", render_collection, camera),
+        "dodge_before_close": render_reference("defender-dodge-before-close", "dodge_before_close", render_collection, camera),
+        "dodge_active_close": render_reference("defender-dodge-active-close", "dodge_active_close", render_collection, camera),
+        "dodge_recovery_close": render_reference("defender-dodge-recovery-close", "dodge_recovery_close", render_collection, camera),
     }
     source_path = ROOT / "art/blender/defender_greatsword_proof.blend"
     texture = {
@@ -422,8 +483,20 @@ def main() -> None:
         },
         "contract": source_contract,
         "geometry_revision": {
-            "reason": "production gameplay captures showed both weapon cross-sections collapsing at the fixed camera",
+            "reason": "production gameplay captures required one broad blade plus native-scale body, grip, action, and dodge separation",
             "authored_length_changed": False,
+            "defender": {
+                "two_handed_grip": "hands separated sequentially along the hilt; guard and grip clear the torso",
+                "lower_body": "wider leg centerlines, narrower tabard, mid-value shins, light feet, restrained brass belt",
+                "idle_run": "locked two-hand arm posture with chest counter-rotation and clearer profile stride",
+                "triangle_delta": 12,
+            },
+            "animation_revision": {
+                "basic": "rear/outboard two-hand load, unique planted contact extension, quieter settling recovery",
+                "dodge": "low directional silhouette from frame 1 through frame 5 with trailing blade clear of feet",
+                "authoritative_timing_changed": False,
+                "clip_names_or_ranges_changed": False,
+            },
             "greatsword": {
                 "overall_x_extent": 4.49,
                 "blade_width": [0.82, 0.60],

@@ -60,6 +60,29 @@ unchanged; only silhouette-bearing dimensions changed:
 Node names, primary-grip origin, local `+X`, material, atlas, rig, sockets, and
 all animation clips remain unchanged.
 
+## Native-scale Defender and action revision
+
+The next legal runtime proof kept the broad blade but exposed a merged dark
+body column, an ambiguous two-hand hold, an idle-like basic windup, and an
+upright Dodge during the authoritative invulnerability window. The bounded
+source correction therefore:
+
+- spaces the two hands sequentially along the hilt and clears the guard from
+  the torso without changing weapon dimensions or sockets;
+- widens the leg centerlines, narrows and lifts the tabard value, raises shin
+  value, preserves light feet, and adds one restrained brass belt break;
+- keeps both hands on the weapon during Idle and Run while the chest and legs
+  carry locomotion;
+- gives Basic a rear/outboard load, one unique planted contact extension, and
+  a quieter settling recovery; and
+- holds a compressed, directional Dodge from frames `1–5` (the first
+  approximately `0.18 s` at 24 fps), with the blade trailing clear of the feet,
+  before rising in recovery.
+
+The export writes both native-scale and close action references for source
+look-development. Authoritative timing and final binary acceptance still come
+from the in-game plates.
+
 ## Reproduction
 
 From the repository root:

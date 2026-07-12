@@ -28,7 +28,10 @@ PALETTE = {
     "stone_light": (0.27, 0.29, 0.28, 1.0),
     "ember": (1.0, 0.20, 0.035, 1.0),
     "ember_hot": (1.0, 0.58, 0.12, 1.0),
-    "slash": (0.72, 0.86, 0.94, 1.0),
+    # Restrained bone-white motion read with an aged-gold bias. The runtime
+    # owns authoritative effect timing; this swatch keeps the source mesh in
+    # the approved Citadel palette instead of cool UI-blue.
+    "slash": (0.82, 0.76, 0.60, 1.0),
     "bone": (0.64, 0.57, 0.45, 1.0),
 }
 
@@ -255,19 +258,19 @@ def create_rig(target: bpy.types.Collection) -> bpy.types.Object:
         "DEF_chest": ((0, 0, 2.9), (0, 0, 3.65), "DEF_spine"),
         "DEF_neck": ((0, 0, 3.55), (0, 0, 4.0), "DEF_chest"),
         "DEF_head": ((0, 0, 3.95), (0, 0, 4.55), "DEF_neck"),
-        "DEF_upperarm_l": ((0, 0.48, 3.45), (0.34, 0.34, 3.02), "DEF_chest"),
-        "DEF_forearm_l": ((0.34, 0.34, 3.02), (0.75, 0.16, 2.58), "DEF_upperarm_l"),
-        "DEF_hand_l": ((0.75, 0.16, 2.58), (0.98, 0.10, 2.47), "DEF_forearm_l"),
-        "DEF_upperarm_r": ((0, -0.48, 3.45), (0.34, -0.34, 3.02), "DEF_chest"),
-        "DEF_forearm_r": ((0.34, -0.34, 3.02), (0.75, -0.16, 2.58), "DEF_upperarm_r"),
-        "DEF_hand_r": ((0.75, -0.16, 2.58), (0.98, -0.10, 2.47), "DEF_forearm_r"),
-        "DEF_thigh_l": ((0, 0.38, 1.85), (0, 0.38, 0.95), "DEF_pelvis"),
-        "DEF_shin_l": ((0, 0.38, 0.95), (0.08, 0.38, 0.18), "DEF_thigh_l"),
-        "DEF_foot_l": ((0.08, 0.38, 0.18), (0.55, 0.38, 0.12), "DEF_shin_l"),
-        "DEF_thigh_r": ((0, -0.38, 1.85), (0, -0.38, 0.95), "DEF_pelvis"),
-        "DEF_shin_r": ((0, -0.38, 0.95), (0.08, -0.38, 0.18), "DEF_thigh_r"),
-        "DEF_foot_r": ((0.08, -0.38, 0.18), (0.55, -0.38, 0.12), "DEF_shin_r"),
-        "DEF_grip_secondary": ((0.82, 0.10, 2.50), (1.06, 0.10, 2.50), "DEF_hand_l"),
+        "DEF_upperarm_l": ((0, 0.48, 3.45), (0.40, 0.40, 3.03), "DEF_chest"),
+        "DEF_forearm_l": ((0.40, 0.40, 3.03), (0.86, 0.18, 2.54), "DEF_upperarm_l"),
+        "DEF_hand_l": ((0.86, 0.18, 2.54), (1.30, 0.05, 2.40), "DEF_forearm_l"),
+        "DEF_upperarm_r": ((0, -0.48, 3.45), (0.40, -0.40, 3.03), "DEF_chest"),
+        "DEF_forearm_r": ((0.40, -0.40, 3.03), (0.86, -0.18, 2.54), "DEF_upperarm_r"),
+        "DEF_hand_r": ((0.86, -0.18, 2.54), (1.08, -0.04, 2.42), "DEF_forearm_r"),
+        "DEF_thigh_l": ((0, 0.46, 1.85), (0, 0.46, 0.95), "DEF_pelvis"),
+        "DEF_shin_l": ((0, 0.46, 0.95), (0.08, 0.46, 0.18), "DEF_thigh_l"),
+        "DEF_foot_l": ((0.08, 0.46, 0.18), (0.55, 0.46, 0.12), "DEF_shin_l"),
+        "DEF_thigh_r": ((0, -0.46, 1.85), (0, -0.46, 0.95), "DEF_pelvis"),
+        "DEF_shin_r": ((0, -0.46, 0.95), (0.08, -0.46, 0.18), "DEF_thigh_r"),
+        "DEF_foot_r": ((0.08, -0.46, 0.18), (0.55, -0.46, 0.12), "DEF_shin_r"),
+        "DEF_grip_secondary": ((1.00, 0.00, 2.40), (1.24, 0.00, 2.40), "DEF_hand_l"),
     }
     created = {}
     for name, (head, tail, parent) in bones.items():
@@ -306,7 +309,8 @@ def create_defender(target: bpy.types.Collection, material: bpy.types.Material) 
         {"kind": "frustum", "center": (0.38, 0, 2.66), "bottom_size": (0.08, 0.30), "top_size": (0.08, 0.44), "height": 1.55, "swatch": "cloth_mid", "bone": "DEF_spine"},
         {"kind": "prism", "center": (0.02, 0, 3.58), "radius": 0.52, "depth": 0.22, "sides": 8, "swatch": "cloth_shadow", "bone": "DEF_neck"},
         {"kind": "frustum", "center": (0, 0, 1.98), "bottom_size": (0.54, 0.78), "top_size": (0.62, 0.94), "height": 0.48, "swatch": "leather", "bone": "DEF_pelvis"},
-        {"kind": "frustum", "center": (0.30, 0, 1.48), "bottom_size": (0.08, 0.34), "top_size": (0.08, 0.28), "height": 0.95, "swatch": "cloth_shadow", "bone": "DEF_pelvis"},
+        {"kind": "frustum", "center": (0.30, 0, 1.48), "bottom_size": (0.08, 0.24), "top_size": (0.08, 0.28), "height": 0.95, "swatch": "cloth_mid", "bone": "DEF_pelvis"},
+        {"kind": "box", "center": (0.33, 0, 2.02), "size": (0.08, 0.88, 0.14), "swatch": "brass", "bone": "DEF_pelvis"},
         {"kind": "prism", "center": (0, 0, 4.12), "radius": 0.44, "depth": 0.72, "sides": 8, "swatch": "bone", "bone": "DEF_head"},
         {"kind": "prism", "center": (0, 0, 4.35), "radius": 0.49, "depth": 0.48, "sides": 8, "swatch": "iron_shadow", "bone": "DEF_head"},
         {"kind": "box", "center": (0.43, 0, 4.26), "size": (0.10, 0.62, 0.16), "swatch": "iron_light", "bone": "DEF_head"},
@@ -314,21 +318,21 @@ def create_defender(target: bpy.types.Collection, material: bpy.types.Material) 
         {"kind": "prism", "center": (0.02, -0.60, 3.43), "radius": 0.38, "depth": 0.34, "sides": 6, "swatch": "iron_light", "bone": "DEF_upperarm_r"},
     ]
     segment_specs = [
-        ((0, 0.50, 3.35), (0.34, 0.34, 3.02), 0.28, 0.23, "iron_mid", "DEF_upperarm_l"),
-        ((0.34, 0.34, 3.02), (0.75, 0.16, 2.58), 0.23, 0.18, "leather", "DEF_forearm_l"),
-        ((0.75, 0.16, 2.58), (0.98, 0.10, 2.47), 0.19, 0.14, "iron_light", "DEF_hand_l"),
-        ((0, -0.50, 3.35), (0.34, -0.34, 3.02), 0.28, 0.23, "iron_mid", "DEF_upperarm_r"),
-        ((0.34, -0.34, 3.02), (0.75, -0.16, 2.58), 0.23, 0.18, "leather", "DEF_forearm_r"),
-        ((0.75, -0.16, 2.58), (0.98, -0.10, 2.47), 0.19, 0.14, "iron_light", "DEF_hand_r"),
-        ((0, 0.35, 1.82), (0.02, 0.35, 0.96), 0.31, 0.25, "iron_mid", "DEF_thigh_l"),
-        ((0.02, 0.35, 0.96), (0.08, 0.35, 0.22), 0.25, 0.19, "iron_shadow", "DEF_shin_l"),
-        ((0, -0.35, 1.82), (0.02, -0.35, 0.96), 0.31, 0.25, "iron_mid", "DEF_thigh_r"),
-        ((0.02, -0.35, 0.96), (0.08, -0.35, 0.22), 0.25, 0.19, "iron_shadow", "DEF_shin_r"),
+        ((0, 0.50, 3.35), (0.40, 0.40, 3.03), 0.28, 0.23, "iron_mid", "DEF_upperarm_l"),
+        ((0.40, 0.40, 3.03), (0.86, 0.18, 2.54), 0.23, 0.18, "leather", "DEF_forearm_l"),
+        ((0.86, 0.18, 2.54), (1.30, 0.05, 2.40), 0.19, 0.14, "iron_light", "DEF_hand_l"),
+        ((0, -0.50, 3.35), (0.40, -0.40, 3.03), 0.28, 0.23, "iron_mid", "DEF_upperarm_r"),
+        ((0.40, -0.40, 3.03), (0.86, -0.18, 2.54), 0.23, 0.18, "leather", "DEF_forearm_r"),
+        ((0.86, -0.18, 2.54), (1.08, -0.04, 2.42), 0.19, 0.14, "iron_light", "DEF_hand_r"),
+        ((0, 0.46, 1.82), (0.02, 0.46, 0.96), 0.28, 0.23, "iron_mid", "DEF_thigh_l"),
+        ((0.02, 0.46, 0.96), (0.08, 0.46, 0.22), 0.23, 0.18, "iron_mid", "DEF_shin_l"),
+        ((0, -0.46, 1.82), (0.02, -0.46, 0.96), 0.28, 0.23, "iron_mid", "DEF_thigh_r"),
+        ((0.02, -0.46, 0.96), (0.08, -0.46, 0.22), 0.23, 0.18, "iron_mid", "DEF_shin_r"),
     ]
     parts.extend({"kind": "segment", "start": start, "end": end, "start_radius": sr, "end_radius": er, "sides": 6, "swatch": sw, "bone": bone} for start, end, sr, er, sw, bone in segment_specs)
     parts.extend([
-        {"kind": "frustum", "center": (0.34, 0.35, 0.14), "bottom_size": (0.72, 0.34), "top_size": (0.52, 0.30), "height": 0.24, "swatch": "iron_light", "bone": "DEF_foot_l"},
-        {"kind": "frustum", "center": (0.34, -0.35, 0.14), "bottom_size": (0.72, 0.34), "top_size": (0.52, 0.30), "height": 0.24, "swatch": "iron_light", "bone": "DEF_foot_r"},
+        {"kind": "frustum", "center": (0.34, 0.46, 0.14), "bottom_size": (0.72, 0.30), "top_size": (0.52, 0.26), "height": 0.24, "swatch": "iron_light", "bone": "DEF_foot_l"},
+        {"kind": "frustum", "center": (0.34, -0.46, 0.14), "bottom_size": (0.72, 0.30), "top_size": (0.52, 0.26), "height": 0.24, "swatch": "iron_light", "bone": "DEF_foot_r"},
     ])
     mesh = mesh_from_parts("CHR_Defender", parts, material, target)
     bind_mesh(mesh, rig)
@@ -407,7 +411,13 @@ def create_slash(target: bpy.types.Collection, material: bpy.types.Material) -> 
     obj["origin_contract"] = "cast origin; local +X is strike direction"
 
 
-def pose_key(rig: bpy.types.Object, frame: int, rotations: dict[str, tuple[float, float, float]], location=(0, 0, 0)) -> None:
+def pose_key(
+    rig: bpy.types.Object,
+    frame: int,
+    rotations: dict[str, tuple[float, float, float]],
+    location=(0, 0, 0),
+    bone_locations: dict[str, tuple[float, float, float]] | None = None,
+) -> None:
     rig.location = location
     rig.keyframe_insert("location", frame=frame)
     for bone_name, rotation in rotations.items():
@@ -415,6 +425,10 @@ def pose_key(rig: bpy.types.Object, frame: int, rotations: dict[str, tuple[float
         bone.rotation_mode = "XYZ"
         bone.rotation_euler = rotation
         bone.keyframe_insert("rotation_euler", frame=frame)
+    for bone_name, bone_location in (bone_locations or {}).items():
+        bone = rig.pose.bones[bone_name]
+        bone.location = bone_location
+        bone.keyframe_insert("location", frame=frame)
 
 
 def create_actions(rig: bpy.types.Object) -> None:
@@ -422,31 +436,96 @@ def create_actions(rig: bpy.types.Object) -> None:
     rig.animation_data_create()
     clips = {
         "Idle": (24, [
-            (1, {"DEF_chest": (0, 0.025, 0), "DEF_upperarm_l": (0.04, 0, 0), "DEF_upperarm_r": (-0.04, 0, 0)}),
-            (12, {"DEF_chest": (0, -0.025, 0), "DEF_upperarm_l": (-0.04, 0, 0), "DEF_upperarm_r": (0.04, 0, 0)}),
-            (24, {"DEF_chest": (0, 0.025, 0), "DEF_upperarm_l": (0.04, 0, 0), "DEF_upperarm_r": (-0.04, 0, 0)}),
+            (1, {"DEF_chest": (0, 0.025, 0)}),
+            (12, {"DEF_chest": (0, -0.025, 0)}),
+            (24, {"DEF_chest": (0, 0.025, 0)}),
         ]),
         "Run": (16, [
-            (1, {"DEF_thigh_l": (0, 0.55, 0), "DEF_thigh_r": (0, -0.55, 0), "DEF_upperarm_l": (0, -0.4, 0), "DEF_upperarm_r": (0, 0.4, 0)}),
-            (8, {"DEF_thigh_l": (0, -0.55, 0), "DEF_thigh_r": (0, 0.55, 0), "DEF_upperarm_l": (0, 0.4, 0), "DEF_upperarm_r": (0, -0.4, 0)}),
-            (16, {"DEF_thigh_l": (0, 0.55, 0), "DEF_thigh_r": (0, -0.55, 0), "DEF_upperarm_l": (0, -0.4, 0), "DEF_upperarm_r": (0, 0.4, 0)}),
+            (1, {"DEF_chest": (0, 0, 0.06), "DEF_thigh_l": (0, 0.65, 0), "DEF_thigh_r": (0, -0.65, 0), "DEF_shin_l": (0, -0.25, 0), "DEF_shin_r": (0, 0.25, 0)}),
+            (8, {"DEF_chest": (0, 0, -0.06), "DEF_thigh_l": (0, -0.65, 0), "DEF_thigh_r": (0, 0.65, 0), "DEF_shin_l": (0, 0.25, 0), "DEF_shin_r": (0, -0.25, 0)}),
+            (16, {"DEF_chest": (0, 0, 0.06), "DEF_thigh_l": (0, 0.65, 0), "DEF_thigh_r": (0, -0.65, 0), "DEF_shin_l": (0, -0.25, 0), "DEF_shin_r": (0, 0.25, 0)}),
         ]),
         "Dodge": (10, [
-            (1, {"DEF_spine": (0, 0.0, 0), "DEF_thigh_l": (0, 0.1, 0), "DEF_thigh_r": (0, -0.1, 0)}),
-            (5, {"DEF_spine": (0, -0.5, 0), "DEF_thigh_l": (0, 0.75, 0), "DEF_thigh_r": (0, 0.45, 0)}),
-            (10, {"DEF_spine": (0, 0.0, 0), "DEF_thigh_l": (0, 0.1, 0), "DEF_thigh_r": (0, -0.1, 0)}),
+            # Authority begins invulnerability almost at clip frame one. Hold
+            # the decisive compressed silhouette through frame five (~0.18s).
+            (1, {
+                "DEF_spine": (0, -0.72, 0), "DEF_chest": (0.12, -0.22, -0.10),
+                "DEF_neck": (0, 0.28, 0), "DEF_thigh_l": (0, 1.02, 0.12),
+                "DEF_thigh_r": (0, 0.68, -0.10), "DEF_shin_l": (0, -0.72, 0),
+                "DEF_shin_r": (0, -0.52, 0), "DEF_upperarm_l": (0.12, -0.42, -0.34),
+                "DEF_forearm_l": (0, 0.22, -0.28), "DEF_upperarm_r": (0.08, -0.30, -0.22),
+                "DEF_forearm_r": (0, 0.18, -0.20), "DEF_grip_secondary": (0.32, -0.18, -0.72),
+            }, {"DEF_spine": (0, -0.78, 0)}),
+            (5, {
+                "DEF_spine": (0, -0.72, 0), "DEF_chest": (0.12, -0.22, -0.10),
+                "DEF_neck": (0, 0.28, 0), "DEF_thigh_l": (0, 1.02, 0.12),
+                "DEF_thigh_r": (0, 0.68, -0.10), "DEF_shin_l": (0, -0.72, 0),
+                "DEF_shin_r": (0, -0.52, 0), "DEF_upperarm_l": (0.12, -0.42, -0.34),
+                "DEF_forearm_l": (0, 0.22, -0.28), "DEF_upperarm_r": (0.08, -0.30, -0.22),
+                "DEF_forearm_r": (0, 0.18, -0.20), "DEF_grip_secondary": (0.32, -0.18, -0.72),
+            }, {"DEF_spine": (0, -0.78, 0)}),
+            (10, {
+                "DEF_spine": (0, -0.08, 0), "DEF_chest": (0, -0.04, 0),
+                "DEF_neck": (0, 0.04, 0), "DEF_thigh_l": (0, 0.18, 0),
+                "DEF_thigh_r": (0, -0.08, 0), "DEF_shin_l": (0, -0.12, 0),
+                "DEF_shin_r": (0, 0.06, 0), "DEF_upperarm_l": (0, -0.04, 0),
+                "DEF_forearm_l": (0, 0.02, 0), "DEF_upperarm_r": (0, -0.03, 0),
+                "DEF_forearm_r": (0, 0.02, 0), "DEF_grip_secondary": (0.04, -0.02, -0.08),
+            }, {"DEF_spine": (0, -0.12, 0)}),
         ]),
         "Basic_Windup": (9, [
-            (1, {"DEF_chest": (0, 0, 0), "DEF_upperarm_r": (0, 0, 0)}),
-            (9, {"DEF_chest": (0.05, -0.18, -0.38), "DEF_upperarm_r": (-0.5, 0.1, -0.65), "DEF_forearm_r": (0.1, 0.2, -0.35)}),
+            (1, {"DEF_chest": (0, 0, 0), "DEF_upperarm_l": (0, 0, 0), "DEF_upperarm_r": (0, 0, 0)}),
+            (9, {
+                "DEF_pelvis": (0.04, -0.18, -0.12), "DEF_spine": (0.04, -0.20, -0.16),
+                "DEF_chest": (0.12, -0.28, -0.54), "DEF_upperarm_l": (-0.18, 0.18, -0.62),
+                "DEF_forearm_l": (0.12, 0.28, -0.34), "DEF_upperarm_r": (-0.24, 0.12, -0.48),
+                "DEF_forearm_r": (0.08, 0.22, -0.26), "DEF_thigh_l": (0, 0.26, 0.08),
+                "DEF_thigh_r": (0, -0.16, -0.04), "DEF_shin_l": (0, -0.22, 0),
+                "DEF_grip_secondary": (-0.10, 0.12, -0.22),
+            }),
         ]),
         "Basic_Active": (5, [
-            (1, {"DEF_chest": (0.05, -0.18, -0.38), "DEF_upperarm_r": (-0.5, 0.1, -0.65)}),
-            (5, {"DEF_chest": (-0.03, 0.2, 0.5), "DEF_upperarm_r": (0.25, -0.15, 0.82), "DEF_forearm_r": (-0.1, 0.0, 0.25)}),
+            (1, {
+                "DEF_pelvis": (0.04, -0.18, -0.12), "DEF_spine": (0.04, -0.20, -0.16),
+                "DEF_chest": (0.12, -0.28, -0.54), "DEF_upperarm_l": (-0.18, 0.18, -0.62),
+                "DEF_forearm_l": (0.12, 0.28, -0.34), "DEF_upperarm_r": (-0.24, 0.12, -0.48),
+                "DEF_forearm_r": (0.08, 0.22, -0.26), "DEF_thigh_l": (0, 0.26, 0.08),
+                "DEF_thigh_r": (0, -0.16, -0.04), "DEF_shin_l": (0, -0.22, 0),
+                "DEF_grip_secondary": (-0.10, 0.12, -0.22),
+            }),
+            (5, {
+                "DEF_pelvis": (-0.04, 0.18, 0.16), "DEF_spine": (-0.04, 0.22, 0.22),
+                "DEF_chest": (-0.10, 0.34, 0.62), "DEF_upperarm_l": (0.14, -0.20, 0.78),
+                "DEF_forearm_l": (-0.10, -0.10, 0.30), "DEF_upperarm_r": (0.18, -0.16, 0.64),
+                "DEF_forearm_r": (-0.08, -0.06, 0.24), "DEF_thigh_l": (0, -0.18, -0.06),
+                "DEF_thigh_r": (0, 0.30, 0.08), "DEF_shin_r": (0, -0.24, 0),
+                "DEF_grip_secondary": (0.08, -0.10, 0.28),
+            }),
         ]),
         "Basic_Recovery": (10, [
-            (1, {"DEF_chest": (-0.03, 0.2, 0.5), "DEF_upperarm_r": (0.25, -0.15, 0.82)}),
-            (10, {"DEF_chest": (0, 0, 0), "DEF_upperarm_r": (0, 0, 0), "DEF_forearm_r": (0, 0, 0)}),
+            (1, {
+                "DEF_pelvis": (-0.04, 0.18, 0.16), "DEF_spine": (-0.04, 0.22, 0.22),
+                "DEF_chest": (-0.10, 0.34, 0.62), "DEF_upperarm_l": (0.14, -0.20, 0.78),
+                "DEF_forearm_l": (-0.10, -0.10, 0.30), "DEF_upperarm_r": (0.18, -0.16, 0.64),
+                "DEF_forearm_r": (-0.08, -0.06, 0.24), "DEF_thigh_l": (0, -0.18, -0.06),
+                "DEF_thigh_r": (0, 0.30, 0.08), "DEF_shin_r": (0, -0.24, 0),
+                "DEF_grip_secondary": (0.08, -0.10, 0.28),
+            }),
+            (5, {
+                "DEF_pelvis": (-0.02, 0.10, 0.08), "DEF_spine": (-0.02, 0.12, 0.10),
+                "DEF_chest": (-0.05, 0.18, 0.34), "DEF_upperarm_l": (0.08, -0.10, 0.46),
+                "DEF_forearm_l": (-0.04, -0.05, 0.18), "DEF_upperarm_r": (0.10, -0.08, 0.38),
+                "DEF_forearm_r": (-0.04, -0.03, 0.14), "DEF_thigh_l": (0, -0.08, 0),
+                "DEF_thigh_r": (0, 0.14, 0.03), "DEF_grip_secondary": (0.04, -0.05, 0.16),
+            }),
+            (10, {
+                "DEF_pelvis": (0, 0, 0), "DEF_spine": (0, 0, 0), "DEF_chest": (0, 0, 0),
+                "DEF_upperarm_l": (0, 0, 0), "DEF_forearm_l": (0, 0, 0),
+                "DEF_upperarm_r": (0, 0, 0), "DEF_forearm_r": (0, 0, 0),
+                "DEF_thigh_l": (0, 0, 0), "DEF_thigh_r": (0, 0, 0),
+                "DEF_shin_l": (0, 0, 0), "DEF_shin_r": (0, 0, 0),
+                "DEF_grip_secondary": (0, 0, 0),
+            }),
         ]),
     }
     for name, (end_frame, keys) in clips.items():
@@ -458,8 +537,10 @@ def create_actions(rig: bpy.types.Object) -> None:
         for bone in rig.pose.bones:
             bone.rotation_mode = "XYZ"
             bone.rotation_euler = (0, 0, 0)
-        for frame, rotations in keys:
-            pose_key(rig, frame, rotations)
+            bone.location = (0, 0, 0)
+        for key in keys:
+            frame, rotations, *location_maps = key
+            pose_key(rig, frame, rotations, bone_locations=location_maps[0] if location_maps else None)
         rig.animation_data.action = None
     rig["clips"] = list(clips)
     rig["clip_fps"] = 24
