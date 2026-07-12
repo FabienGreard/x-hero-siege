@@ -10,8 +10,8 @@
   "blender": "5.1.2",
   "source": {
     "path": "art/blender/defender_greatsword_proof.blend",
-    "bytes": 116526,
-    "sha256": "6e3b0e877a6a65e0b3ee8154ddb6f1668e7f4dc7baf5781f0c5963a4fc6c7beb"
+    "bytes": 117171,
+    "sha256": "855df4ba37df42a8b565678b7d9ecf5c50e8b89902e38dc41f80721a0a59f1d1"
   },
   "contract": {
     "units": "1 Blender unit = 1 Siegeheart world unit",
@@ -32,6 +32,49 @@
       "Run"
     ],
     "clip_fps": 24
+  },
+  "geometry_revision": {
+    "reason": "production gameplay captures showed both weapon cross-sections collapsing at the fixed camera",
+    "authored_length_changed": false,
+    "greatsword": {
+      "overall_x_extent": 4.49,
+      "blade_width": [
+        0.82,
+        0.6
+      ],
+      "blade_thickness": 0.22,
+      "guard_span": 1.32,
+      "grip_radius": 0.15,
+      "pommel_radius": 0.26,
+      "fuller_width": [
+        0.18,
+        0.12
+      ]
+    },
+    "practice_weapon": {
+      "overall_x_extent": 2.43,
+      "blade_width": [
+        0.44,
+        0.22
+      ],
+      "blade_thickness": 0.16,
+      "guard_span": 0.94,
+      "grip_radius": 0.13,
+      "pommel_radius": 0.16,
+      "fuller_width": [
+        0.1,
+        0.06
+      ]
+    },
+    "preserved": [
+      "node names",
+      "primary grip origin",
+      "+X forward",
+      "rig",
+      "six clips",
+      "one material",
+      "one atlas"
+    ]
   },
   "texture": {
     "path": "art/blender/textures/siegeheart_palette.png",
@@ -58,7 +101,7 @@
     },
     "practice_weapon": {
       "collection": "ASSET_PracticeWeapon",
-      "triangles": 44,
+      "triangles": 88,
       "triangle_ceiling": 2500,
       "materials": [
         "MAT_SiegeheartPalette"
@@ -67,7 +110,7 @@
     },
     "greatsword": {
       "collection": "ASSET_Greatsword",
-      "triangles": 92,
+      "triangles": 104,
       "triangle_ceiling": 2500,
       "materials": [
         "MAT_SiegeheartPalette"
@@ -104,8 +147,8 @@
   },
   "runtime_package": {
     "path": "public/assets/models/proof/siegeheart-defender-proof.glb",
-    "bytes": 144580,
-    "sha256": "73cb4a241070ab4e6e29c9139bbf4218f35462ce827e87e1d94b97df74bf8fa7"
+    "bytes": 148392,
+    "sha256": "912ef2fefc4c5b877bd0cefddbb88b23bfb1c100876235a7846bf3813054d762"
   },
   "gltf_validation": {
     "generator": "Khronos glTF Blender I/O v5.1.20",
@@ -126,7 +169,7 @@
     "materials": 1
   },
   "delivery_budgets": {
-    "transferred_runtime_bytes": 144580,
+    "transferred_runtime_bytes": 148392,
     "transferred_runtime_byte_ceiling": 3145728,
     "animation_bytes": 7800,
     "animation_byte_ceiling": 524288,
@@ -136,23 +179,23 @@
   "renders": {
     "neutral": {
       "path": "docs/reference/blender-proof/defender-practice-fixed-camera.png",
-      "bytes": 1011488,
-      "sha256": "f93a3cfde975fb604a0f5104eb4bc36753206b2c6e3b4c5825e87b076df63802"
+      "bytes": 1014926,
+      "sha256": "60cc0240590aa07f999fa57e6b2c12bc33debced7c6b0c4e1eb6e69b0967bac1"
     },
     "greatsword": {
       "path": "docs/reference/blender-proof/defender-greatsword-fixed-camera.png",
-      "bytes": 1014026,
-      "sha256": "be60557d90acda4ec1ed76d24d3ba3456ac1d22f03e99a79c9dc32fa3e5e3d2b"
+      "bytes": 1024831,
+      "sha256": "d704f1455eb61f0dee80693f3006a5bffc2dde3c0a42f77a08d956a2f728061a"
     },
     "four_player": {
       "path": "docs/reference/blender-proof/four-defenders-fixed-camera.png",
-      "bytes": 1066696,
-      "sha256": "84c7b0a87cfec7b7afd695aa4385d492bc5785a4c374051dcd199aa9996026d2"
+      "bytes": 1076831,
+      "sha256": "508fffe69a50f294ffd61782a6eaab992c5880e3680aa24b9f2a052fff9b4144"
     },
     "kit": {
       "path": "docs/reference/blender-proof/proof-kit-fixed-camera.png",
-      "bytes": 1022722,
-      "sha256": "92f3c1c3fca0dc3e80a5d1d7424aa58fe4a12e5edca135b559f888fad218fa4c"
+      "bytes": 1025555,
+      "sha256": "272cf8f14f1a073bf3e1f7aa56c9be3d708f121ae26868311908185f62f015b0"
     }
   },
   "plate_support": {
@@ -186,5 +229,5 @@
       "asset_ready_max_ms": 500
     }
   },
-  "semantic_manifest_sha256": "7911455590493e2e4a451668dd93af7bf6c2e35ff61de31b8fb3eacffd9bf7b9"
+  "semantic_manifest_sha256": "b5bee63fc5e669ea9dbbc844003dc7d97b1d4db9acb04fc1b2c5e23a3f6780df"
 }
