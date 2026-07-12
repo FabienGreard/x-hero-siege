@@ -10,8 +10,8 @@
   "blender": "5.1.2",
   "source": {
     "path": "art/blender/defender_greatsword_proof.blend",
-    "bytes": 122792,
-    "sha256": "c1f6c30f36112a93995df80895009e3cce475e0c36054750120cbdafb78b30e5"
+    "bytes": 124976,
+    "sha256": "7608d337b020793f4e7a0d7d191e58b93c5792e0aebbadb37442668ccf8f0eda"
   },
   "contract": {
     "units": "1 Blender unit = 1 Siegeheart world unit",
@@ -40,11 +40,12 @@
       "two_handed_grip": "hands separated sequentially along the hilt; guard and grip clear the torso",
       "lower_body": "wider leg centerlines, narrower tabard, mid-value shins, light feet, restrained brass belt",
       "idle_run": "locked two-hand arm posture with chest counter-rotation and clearer profile stride",
-      "triangle_delta": 12
+      "triangle_delta_from_3a52aa9": 24
     },
     "animation_revision": {
       "basic": "rear/outboard two-hand load, unique planted contact extension, quieter settling recovery",
-      "dodge": "low directional silhouette from frame 1 through frame 5 with trailing blade clear of feet",
+      "dodge": "low directional silhouette from frame 1 through frame 5 with one trailing equipped blade clear of feet and ring",
+      "hollow_artifact_diagnosis": "not reproduced in the isolated source proof: the GLB keeps separate WPN_Practice_A and WPN_Greatsword_A roots, and the proof attaches only WPN_Greatsword_A; runtime is assumed to enforce mutually exclusive node visibility",
       "authoritative_timing_changed": false,
       "clip_names_or_ranges_changed": false
     },
@@ -113,7 +114,7 @@
   "assets": {
     "defender": {
       "collection": "ASSET_Defender",
-      "triangles": 420,
+      "triangles": 444,
       "triangle_ceiling": 12000,
       "materials": [
         "MAT_SiegeheartPalette"
@@ -168,8 +169,8 @@
   },
   "runtime_package": {
     "path": "public/assets/models/proof/siegeheart-defender-proof.glb",
-    "bytes": 163168,
-    "sha256": "37a458bbdab6352e990398aba92fd48470a049e3c35c479038175e6082fd030d"
+    "bytes": 169932,
+    "sha256": "d33e7f9dce4b7e2975ecfa29f533beb6d1120ec9a9c97abe556f7cd152c38244"
   },
   "gltf_validation": {
     "generator": "Khronos glTF Blender I/O v5.1.20",
@@ -184,15 +185,15 @@
       "Idle",
       "Run"
     ],
-    "animation_bytes": 12440,
+    "animation_bytes": 14288,
     "animation_byte_ceiling": 524288,
     "images": 1,
     "materials": 1
   },
   "delivery_budgets": {
-    "transferred_runtime_bytes": 163168,
+    "transferred_runtime_bytes": 169932,
     "transferred_runtime_byte_ceiling": 3145728,
-    "animation_bytes": 12440,
+    "animation_bytes": 14288,
     "animation_byte_ceiling": 524288,
     "decoded_texture_bytes": 262144,
     "decoded_texture_byte_ceiling": 1048576
@@ -200,88 +201,158 @@
   "renders": {
     "neutral": {
       "path": "docs/reference/blender-proof/defender-practice-fixed-camera.png",
-      "bytes": 1019908,
-      "sha256": "606dee6aa7d13ca3738d1a66c78119b49f4b9a01105b62cd76ca2e92f5d1e5c9"
+      "bytes": 1024110,
+      "sha256": "207f542af9195d6ecfdab06452746bb72bb5f78e5b473b9b85151b8031984b52"
     },
     "greatsword": {
       "path": "docs/reference/blender-proof/defender-greatsword-fixed-camera.png",
-      "bytes": 1022975,
-      "sha256": "98f2cb98f617b404b74d857532fca7b405c1f6658365f2f4a94094c701bd732f"
+      "bytes": 1027768,
+      "sha256": "995d6ecc0238e21ba63187a2ce45a80a53fe05eafc0cc4ba268a1fd01766460c"
     },
     "greatsword_native": {
       "path": "docs/reference/blender-proof/defender-greatsword-native-scale.png",
-      "bytes": 875374,
-      "sha256": "23fa77e36e46662729202fe71c6d262c1cfae20e1d9d808cbee37c9f3fe1b3e4"
+      "bytes": 876514,
+      "sha256": "0d0ec843825abb48765f70c8fdddff7571094e9e4c584e4647b4c4513dfbb66c"
     },
     "four_player": {
       "path": "docs/reference/blender-proof/four-defenders-fixed-camera.png",
-      "bytes": 1074161,
-      "sha256": "37226d78f69932e01810374427431174919cb1ee1d738ec0d8d5efad3218fed0"
+      "bytes": 1078434,
+      "sha256": "bd50e644cb613b2a6ba0d24d386f98097f32f1d1a36a8db53935b3ddc14b3911"
     },
     "kit": {
       "path": "docs/reference/blender-proof/proof-kit-fixed-camera.png",
-      "bytes": 1024071,
-      "sha256": "19f9afc1ec53c360bbe7d6275dce3e9c026dac77db4c9e337f00dcff2310900e"
+      "bytes": 1025635,
+      "sha256": "c0f84934fabb96a1ebae2532eb2bcda35ec268e88bbfedb01537c02aaa2e6168"
     },
     "basic_windup_native": {
       "path": "docs/reference/blender-proof/defender-basic-windup-native-scale.png",
-      "bytes": 873220,
-      "sha256": "3f82374264645dbd1b31c731ddf9f8ed2ae6a85c026584522374c79c75179b62"
+      "bytes": 873850,
+      "sha256": "3e6ce71d923e916a6753fb03a62885299f3bfff3d1fa6154b7b17464dbb93be4"
     },
     "basic_active_native": {
       "path": "docs/reference/blender-proof/defender-basic-active-native-scale.png",
-      "bytes": 873995,
-      "sha256": "4f354c5565d33b071839af0a0820a92aa84673fe611603d37ab0ab50fcbc06fb"
+      "bytes": 875219,
+      "sha256": "e54bd24558195cad32c06bac4365fddd4f4bd2848dd4b77534edf501f04680ca"
     },
     "basic_recovery_native": {
       "path": "docs/reference/blender-proof/defender-basic-recovery-native-scale.png",
-      "bytes": 875659,
-      "sha256": "a682457ff469d581f0fe3268333526e4a976a4b33c312b49704b854d1459e237"
+      "bytes": 875898,
+      "sha256": "06422aee0e837b2fa4a8d523d0f870e2fe69a816b146660049db5ad8f4969c4b"
     },
     "dodge_before_native": {
       "path": "docs/reference/blender-proof/defender-dodge-before-native-scale.png",
-      "bytes": 874439,
-      "sha256": "4bb6c7a88bc131cc0fb0a3ade65bd5669903b820cac50804beddd6deae529a0f"
+      "bytes": 874449,
+      "sha256": "9efce9025d68a4777120de18fb96a0eb0f8a03720592fd54e84d8649048b3c5e"
     },
     "dodge_active_native": {
       "path": "docs/reference/blender-proof/defender-dodge-active-native-scale.png",
-      "bytes": 873329,
-      "sha256": "306a5464be49b1336c171368a33f929e1178c314f2cd691cae6f4da988a0b19c"
+      "bytes": 875019,
+      "sha256": "ea42ea7ba4a417173af51880ad3da663ddf46ae9986168c3d9a2e397f6ee5c9e"
     },
     "dodge_recovery_native": {
       "path": "docs/reference/blender-proof/defender-dodge-recovery-native-scale.png",
-      "bytes": 872628,
-      "sha256": "4698b5cd52224006fa303d8deff395b404c403eb1889273c9b68f19c02111ffa"
+      "bytes": 875028,
+      "sha256": "d6b69132da458c2c0dec35322b7cdd9d9ace681272bf94629b106445a20d1cad"
     },
     "basic_windup_close": {
       "path": "docs/reference/blender-proof/defender-basic-windup-close.png",
-      "bytes": 1004511,
-      "sha256": "f7c78d9a50410e7036ef65f9eb2346cb986ec9ddcf48f90215a011be1a387e13"
+      "bytes": 1004273,
+      "sha256": "4df86798ec0f4093cdeaff7f9e83ad53428a6970cc0a8427af7f1b6451541e7b"
     },
     "basic_active_close": {
       "path": "docs/reference/blender-proof/defender-basic-active-close.png",
-      "bytes": 1019923,
-      "sha256": "74ccfde762253f9f7cd1a3d863fc6585ea3c6a4fbcb474502cc45f63261fe084"
+      "bytes": 1037193,
+      "sha256": "49cfadeaa747fd429efbe485fe02b0aa3aa4d9b19931fefad206cfb82d822eb9"
     },
     "basic_recovery_close": {
       "path": "docs/reference/blender-proof/defender-basic-recovery-close.png",
-      "bytes": 1017700,
-      "sha256": "d4058486e3b6c182bf1197d02f58759dd76bdeffc7787cf292362d6138882f1a"
+      "bytes": 1042103,
+      "sha256": "d63f74aa7639d0aa8fd6602709c0ad929f5672cce09a47491702bdfe5967bba6"
     },
     "dodge_before_close": {
       "path": "docs/reference/blender-proof/defender-dodge-before-close.png",
-      "bytes": 1006350,
-      "sha256": "1268837504e9beea0cada2e3a52bde7bf92a2efdf5072aec948a438bb90c3103"
+      "bytes": 1026333,
+      "sha256": "4ae0f0b81c4645c46bc3f5a54f3525cac4b5a8f1925809101b28b95e8e8d802d"
     },
     "dodge_active_close": {
       "path": "docs/reference/blender-proof/defender-dodge-active-close.png",
-      "bytes": 1005622,
-      "sha256": "3e433ab75c34a5f0b7bd76b2dbe2c35027d53d9d6fcc7945800dc0920143a894"
+      "bytes": 1008693,
+      "sha256": "d5016051b250a7e7afedc41cd369adad3edb33a9326ed815e1e74e2480344a6c"
     },
     "dodge_recovery_close": {
       "path": "docs/reference/blender-proof/defender-dodge-recovery-close.png",
-      "bytes": 999154,
-      "sha256": "7342887933d7b40cb8f722f7d9f6fc84458270b1df31f8dadfb1368fa2c78833"
+      "bytes": 1017075,
+      "sha256": "0ecd767e04485bc1ccd02fbc36406f4abaac1810710d56cfd808eafc3d58c134"
+    },
+    "idle_native_fixed": {
+      "path": "docs/reference/blender-proof/defender-idle-native-fixed.png",
+      "bytes": 881635,
+      "sha256": "ebd79827516df79b67d0d31012c43915d21952bdc100d7f37e9e2814a995b683"
+    },
+    "run_three_quarter_native_fixed": {
+      "path": "docs/reference/blender-proof/defender-run-three-quarter-native-fixed.png",
+      "bytes": 881411,
+      "sha256": "33aa61a838e311290ddfc8d64e6d2fbe01af6c53b7c398434de6f7a980e498ee"
+    },
+    "run_profile_native_fixed": {
+      "path": "docs/reference/blender-proof/defender-run-profile-native-fixed.png",
+      "bytes": 881646,
+      "sha256": "46f1bc64a0a7e114842befaee7c4c72304f14d25ef4fc996e9bb8944bc9f84b8"
+    },
+    "windup_ready_native_fixed": {
+      "path": "docs/reference/blender-proof/defender-windup-ready-native-fixed.png",
+      "bytes": 880691,
+      "sha256": "b8ce1231e067a22db02f8a024bec1a419d2d453a4a88c8e64a8a908c1e949d84"
+    },
+    "dodge_frame_1_native_fixed": {
+      "path": "docs/reference/blender-proof/defender-dodge-frame-1-native-fixed.png",
+      "bytes": 882959,
+      "sha256": "b95008903311898bbb328bdabd8770b82ded853470fdf6c165fc22da59a8d2a7"
+    },
+    "dodge_mid_native_fixed": {
+      "path": "docs/reference/blender-proof/defender-dodge-mid-native-fixed.png",
+      "bytes": 882959,
+      "sha256": "30047246be687db9c6f69fa7d786ea0ef4883877bef65ec1a0d5aabc9ece4027"
+    },
+    "dodge_recovery_native_fixed": {
+      "path": "docs/reference/blender-proof/defender-dodge-recovery-native-fixed.png",
+      "bytes": 882375,
+      "sha256": "c8852aa1c3eaa54af4a00ca46375b219bfaa7856ea39be49efaad13145954841"
+    },
+    "idle_silhouette": {
+      "path": "docs/reference/blender-proof/defender-idle-silhouette.png",
+      "bytes": 877839,
+      "sha256": "782c725e3d31553299d79b861fc63a187c72ccfeb79ba920cdf8613def1ae94a"
+    },
+    "run_three_quarter_silhouette": {
+      "path": "docs/reference/blender-proof/defender-run-three-quarter-silhouette.png",
+      "bytes": 877851,
+      "sha256": "b910e69c8b435ec9d136eadeb3d31bd9ad7c48fa23de13457dc5c4f921c3be9c"
+    },
+    "run_profile_silhouette": {
+      "path": "docs/reference/blender-proof/defender-run-profile-silhouette.png",
+      "bytes": 877387,
+      "sha256": "fbbcf385ae1104704390e9191bd5b5f64fe23768c7d932eed8fa6401988f7bf7"
+    },
+    "windup_ready_silhouette": {
+      "path": "docs/reference/blender-proof/defender-windup-ready-silhouette.png",
+      "bytes": 877796,
+      "sha256": "de4d005584bfa301c35b54a572b21efccdc04994664fb5be4a2127c92c7356c2"
+    },
+    "dodge_frame_1_silhouette": {
+      "path": "docs/reference/blender-proof/defender-dodge-frame-1-silhouette.png",
+      "bytes": 878209,
+      "sha256": "f467b3d62a3d2374fe631ba0b0845ff09898d24fa1982836f2137cff32b8dfd4"
+    },
+    "dodge_mid_silhouette": {
+      "path": "docs/reference/blender-proof/defender-dodge-mid-silhouette.png",
+      "bytes": 878209,
+      "sha256": "ab1d4c9e49785a38f5cccab4e3eec3c8fe8aa4be27ad3fab90b39a0c0d928269"
+    },
+    "dodge_recovery_silhouette": {
+      "path": "docs/reference/blender-proof/defender-dodge-recovery-silhouette.png",
+      "bytes": 878138,
+      "sha256": "0276245c199115614ece08706b5fa39b8787ae1885ab929972a53a5724c34ded"
     }
   },
   "plate_support": {
@@ -315,5 +386,5 @@
       "asset_ready_max_ms": 500
     }
   },
-  "semantic_manifest_sha256": "a2a740c2fd42683bf4d96f66ccc1df5663e259d1b66f6acbd8c09d2318066a2d"
+  "semantic_manifest_sha256": "c52b273e141aac996fd40defba8d6908ba34c0a1803b5110ad45d5a7e5153a84"
 }

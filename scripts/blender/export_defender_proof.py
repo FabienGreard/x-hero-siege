@@ -28,6 +28,7 @@ ASSETS = {
     "slash": {"collection": "ASSET_Slash", "triangles": 256, "materials": 1},
 }
 REQUIRED_CLIPS = ["Idle", "Run", "Dodge", "Basic_Windup", "Basic_Active", "Basic_Recovery"]
+RUNTIME_ROOT_SCALE = 1.33
 
 
 def sha256(path: Path) -> str:
@@ -312,6 +313,17 @@ def add_selection_ring(
     render_collection.objects.link(ring)
 
 
+def silhouette_material() -> bpy.types.Material:
+    material = bpy.data.materials.get("MAT_ProofSilhouette") or bpy.data.materials.new("MAT_ProofSilhouette")
+    material.diffuse_color = (0.006, 0.006, 0.006, 1.0)
+    material.use_nodes = True
+    shader = material.node_tree.nodes.get("Principled BSDF")
+    if shader:
+        shader.inputs["Base Color"].default_value = (0.006, 0.006, 0.006, 1.0)
+        shader.inputs["Roughness"].default_value = 1.0
+    return material
+
+
 def render_reference(name: str, arrangement: str, render_collection: bpy.types.Collection, camera: bpy.types.Object) -> dict:
     transient = [obj for obj in list(render_collection.objects) if obj.name.startswith("SHOT_")]
     for obj in transient:
@@ -327,12 +339,33 @@ def render_reference(name: str, arrangement: str, render_collection: bpy.types.C
         "dodge_before": ("Idle", 1),
         "dodge_active": ("Dodge", 3),
         "dodge_recovery": ("Dodge", 8),
+        "idle_native": ("Idle", 1),
+        "run_three_quarter_native": ("Run", 1),
+        "run_profile_native": ("Run", 1),
+        "windup_ready_native": ("Basic_Windup", 4),
+        "dodge_frame_1_native": ("Dodge", 1),
+        "dodge_mid_native": ("Dodge", 5),
+        "dodge_recovery_native_fixed": ("Dodge", 8),
     }
-    action_key = arrangement.removesuffix("_close")
+    silhouette = arrangement.endswith("_silhouette")
+    action_key = arrangement.removesuffix("_silhouette").removesuffix("_close")
     if action_key in action_reference:
         action_name, frame = action_reference[action_key]
         hero, rig = duplicate_posed_defender(action_name, frame, render_collection)
-        add_posed_sword(rig, render_collection)
+        sword = add_posed_sword(rig, render_collection)
+        yaw = math.radians(47) if action_key == "run_profile_native" else 0.0
+        hero.rotation_euler.z = yaw
+        rig.rotation_euler = (0, 0, yaw)
+        if action_key.endswith("_native") or action_key == "dodge_recovery_native_fixed":
+            hero.scale = (RUNTIME_ROOT_SCALE,) * 3
+            rig.scale = (RUNTIME_ROOT_SCALE,) * 3
+            add_selection_ring(render_collection, "SHOT_Ring", (0, 0, 0.035), (0.44, 0.73, 0.86))
+        if silhouette:
+            black = silhouette_material()
+            hero.data.materials.clear()
+            hero.data.materials.append(black)
+            sword.data.materials.clear()
+            sword.data.materials.append(black)
         fixed_camera(camera, (0, 0, 2.2), 8.2 if arrangement.endswith("_close") else 42)
     elif arrangement == "neutral":
         hero = duplicate_for_render(defender_source, "SHOT_Defender", render_collection)
@@ -390,8 +423,10 @@ def render_reference(name: str, arrangement: str, render_collection: bpy.types.C
     path = RENDER_ROOT / f"{name}.png"
     bpy.context.scene.render.filepath = str(path)
     bpy.ops.render.render(write_still=True)
-    if arrangement.removesuffix("_close") in action_reference:
+    if action_key in action_reference:
         bpy.data.objects["RIG_Defender"].animation_data.action = None
+        bpy.data.objects["RIG_Defender"].rotation_euler = (0, 0, 0)
+        bpy.data.objects["RIG_Defender"].scale = (1, 1, 1)
         bpy.context.scene.frame_set(1)
     return {"path": path.relative_to(ROOT).as_posix(), "bytes": path.stat().st_size, "sha256": sha256(path)}
 
@@ -454,6 +489,20 @@ def main() -> None:
         "dodge_before_close": render_reference("defender-dodge-before-close", "dodge_before_close", render_collection, camera),
         "dodge_active_close": render_reference("defender-dodge-active-close", "dodge_active_close", render_collection, camera),
         "dodge_recovery_close": render_reference("defender-dodge-recovery-close", "dodge_recovery_close", render_collection, camera),
+        "idle_native_fixed": render_reference("defender-idle-native-fixed", "idle_native", render_collection, camera),
+        "run_three_quarter_native_fixed": render_reference("defender-run-three-quarter-native-fixed", "run_three_quarter_native", render_collection, camera),
+        "run_profile_native_fixed": render_reference("defender-run-profile-native-fixed", "run_profile_native", render_collection, camera),
+        "windup_ready_native_fixed": render_reference("defender-windup-ready-native-fixed", "windup_ready_native", render_collection, camera),
+        "dodge_frame_1_native_fixed": render_reference("defender-dodge-frame-1-native-fixed", "dodge_frame_1_native", render_collection, camera),
+        "dodge_mid_native_fixed": render_reference("defender-dodge-mid-native-fixed", "dodge_mid_native", render_collection, camera),
+        "dodge_recovery_native_fixed": render_reference("defender-dodge-recovery-native-fixed", "dodge_recovery_native_fixed", render_collection, camera),
+        "idle_silhouette": render_reference("defender-idle-silhouette", "idle_native_silhouette", render_collection, camera),
+        "run_three_quarter_silhouette": render_reference("defender-run-three-quarter-silhouette", "run_three_quarter_native_silhouette", render_collection, camera),
+        "run_profile_silhouette": render_reference("defender-run-profile-silhouette", "run_profile_native_silhouette", render_collection, camera),
+        "windup_ready_silhouette": render_reference("defender-windup-ready-silhouette", "windup_ready_native_silhouette", render_collection, camera),
+        "dodge_frame_1_silhouette": render_reference("defender-dodge-frame-1-silhouette", "dodge_frame_1_native_silhouette", render_collection, camera),
+        "dodge_mid_silhouette": render_reference("defender-dodge-mid-silhouette", "dodge_mid_native_silhouette", render_collection, camera),
+        "dodge_recovery_silhouette": render_reference("defender-dodge-recovery-silhouette", "dodge_recovery_native_fixed_silhouette", render_collection, camera),
     }
     source_path = ROOT / "art/blender/defender_greatsword_proof.blend"
     texture = {
@@ -489,11 +538,12 @@ def main() -> None:
                 "two_handed_grip": "hands separated sequentially along the hilt; guard and grip clear the torso",
                 "lower_body": "wider leg centerlines, narrower tabard, mid-value shins, light feet, restrained brass belt",
                 "idle_run": "locked two-hand arm posture with chest counter-rotation and clearer profile stride",
-                "triangle_delta": 12,
+                "triangle_delta_from_3a52aa9": 24,
             },
             "animation_revision": {
                 "basic": "rear/outboard two-hand load, unique planted contact extension, quieter settling recovery",
-                "dodge": "low directional silhouette from frame 1 through frame 5 with trailing blade clear of feet",
+                "dodge": "low directional silhouette from frame 1 through frame 5 with one trailing equipped blade clear of feet and ring",
+                "hollow_artifact_diagnosis": "not reproduced in the isolated source proof: the GLB keeps separate WPN_Practice_A and WPN_Greatsword_A roots, and the proof attaches only WPN_Greatsword_A; runtime is assumed to enforce mutually exclusive node visibility",
                 "authoritative_timing_changed": False,
                 "clip_names_or_ranges_changed": False,
             },

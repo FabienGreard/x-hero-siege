@@ -83,6 +83,15 @@ The export writes both native-scale and close action references for source
 look-development. Authoritative timing and final binary acceptance still come
 from the in-game plates.
 
+The later hollow second-sword report does not reproduce in the isolated source
+proof. The GLB intentionally retains separate `WPN_Practice_A` and
+`WPN_Greatsword_A` roots; runtime is assumed to reparent both and make their
+visibility mutually exclusive. The fixed-camera source proofs attach only the
+equipped Greatsword and show the runtime `1.33` shared scale plus selection ring
+for Idle, two Run views, early Windup, Dodge frame 1, Dodge frame 5, and Dodge
+recovery, with matching solid silhouettes. Capture-state or runtime visibility
+diagnosis remains outside this asset-only package.
+
 ## Reproduction
 
 From the repository root:
@@ -111,9 +120,9 @@ The checker runs both cycles in isolated temporary output roots, prints detailed
 per-run samples to stdout, and updates only the stable tracked summary. Running
 it against a clean checkout leaves the checkout clean.
 
-The four PNGs are pipeline look-development references only. They are not the
-eight in-game plates and do not constitute `0.1.35` visual acceptance. The final
-binary verdict remains with the production asset path described by
+The fixed-camera PNG suite is pipeline look-development reference only. It is
+not the eight in-game plates and does not constitute `0.1.35` visual acceptance.
+The final binary verdict remains with the production asset path described by
 `docs/VISUAL_ACCEPTANCE_0.1.35.md` on the director branch.
 
 ## Ownership boundary
