@@ -11,6 +11,8 @@ All notable project changes are recorded here.
 - Kept the verified `0.1.34` game as the transition baseline and preserved its Citadel siege, authoritative multiplayer, shops, transactions, reconnects, camera, and checkpoint gates.
 - Approved a concept-art-led low-poly/pixel-hybrid target in Three.js, supported by a defined Blender asset and animation pipeline before production volume.
 - Approved the battlefield-first four-anchor HUD direction and its first CSS composition pass without claiming the broader single-Defender migration is playable yet.
+- Approved `0.1.35 — Forge the First Defender` as the first migration checkpoint: one neutral Defender, an authoritative practice-weapon-to-Arsenal arming phase, the complete Greatsword mastery network and loadout, universal dodge, six run-only item slots, and preserved defense-to-counterattack multiplayer under one implementation owner.
+- Defined conflict-free responsibilities for interface, encounter compatibility, visual acceptance, and a bounded Blender proof package, plus the rendered, multiplayer, accessibility, balance, documentation, deployment, and companion-site gates required before shipping.
 
 ## [0.1.34] - 2026-07-11
 

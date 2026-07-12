@@ -4,15 +4,15 @@ This roadmap is a scope guard, not a content backlog. Work proceeds as one playe
 
 ## Approved next direction — Defender and weapon mastery migration
 
-**Status:** product direction approved on 2026-07-12; implementation not started; `0.1.34` remains the latest verified playable checkpoint.
+**Status:** product direction and first migration checkpoint approved on 2026-07-12; implementation assigned; `0.1.34` remains the latest verified playable checkpoint.
 
 - Replace the four fixed heroes incrementally with one neutral Citadel Defender whose purchased Greatsword, Bow, Staff, Greathammer, or Daggers defines the primary attack and mastery network.
 - Keep the verified Citadel siege, authoritative multiplayer, physical shops, six run-only item slots, exact-slot transactions, reconnect behavior, and defense-to-counterattack payoff as migration foundations.
 - Use the approved mastery contract: full tree visibility, Arsenal/level-up loadout changes, always-on general passives, equipped-skill mutations, and an eighth-point branch mastery usable before the finale.
 - Keep Three.js and close the concept-art gap through a defined Blender-to-Three.js pipeline, modular authored assets, animation, materials, lighting, and restrained effects.
-- Begin with cross-workstream audits, then assign exactly one implementation owner to the smallest complete playable migration checkpoint. Do not launch five parallel rewrites.
+- Implement [`0.1.35` — Forge the First Defender](decisions/0002-first-defender-greatsword-checkpoint.md) as one complete generic-Defender and Greatsword vertical slice under one exclusive owner. The other workstreams supply acceptance review and bounded assets rather than parallel rewrites.
 
-**First-checkpoint gate:** play the current build, review the five workstream audits, choose one player-visible transition boundary, and specify its authority, compatibility, rendered, multiplayer, balance, and rollback evidence before implementation.
+**First-checkpoint gate:** the five audits and director decisions are complete. `0.1.35` must pass its authority, graph, full-run, one-to-four-player, reconnect, accessibility, rendered, concept-comparison, balance, production, documentation, and companion-site gates before it replaces `0.1.34` as the verified build.
 
 ## `0.1.34` — Make the Kill Branch
 
