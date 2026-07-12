@@ -85,6 +85,7 @@ import { deriveShopReplacementOffer } from "./shop-replacement-offer";
 import { deriveWraithImpactPresentation } from "./wraith-impact";
 import { transitionAdministrativeSurface } from "./administrative-surfaces";
 import { armingKeyboardAction, deriveArmingUiState, deriveArsenalRespecView, reconcileArsenalOpen, shouldCloseArsenalAfterWeaponAcceptance } from "./arming-ui";
+import { reconcileSilhouetteVisibility, restoreSilhouetteVisibility } from "./capture-visibility";
 import { pendingRevisionAfterDispatch } from "./pending-revision";
 import { nearestInRangeVendorId } from "./vendor-routing";
 import {
@@ -335,24 +336,43 @@ const seenEvents = new Set<string>();
 if (visualCaptureEnabled) {
   const silhouetteMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
   let silhouetteState: { visibility: Map<THREE.Object3D, boolean>; background: THREE.Color | THREE.Texture | null; hudVisibility: string } | null = null;
+  const reconcileCurrentSilhouetteVisibility = (): void => {
+    if (!silhouetteState) return;
+    const local = localPlayerId ? playerVisuals.get(localPlayerId) : null;
+    if (!local) return;
+    reconcileSilhouetteVisibility({
+      scene,
+      world,
+      localVisual: local.visual,
+      visibility: silhouetteState.visibility,
+    });
+  };
+  const captureWeaponVisibility = (): {
+    acceptedWeaponId: PlayerSnapshot["weaponId"];
+    practiceVisible: boolean;
+    greatswordVisible: boolean;
+  } | null => {
+    const local = localPlayerId ? playerVisuals.get(localPlayerId) : null;
+    const proofRoot = local?.defenderProof?.root;
+    if (!local || !proofRoot) return null;
+    return {
+      acceptedWeaponId: local.weaponId,
+      practiceVisible: proofRoot.getObjectByName("WPN_Practice_A")?.visible === true,
+      greatswordVisible: proofRoot.getObjectByName("WPN_Greatsword_A")?.visible === true,
+    };
+  };
   (window as typeof window & { __SIEGEHEART_CAPTURE__?: {
     setSilhouette(enabled: boolean): void;
     render(): void;
     darkBounds(): { minX: number; minY: number; maxX: number; maxY: number; pixels: number } | null;
+    weaponVisibility(): ReturnType<typeof captureWeaponVisibility>;
   } }).__SIEGEHEART_CAPTURE__ = {
     setSilhouette(enabled): void {
       if (enabled && !silhouetteState) {
         const local = localPlayerId ? playerVisuals.get(localPlayerId) : null;
         if (!local) return;
         const visibility = new Map<THREE.Object3D, boolean>();
-        for (const child of scene.children) {
-          visibility.set(child, child.visible);
-          child.visible = child === world;
-        }
-        for (const child of world.children) {
-          visibility.set(child, child.visible);
-          child.visible = child === local.visual;
-        }
+        reconcileSilhouetteVisibility({ scene, world, localVisual: local.visual, visibility });
         local.visual.traverse((object) => {
           if (!(object instanceof THREE.Sprite)) return;
           visibility.set(object, object.visible);
@@ -363,7 +383,7 @@ if (visualCaptureEnabled) {
         scene.overrideMaterial = silhouetteMaterial;
         hud.style.visibility = "hidden";
       } else if (!enabled && silhouetteState) {
-        for (const [object, visible] of silhouetteState.visibility) object.visible = visible;
+        restoreSilhouetteVisibility(silhouetteState.visibility);
         scene.background = silhouetteState.background;
         scene.overrideMaterial = null;
         hud.style.visibility = silhouetteState.hudVisibility;
@@ -371,10 +391,12 @@ if (visualCaptureEnabled) {
       }
     },
     render(): void {
+      reconcileCurrentSilhouetteVisibility();
       renderer.render(scene, camera);
     },
     darkBounds(): { minX: number; minY: number; maxX: number; maxY: number; pixels: number } | null {
       if (!silhouetteState) return null;
+      reconcileCurrentSilhouetteVisibility();
       renderer.render(scene, camera);
       const gl = renderer.getContext();
       const width = renderer.domElement.width;
@@ -419,6 +441,7 @@ if (visualCaptureEnabled) {
         pixels: count,
       };
     },
+    weaponVisibility: captureWeaponVisibility,
   };
 }
 
