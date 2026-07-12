@@ -44,35 +44,11 @@ export interface AbilityImpactReadout {
  * readout. Labels describe the exact per-target value, not total pack output.
  */
 export const ABILITY_IMPACT_DEFINITIONS: Record<HeroId, Record<AbilitySlot, AbilityImpactDefinition>> = {
-  warden: {
-    ability1: { primary: { base: 58, label: "DAMAGE" } },
-    ability2: { primary: { base: 72, label: "DAMAGE" } },
-    ability3: {
-      primary: { base: 38, label: "DAMAGE" },
-      secondary: { base: 30, label: "BARRIER" },
-    },
-    ultimate: { primary: { base: 145, label: "DAMAGE" } },
-  },
-  riftstalker: {
-    ability1: { primary: { base: 44, label: "ARROW DAMAGE" } },
-    ability2: { primary: { base: 47, label: "BOLT DAMAGE" } },
-    ability3: { primary: { base: 28, label: "DAMAGE" } },
-    ultimate: { primary: { base: 48, label: "ARROW DAMAGE" } },
-  },
-  ashcaller: {
-    ability1: { primary: { base: 54, label: "DAMAGE" } },
-    ability2: { primary: { base: 42, label: "DAMAGE / TARGET" } },
-    ability3: { primary: { base: 105, label: "DAMAGE" } },
-    ultimate: { primary: { base: 155, label: "DAMAGE" } },
-  },
-  gravebinder: {
-    ability1: {
-      primary: { base: 67, label: "DAMAGE" },
-      secondary: { base: 7, label: "HEAL / HIT" },
-    },
-    ability2: { primary: { base: 75, label: "BARRIER" } },
-    ability3: { primary: { base: 24, label: "WRAITH DAMAGE" } },
-    ultimate: { primary: { base: 125, label: "DAMAGE" } },
+  defender: {
+    ability1: { primary: { base: 0, label: "EQUIPPED SKILL" } },
+    ability2: { primary: { base: 0, label: "EQUIPPED SKILL" } },
+    ability3: { primary: { base: 0, label: "EQUIPPED SKILL" } },
+    ultimate: { primary: { base: 0, label: "EQUIPPED MASTERY" } },
   },
 };
 
@@ -109,21 +85,7 @@ export function deriveAbilityImpactReadout(
             : [];
         })
     : [];
-  const behavior = !learned || slot !== "ability2"
-    ? undefined
-    : heroId === "ashcaller"
-      ? {
-          id: "cinder_wall" as const,
-          compactLabel: `${CINDER_WALL_DURATION_SECONDS}S WALL · ONCE/TARGET`,
-          accessibleDescription: `Burns for ${CINDER_WALL_DURATION_SECONDS} seconds and damages each target at most once per cast`,
-        }
-      : heroId === "riftstalker"
-        ? {
-            id: "splitbolt" as const,
-            compactLabel: `${SPLITBOLT_SEED_PIERCE} PIERCE · KILL → ${SPLITBOLT_FORK_COUNT}×${SPLITBOLT_FORK_PIERCE}`,
-            accessibleDescription: `The seed can hit up to ${SPLITBOLT_SEED_PIERCE} targets; its first kill creates ${SPLITBOLT_FORK_COUNT} forks that can each hit ${SPLITBOLT_FORK_PIERCE} targets and cannot split again`,
-          }
-        : undefined;
+  const behavior = undefined;
   return {
     slot,
     name: ability.name,

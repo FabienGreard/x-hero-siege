@@ -10,5 +10,6 @@ export const ASHCALLER_BASIC_BURST_RADIUS = 3;
 export const ASHCALLER_BASIC_BURST_DAMAGE_RATIO = 0.5;
 
 export function isRangedHero(heroId: HeroId | null): heroId is Extract<HeroId, "riftstalker" | "ashcaller"> {
-  return heroId === "riftstalker" || heroId === "ashcaller";
+  void heroId;
+  return false;
 }

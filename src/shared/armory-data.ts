@@ -1,5 +1,6 @@
 import { ITEM_IDS, type ItemId } from "./item-ids";
 import type { EquipmentSlotIndex, EquipmentSlots, VendorId, Vec2 } from "./protocol";
+import { ARSENAL_INTERACTION_RADIUS, ARSENAL_POSITION } from "./weapon-data";
 
 export { ITEM_IDS } from "./item-ids";
 
@@ -33,7 +34,12 @@ export interface ItemDefinition {
   moveSpeedPercent: number;
   abilityPowerPercent: number;
   cooldownRecoveryPercent: number;
+  modifiers: readonly ItemModifier[];
 }
+
+export type ItemModifier =
+  | { stat: "maxHealth"; operation: "add"; value: number }
+  | { stat: "weaponDamage" | "moveSpeed" | "skillDamage" | "cooldownRecovery"; operation: "addPercent"; value: number };
 
 export interface VendorDefinition {
   id: VendorId;
@@ -110,6 +116,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     moveSpeedPercent: 0,
     abilityPowerPercent: 0,
     cooldownRecoveryPercent: 0,
+    modifiers: [{ stat: "weaponDamage", operation: "addPercent", value: 0.2 }],
   },
   fleetstep_greaves: {
     id: "fleetstep_greaves",
@@ -123,6 +130,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     moveSpeedPercent: 0.1,
     abilityPowerPercent: 0,
     cooldownRecoveryPercent: 0,
+    modifiers: [{ stat: "moveSpeed", operation: "addPercent", value: 0.1 }],
   },
   runebound_focus: {
     id: "runebound_focus",
@@ -136,6 +144,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     moveSpeedPercent: 0,
     abilityPowerPercent: 0.15,
     cooldownRecoveryPercent: 0,
+    modifiers: [{ stat: "skillDamage", operation: "addPercent", value: 0.15 }],
   },
   quickening_sigil: {
     id: "quickening_sigil",
@@ -149,6 +158,7 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     moveSpeedPercent: 0,
     abilityPowerPercent: 0,
     cooldownRecoveryPercent: 0.15,
+    modifiers: [{ stat: "cooldownRecovery", operation: "addPercent", value: 0.15 }],
   },
   gateward_plate: {
     id: "gateward_plate",
@@ -162,10 +172,18 @@ export const ITEM_DEFINITIONS: Record<ItemId, ItemDefinition> = {
     moveSpeedPercent: 0,
     abilityPowerPercent: 0,
     cooldownRecoveryPercent: 0,
+    modifiers: [{ stat: "maxHealth", operation: "add", value: 15 }],
   },
 };
 
 export const VENDOR_DEFINITIONS: Record<VendorId, VendorDefinition> = {
+  citadel_arsenal: {
+    id: "citadel_arsenal",
+    name: "Citadel Arsenal",
+    position: ARSENAL_POSITION,
+    interactionRadius: ARSENAL_INTERACTION_RADIUS,
+    itemIds: [],
+  },
   ironbound_forge: {
     id: "ironbound_forge",
     name: "Ironbound Forge",
@@ -190,14 +208,13 @@ function normalizedStackCount(count: number): number {
   return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
 }
 
-/** The fourth matching ware attunes once and contributes one bonus copy. */
+/** Direction 1.0 removes universal duplicate Attunement; raw copies are exhaustive. */
 export function effectiveStackCopies(count: number): number {
-  const copies = normalizedStackCount(count);
-  return copies + (copies >= ITEM_ATTUNEMENT_THRESHOLD ? 1 : 0);
+  return normalizedStackCount(count);
 }
 
 export function isStackAttuned(count: number): boolean {
-  return normalizedStackCount(count) >= ITEM_ATTUNEMENT_THRESHOLD;
+  return false;
 }
 
 /** One canonical read of the existing four-copy commitment for every armory surface. */
@@ -245,34 +262,9 @@ export function deriveItemEvolutionProgress(
   itemId: ItemId,
   count: number,
 ): ItemEvolutionProgress | null {
-  if (itemId !== "fleetstep_greaves") return null;
-  const copyCount = normalizedStackCount(count);
-  const effect = `retain ${FLEETSTEP_COMBAT_STRIDE_RETENTION * 100}% Move Speed during primary windup and impact; Combat Stride does not apply to abilities`;
-  if (copyCount >= ITEM_ATTUNEMENT_THRESHOLD) {
-    return {
-      name: "Combat Stride",
-      state: "active",
-      moveRetention: FLEETSTEP_COMBAT_STRIDE_RETENTION,
-      visualLabel: "COMBAT STRIDE",
-      accessibleDescription: `Combat Stride active: ${effect}.`,
-    };
-  }
-  if (copyCount === ITEM_ATTUNEMENT_THRESHOLD - 1) {
-    return {
-      name: "Combat Stride",
-      state: "next",
-      moveRetention: 0,
-      visualLabel: "UNLOCKS COMBAT STRIDE",
-      accessibleDescription: `The next matching copy unlocks Combat Stride: ${effect}.`,
-    };
-  }
-  return {
-    name: "Combat Stride",
-    state: "building",
-    moveRetention: 0,
-    visualLabel: null,
-    accessibleDescription: `Combat Stride unlocks at four matching copies: ${effect}.`,
-  };
+  void itemId;
+  void count;
+  return null;
 }
 
 export function equipmentCopyCount(
@@ -303,12 +295,14 @@ export function deriveEquipmentModifiers(
   };
   for (const [itemId, count] of counts) {
     const item = ITEM_DEFINITIONS[itemId];
-    const effectiveCount = effectiveStackCopies(count);
-    modifiers.maxHealthFlat += item.maxHealthFlat * effectiveCount;
-    modifiers.basicDamagePercent += item.basicDamagePercent * effectiveCount;
-    modifiers.moveSpeedPercent += item.moveSpeedPercent * effectiveCount;
-    modifiers.abilityPowerPercent += item.abilityPowerPercent * effectiveCount;
-    modifiers.cooldownRecoveryPercent += item.cooldownRecoveryPercent * effectiveCount;
+    for (const modifier of item.modifiers) {
+      const value = modifier.value * count;
+      if (modifier.stat === "maxHealth") modifiers.maxHealthFlat += value;
+      if (modifier.stat === "weaponDamage") modifiers.basicDamagePercent += value;
+      if (modifier.stat === "moveSpeed") modifiers.moveSpeedPercent += value;
+      if (modifier.stat === "skillDamage") modifiers.abilityPowerPercent += value;
+      if (modifier.stat === "cooldownRecovery") modifiers.cooldownRecoveryPercent += value;
+    }
   }
   return modifiers;
 }

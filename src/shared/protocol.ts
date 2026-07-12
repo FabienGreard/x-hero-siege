@@ -1,17 +1,27 @@
 import { isItemId, isVendorId } from "./armory-data";
 import type { ItemId } from "./item-ids";
+import {
+  isMasteryNodeId,
+  isMasterySkillId,
+  isSkillId,
+  isStandardSkillId,
+  isWeaponId,
+  type EquippedWeaponId,
+  type MasteryNodeId,
+  type MasterySkillId,
+  type SkillId,
+  type StandardSkillId,
+  type WeaponId,
+} from "./weapon-data";
 
 export type { ItemId } from "./item-ids";
 
-export type HeroId =
-  | "warden"
-  | "riftstalker"
-  | "ashcaller"
-  | "gravebinder";
+export type HeroId = "defender";
 
 export type LaneId = "north" | "east" | "south" | "west";
 export type GamePhase =
   | "lobby"
+  | "arming"
   | "defense"
   | "breach"
   | "push"
@@ -20,7 +30,7 @@ export type GamePhase =
 export type AbilitySlot = "ability1" | "ability2" | "ability3" | "ultimate";
 export type ActionSlot = "basic" | AbilitySlot;
 export type ActionPhase = "idle" | "windup" | "active" | "recovery";
-export type VendorId = "ironbound_forge" | "veilglass_reliquary";
+export type VendorId = "citadel_arsenal" | "ironbound_forge" | "veilglass_reliquary";
 export type EquipmentSlotIndex = 0 | 1 | 2 | 3 | 4 | 5;
 export type EquipmentSlots = [
   ItemId | null,
@@ -30,6 +40,46 @@ export type EquipmentSlots = [
   ItemId | null,
   ItemId | null,
 ];
+
+export type StandardSkillSlot = "ability1" | "ability2" | "ability3";
+
+export interface MasteryLoadout {
+  ability1: StandardSkillId | null;
+  ability2: StandardSkillId | null;
+  ability3: StandardSkillId | null;
+  ultimate: MasterySkillId | null;
+}
+
+export interface WeaponAllocationSnapshot {
+  revision: number;
+  spentNodeIds: MasteryNodeId[];
+  unspentPoints: number;
+  loadout: MasteryLoadout;
+  freeRespecUsed: boolean;
+}
+
+export interface DodgeSnapshot {
+  charges: number;
+  maxCharges: 1;
+  rechargeRemaining: number;
+  rechargeDuration: 6;
+  invulnerable: boolean;
+}
+
+export interface MasterySnapshot {
+  weaponId: WeaponId;
+  revision: number;
+  pointBudget: number;
+  learnedNodeIds: MasteryNodeId[];
+  equipped: MasteryLoadout;
+  loadoutMutationContext: "none" | "arsenal" | "level_up";
+  freeRespecUsed: boolean;
+}
+
+export interface ArmingSnapshot {
+  armedPlayerIds: string[];
+  countdownEndsAt: number | null;
+}
 
 export interface ActionSnapshot {
   kind: "basic" | AbilitySlot | "enemy_attack";
@@ -47,8 +97,6 @@ export interface Vec2 {
 export type ClientMessage =
   | { type: "hello"; name: string; resumeToken?: string }
   | { type: "join"; name: string }
-  | { type: "claim_hero"; heroId: HeroId }
-  | { type: "release_hero" }
   | { type: "set_ready"; ready: boolean }
   | { type: "start" }
   | { type: "reset_run" }
@@ -60,7 +108,22 @@ export type ClientMessage =
       attacking: boolean;
     }
   | { type: "cast"; slot: AbilitySlot }
-  | { type: "level_ability"; slot: AbilitySlot }
+  | { type: "dodge"; seq: number; direction: Vec2 }
+  | { type: "buy_weapon"; arsenalId: "citadel_arsenal"; weaponId: WeaponId }
+  | {
+      type: "allocate_mastery";
+      weaponId: WeaponId;
+      nodeId: MasteryNodeId;
+      expectedRevision: number;
+    }
+  | {
+      type: "assign_skill";
+      weaponId: WeaponId;
+      skillId: SkillId | null;
+      slot: AbilitySlot;
+      expectedRevision: number;
+    }
+  | { type: "respec_mastery"; arsenalId: "citadel_arsenal"; weaponId: WeaponId; expectedRevision: number }
   | { type: "buy_item"; vendorId: VendorId; itemId: ItemId }
   | {
       type: "replace_item";
@@ -81,8 +144,7 @@ export interface LobbySnapshot {
   hostId: string | null;
   maxPlayers: 4;
   canStart: boolean;
-  claimedHeroes: Partial<Record<HeroId, string>>;
-  availableHeroes: HeroId[];
+  readyPlayers: string[];
 }
 
 export interface WaveSnapshot {
@@ -138,6 +200,13 @@ export interface PlayerSnapshot {
   name: string;
   connected: boolean;
   heroId: HeroId | null;
+  identity: "defender";
+  accentId: string;
+  weaponId: EquippedWeaponId;
+  mastery: MasterySnapshot | null;
+  cooldownsBySkillId: Partial<Record<SkillId, number>>;
+  basicCombo: 0 | 1 | 2;
+  dodge: DodgeSnapshot;
   ready: boolean;
   position: Vec2;
   velocity: Vec2;
@@ -265,8 +334,8 @@ export interface EffectSnapshot {
 
 export type GameEventKind =
   | "system"
-  | "hero_claimed"
-  | "hero_released"
+  | "weapon_purchased"
+  | "mastery_changed"
   | "phase"
   | "wave"
   | "gate_breached"
@@ -310,6 +379,7 @@ export interface GameSnapshot {
   objective: string;
   pressureLane: LaneId | null;
   activeLanes: LaneId[];
+  arming: ArmingSnapshot | null;
   lobby: LobbySnapshot;
   wave: WaveSnapshot;
   nexus: NexusSnapshot;
@@ -371,12 +441,6 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       return typeof message.name === "string"
         ? { type: "join", name: message.name }
         : null;
-    case "claim_hero":
-      return typeof message.heroId === "string"
-        ? ({ type: "claim_hero", heroId: message.heroId } as ClientMessage)
-        : null;
-    case "release_hero":
-      return { type: "release_hero" };
     case "set_ready":
       return typeof message.ready === "boolean"
         ? { type: "set_ready", ready: message.ready }
@@ -399,12 +463,34 @@ export function parseClientMessage(raw: string): ClientMessage | null {
           }
         : null;
     case "cast":
-      return typeof message.slot === "string"
-        ? ({ type: "cast", slot: message.slot } as ClientMessage)
+      return message.slot === "ability1" || message.slot === "ability2" || message.slot === "ability3" || message.slot === "ultimate"
+        ? { type: "cast", slot: message.slot }
         : null;
-    case "level_ability":
-      return typeof message.slot === "string"
-        ? ({ type: "level_ability", slot: message.slot } as ClientMessage)
+    case "dodge":
+      return Number.isFinite(message.seq) && isVec2(message.direction)
+        ? { type: "dodge", seq: message.seq as number, direction: message.direction }
+        : null;
+    case "buy_weapon":
+      return message.arsenalId === "citadel_arsenal" && isVendorId(message.arsenalId) && isWeaponId(message.weaponId)
+        ? { type: "buy_weapon", arsenalId: message.arsenalId, weaponId: message.weaponId }
+        : null;
+    case "allocate_mastery":
+      return isWeaponId(message.weaponId) && isMasteryNodeId(message.nodeId) && Number.isInteger(message.expectedRevision)
+        ? { type: "allocate_mastery", weaponId: message.weaponId, nodeId: message.nodeId, expectedRevision: message.expectedRevision as number }
+        : null;
+    case "assign_skill": {
+      const slot = message.slot;
+      const skillId = message.skillId;
+      const standardSlot = slot === "ability1" || slot === "ability2" || slot === "ability3";
+      const masterySlot = slot === "ultimate";
+      const validSkill = skillId === null || standardSlot && isStandardSkillId(skillId) || masterySlot && isMasterySkillId(skillId);
+      return (standardSlot || masterySlot) && validSkill && isWeaponId(message.weaponId) && Number.isInteger(message.expectedRevision)
+        ? { type: "assign_skill", weaponId: message.weaponId, skillId: skillId as SkillId | null, slot, expectedRevision: message.expectedRevision as number }
+        : null;
+    }
+    case "respec_mastery":
+      return message.arsenalId === "citadel_arsenal" && isVendorId(message.arsenalId) && isWeaponId(message.weaponId) && Number.isInteger(message.expectedRevision)
+        ? { type: "respec_mastery", arsenalId: message.arsenalId, weaponId: message.weaponId, expectedRevision: message.expectedRevision as number }
         : null;
     case "buy_item":
       return isVendorId(message.vendorId) && isItemId(message.itemId)

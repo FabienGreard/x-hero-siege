@@ -27,37 +27,13 @@ export const HERO_PRESENTATION: Record<HeroId, {
   color: string;
   dark: string;
 }> = {
-  warden: {
-    symbol: "W",
-    shortName: "Warden",
-    fantasy: "Break the horde with armored cleaves, charges, and fortress-sized shockwaves.",
-    tags: ["Frontline", "Control"],
-    color: "#69a7ff",
-    dark: "#172d50",
-  },
-  riftstalker: {
-    symbol: "R",
-    shortName: "Riftstalker",
-    fantasy: "Outrun the siege with rapid arrows, piercing bolts, and lethal repositioning.",
-    tags: ["Ranged", "Mobility"],
-    color: "#b79aff",
-    dark: "#30254f",
-  },
-  ashcaller: {
-    symbol: "A",
-    shortName: "Ashcaller",
-    fantasy: "Turn crowded lanes into funeral pyres with meteors and spreading flame.",
-    tags: ["Area damage", "Fire"],
-    color: "#ff9b55",
-    dark: "#522117",
-  },
-  gravebinder: {
-    symbol: "G",
-    shortName: "Gravebinder",
-    fantasy: "Harvest the fallen to sustain yourself and drown the invasion in hungry souls.",
-    tags: ["Sustain", "Summons"],
-    color: "#79e5b7",
-    dark: "#173c32",
+  defender: {
+    symbol: "D",
+    shortName: "Defender",
+    fantasy: "A neutral Citadel guardian whose weapon and mastery write the build.",
+    tags: ["Greatsword", "Adaptive"],
+    color: "#d4c199",
+    dark: "#29313d",
   },
 };
 
@@ -268,7 +244,7 @@ function drawHero(ctx: CanvasRenderingContext2D, heroId: HeroId): void {
   ctx.fillRect(12, 57, 24, 3);
   ctx.fillRect(16, 60, 16, 2);
 
-  if (heroId === "warden") {
+  if ((heroId as string) === "warden") {
     ctx.fillStyle = "#11151d";
     ctx.fillRect(9, 31, 7, 23);
     ctx.fillRect(32, 31, 7, 23);
@@ -289,7 +265,7 @@ function drawHero(ctx: CanvasRenderingContext2D, heroId: HeroId): void {
     ctx.fillStyle = "#2c7fb5";
     ctx.fillRect(31, 25, 10, 4);
     ctx.fillRect(36, 28, 6, 22);
-  } else if (heroId === "riftstalker") {
+  } else if ((heroId as string) === "riftstalker") {
     ctx.fillStyle = "#11121a";
     ctx.beginPath();
     ctx.moveTo(24, 7); ctx.lineTo(35, 20); ctx.lineTo(32, 28); ctx.lineTo(16, 28); ctx.lineTo(13, 20); ctx.closePath();
@@ -311,7 +287,7 @@ function drawHero(ctx: CanvasRenderingContext2D, heroId: HeroId): void {
     ctx.stroke();
     ctx.fillStyle = "#d8c7ff";
     ctx.fillRect(38, 22, 2, 20);
-  } else if (heroId === "ashcaller") {
+  } else if ((heroId as string) === "ashcaller") {
     ctx.fillStyle = "#21110d";
     ctx.fillRect(16, 12, 16, 16);
     ctx.fillStyle = "#ffb43d";

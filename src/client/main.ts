@@ -30,6 +30,14 @@ import {
 import { deriveAbilityImpactReadout } from "../shared/ability-impact";
 import { derivePrimaryImpactReadout } from "../shared/primary-impact";
 import {
+  GREATSWORD_MASTERY_NODES,
+  PRACTICE_WEAPON,
+  SKILL_DEFINITIONS,
+  WEAPON_DEFINITIONS,
+  type MasteryNodeId,
+  type SkillId,
+} from "../shared/weapon-data";
+import {
   WRAITH_HOST_MAX_STRIKES_PER_SUMMON,
   wraithHostSummonCount,
 } from "../shared/wraith-host";
@@ -331,6 +339,10 @@ const ITEM_SYMBOLS: Record<ItemId, string> = {
   gateward_plate: "⬟",
 };
 const VENDOR_PRESENTATION: Record<VendorId, { district: string; tagline: string }> = {
+  citadel_arsenal: {
+    district: "CENTRAL CITADEL",
+    tagline: "WEAPONS · MASTERY · THE SIEGE CONTINUES",
+  },
   ironbound_forge: {
     district: "NORTHWEST CITADEL",
     tagline: "MARTIAL GOODS · THE SIEGE CONTINUES",
@@ -795,7 +807,7 @@ function updateHeroAbilityImpact(self: PlayerSnapshot): void {
     const row = document.createElement("div");
     row.className = `ability-impact${impact.learned ? "" : " is-unlearned"}`;
     row.setAttribute("role", "listitem");
-    const wraithHost = self.heroId === "gravebinder" && slot === "ability3" && impact.learned;
+    const wraithHost = false;
     const cinderWall = impact.behavior?.id === "cinder_wall";
     const splitbolt = impact.behavior?.id === "splitbolt";
     const fullMetrics = impact.metrics
@@ -1892,51 +1904,40 @@ function renderHeroCards(): void {
 function chooseHero(heroId: HeroId): void {
   if (!connectionReady) return;
   audio.unlock();
-  const ownerId = snapshot?.lobby.claimedHeroes[heroId];
-  if (ownerId && ownerId !== localPlayerId) return;
   selectedHero = heroId;
   heroCss(heroId);
   if (joinedName !== cleanName(playerNameInput.value)) {
     joinedName = cleanName(playerNameInput.value);
     send({ type: "join", name: joinedName });
   }
-  send({ type: "claim_hero", heroId });
   updateLobby();
 }
 
 function updateLobby(): void {
   if (!snapshot) return;
   const self = snapshot.players.find((player) => player.id === localPlayerId);
-  if (self?.heroId) selectedHero = self.heroId;
+  selectedHero = "defender";
   for (const card of heroGrid.querySelectorAll<HTMLButtonElement>(".hero-card")) {
     const heroId = card.dataset.hero as HeroId;
-    const ownerId = snapshot.lobby.claimedHeroes[heroId];
-    const owner = ownerId ? snapshot.players.find((player) => player.id === ownerId) : undefined;
-    const isSelf = ownerId === localPlayerId;
-    card.classList.toggle("is-selected", isSelf || selectedHero === heroId && !ownerId);
-    card.classList.toggle("is-taken", Boolean(ownerId && !isSelf));
-    card.disabled = Boolean(ownerId && !isSelf);
+    card.classList.toggle("is-selected", heroId === "defender");
+    card.classList.remove("is-taken");
+    card.disabled = false;
     const ownerLabel = card.querySelector<HTMLElement>(".hero-owner");
     if (ownerLabel) {
-      ownerLabel.classList.toggle("is-hidden", !ownerId);
-      ownerLabel.textContent = isSelf
-        ? "YOUR HERO"
-        : `${owner?.name ?? "ALLY"} ${owner && !owner.connected ? "RECONNECTING" : "CLAIMED"}`;
+      ownerLabel.classList.remove("is-hidden");
+      ownerLabel.textContent = "EVERY PLAYER · ONE DEFENDER";
     }
   }
   const reconnectingPlayers = snapshot.players.filter((player) => !player.connected).length;
   setTextIfChanged(lobbyCount, `${snapshot.players.length} / 4 defender${snapshot.players.length === 1 ? "" : "s"}${reconnectingPlayers > 0 ? ` · ${reconnectingPlayers} reconnecting` : ""}`);
   const isHost = snapshot.lobby.hostId === localPlayerId;
-  readyButton.disabled = !self?.heroId;
-  if (!self?.heroId) {
-    setReadyText("CHOOSE A HERO", "ONE DEFENDER · ONE LEGEND");
-    setTextIfChanged(lobbyNote, "Choose a hero to reserve them");
-  } else if (!self.ready) {
+  readyButton.disabled = !self;
+  if (self && !self.ready) {
     setReadyText("READY", "ENTER THE CITY");
-    setTextIfChanged(lobbyNote, `${HERO_DEFINITIONS[self.heroId].name} reserved for you`);
+    setTextIfChanged(lobbyNote, "Enter the Citadel with a practice weapon");
   } else if (isHost && snapshot.lobby.canStart) {
-    setReadyText("START THE SIEGE", "YOUR PARTY IS READY");
-    setTextIfChanged(lobbyNote, "The war table awaits your command");
+    setReadyText("START ARMING", "YOUR PARTY IS READY");
+    setTextIfChanged(lobbyNote, "The party is ready");
   } else if (isHost) {
     setReadyText("CANCEL READY", "WAITING FOR THE PARTY");
     setTextIfChanged(lobbyNote, "Waiting for every defender to ready up");
@@ -1958,7 +1959,7 @@ readyButton.addEventListener("click", () => {
   audio.unlock();
   if (!snapshot) return;
   const self = snapshot.players.find((player) => player.id === localPlayerId);
-  if (!self?.heroId) return;
+  if (!self) return;
   if (self.ready && snapshot.lobby.hostId === localPlayerId && snapshot.lobby.canStart) {
     send({ type: "start" });
     setReadyText("OPENING THE GATES…", "THE CITY MUST HOLD");
@@ -2508,6 +2509,7 @@ function spawnBurst(position: Vec2, color: number, count: number, force: number)
 
 const PHASE_LABELS: Record<GamePhase, string> = {
   lobby: "THE WAR TABLE",
+  arming: "ARM THE DEFENDERS",
   defense: "HOLD THE CITY",
   breach: "THE FIRST BREACH",
   push: "THE COUNTERATTACK",
@@ -2627,65 +2629,48 @@ function escapeText(text: string): string {
 
 function updateAbilityBar(self: PlayerSnapshot): void {
   if (!self.heroId) return;
-  const definition = HERO_DEFINITIONS[self.heroId];
-  basicAttackName.textContent = definition.basicName;
-  const slots: Array<{ action: AbilitySlot; name: string; cooldown: number; maxRank: number }> = [
-    { action: "ability1", name: definition.abilities.ability1.name, cooldown: definition.abilities.ability1.cooldown, maxRank: definition.abilities.ability1.maxRank },
-    { action: "ability2", name: definition.abilities.ability2.name, cooldown: definition.abilities.ability2.cooldown, maxRank: definition.abilities.ability2.maxRank },
-    { action: "ability3", name: definition.abilities.ability3.name, cooldown: definition.abilities.ability3.cooldown, maxRank: definition.abilities.ability3.maxRank },
-    { action: "ultimate", name: definition.abilities.ultimate.name, cooldown: definition.abilities.ultimate.cooldown, maxRank: definition.abilities.ultimate.maxRank },
-  ];
-  let upgradeableCount = 0;
-  for (const slot of slots) {
-    const element = abilityBar.querySelector<HTMLButtonElement>(`[data-action="${slot.action}"]`);
+  basicAttackName.textContent = self.weaponId === "greatsword" ? WEAPON_DEFINITIONS.greatsword.basicName : PRACTICE_WEAPON.basicName;
+  const allocation = self.mastery;
+  for (const action of ["ability1", "ability2", "ability3", "ultimate"] as const) {
+    const element = abilityBar.querySelector<HTMLButtonElement>(`[data-action="${action}"]`);
     if (!element) continue;
-    const ability = definition.abilities[slot.action];
-    const rank = self.abilityRanks[slot.action] ?? 0;
-    const cooldown = Math.max(0, self.cooldowns[slot.action] ?? 0);
-    const effectiveCooldown = slot.cooldown / Math.max(0.01, self.stats.cooldownRecovery);
-    const maxed = rank >= slot.maxRank;
-    const canUpgrade = self.skillPoints > 0 && self.level >= ability.unlockLevel && !maxed;
-    if (canUpgrade) upgradeableCount += 1;
+    const skillId = allocation?.equipped[action] ?? null;
+    const skill = skillId ? SKILL_DEFINITIONS[skillId] : null;
+    const cooldown = skillId ? Math.max(0, self.cooldownsBySkillId[skillId] ?? 0) : 0;
+    const effectiveCooldown = skill ? skill.cooldown / Math.max(0.01, self.stats.cooldownRecovery) : 1;
     element.style.setProperty("--cooldown", `${Math.min(100, (cooldown / effectiveCooldown) * 100)}%`);
-    element.classList.toggle("is-locked", rank === 0);
-    element.classList.toggle("is-level-locked", self.level < ability.unlockLevel);
-    element.classList.toggle("is-maxed", maxed);
-    element.classList.toggle("can-upgrade", canUpgrade);
-    element.classList.toggle("is-cooling", rank > 0 && cooldown > 0.1);
-    element.classList.toggle("is-ready", slot.action === "ultimate" && rank > 0 && cooldown <= 0);
-    element.disabled = rank === 0;
-    element.title = rank === 0 ? `${slot.name} is not learned` : `${slot.name} rank ${rank} of ${slot.maxRank}`;
+    element.classList.toggle("is-locked", !skill);
+    element.classList.toggle("is-level-locked", false);
+    element.classList.toggle("is-maxed", false);
+    element.classList.toggle("can-upgrade", false);
+    element.classList.toggle("is-cooling", Boolean(skill) && cooldown > 0.1);
+    element.classList.toggle("is-ready", action === "ultimate" && Boolean(skill) && cooldown <= 0);
+    element.disabled = !skill;
+    element.title = skill ? skill.description : `${abilityKeyLabel(action)}, empty ${action === "ultimate" ? "mastery" : "standard skill"} slot`;
+    element.setAttribute("aria-label", skill
+      ? `${abilityKeyLabel(action)}, ${skill.name}, ${cooldown > 0.1 ? `${cooldown.toFixed(1)} seconds remaining` : "ready"}.`
+      : `${abilityKeyLabel(action)}, empty ${action === "ultimate" ? "mastery" : "standard skill"} slot.`);
     const label = element.querySelector<HTMLElement>(".ability-name");
-    if (label) label.textContent = slot.name;
+    if (label) label.textContent = skill?.name ?? (action === "ultimate" ? "No Mastery" : "Empty");
     const cooldownLabel = element.querySelector<HTMLElement>(".cooldown-value");
     if (cooldownLabel) cooldownLabel.textContent = cooldown > 0.1 ? cooldown.toFixed(cooldown >= 10 ? 0 : 1) : "";
     const status = element.querySelector<HTMLElement>(".ability-status");
-    if (status) status.textContent = maxed ? "MAX" : rank === 0 ? canUpgrade ? "LEARN" : "LOCKED" : "";
+    if (status) status.textContent = skill ? cooldown > 0.1 ? "COOLDOWN" : "READY" : "EMPTY";
     const ranks = element.querySelector<HTMLElement>(".ability-ranks");
-    if (ranks) {
-      ranks.replaceChildren();
-      ranks.setAttribute("aria-label", `Rank ${rank} of ${slot.maxRank}`);
-      for (let index = 0; index < slot.maxRank; index += 1) {
-        const pip = document.createElement("span");
-        pip.classList.toggle("is-filled", index < rank);
-        ranks.append(pip);
-      }
-    }
-    const upgrade = abilityBar.querySelector<HTMLButtonElement>(`[data-upgrade="${slot.action}"]`);
+    if (ranks) ranks.replaceChildren();
+    const upgrade = abilityBar.querySelector<HTMLButtonElement>(`[data-upgrade="${action}"]`);
     if (upgrade) {
-      upgrade.hidden = !canUpgrade;
-      upgrade.disabled = !canUpgrade;
-      upgrade.setAttribute("aria-label", `Upgrade ${slot.name} to rank ${rank + 1} of ${slot.maxRank}`);
-      upgrade.title = `Spend 1 skill point: ${slot.name} rank ${rank + 1}`;
+      upgrade.hidden = true;
+      upgrade.disabled = true;
     }
   }
-  const hasUpgradeableAbility = self.skillPoints > 0 && upgradeableCount > 0;
-  skillPointCount.classList.toggle("is-hidden", !hasUpgradeableAbility);
-  skillPointCount.textContent = `${self.skillPoints} SKILL POINT${self.skillPoints === 1 ? "" : "S"} · CLICK +`;
-  skillPointCount.setAttribute("aria-label", `${self.skillPoints} skill point${self.skillPoints === 1 ? "" : "s"} available on the ability bar`);
-  abilityBar.classList.toggle("has-upgrades", hasUpgradeableAbility);
-  abilityBar.dataset.skillPoints = String(hasUpgradeableAbility ? self.skillPoints : 0);
-  abilityBar.setAttribute("aria-label", hasUpgradeableAbility ? `Abilities, ${self.skillPoints} skill point${self.skillPoints === 1 ? "" : "s"} available` : "Abilities");
+  const unspent = allocation ? Math.max(0, allocation.pointBudget - allocation.learnedNodeIds.length) : 0;
+  skillPointCount.classList.toggle("is-hidden", unspent <= 0);
+  skillPointCount.textContent = `${unspent} MASTERY POINT${unspent === 1 ? "" : "S"} · M`;
+  skillPointCount.setAttribute("aria-label", `${unspent} mastery point${unspent === 1 ? "" : "s"} available; press M to inspect the network`);
+  abilityBar.classList.toggle("has-upgrades", unspent > 0);
+  abilityBar.dataset.skillPoints = String(unspent);
+  abilityBar.setAttribute("aria-label", "Defender equipped Greatsword skills");
 }
 
 const SKILL_SLOTS: ReadonlyArray<{ slot: AbilitySlot; key: "Q" | "E" | "R" | "F" }> = [
@@ -2696,14 +2681,7 @@ const SKILL_SLOTS: ReadonlyArray<{ slot: AbilitySlot; key: "Q" | "E" | "R" | "F"
 ];
 
 function levelAbility(slot: AbilitySlot): void {
-  if (!connectionReady) return;
-  const self = snapshot?.players.find((player) => player.id === localPlayerId);
-  const skill = SKILL_SLOTS.find((candidate) => candidate.slot === slot);
-  if (!self?.heroId || !skill || self.skillPoints <= 0) return;
-  const definition = HERO_DEFINITIONS[self.heroId].abilities[slot];
-  if (self.level < definition.unlockLevel || (self.abilityRanks[slot] ?? 0) >= definition.maxRank) return;
-  send({ type: "level_ability", slot });
-  audio.play("loot");
+  void slot;
 }
 
 function updateMinimap(state: GameSnapshot, shopReadiness: LocalShopReadiness): void {

@@ -39,13 +39,6 @@ export function derivePrimaryImpactReadout(
     label: "DAMAGE / TARGET",
     value: damage,
   }];
-  if (heroId === "gravebinder") {
-    metrics.push({
-      id: "healing",
-      label: "HEAL / TARGET",
-      value: GRAVEBINDER_BASIC_HEAL_PER_TARGET,
-    });
-  }
   const moveRetention = Number.isFinite(stats.basicMoveRetention)
     ? Math.max(0, stats.basicMoveRetention)
     : 0;

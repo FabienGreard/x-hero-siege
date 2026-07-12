@@ -5,12 +5,7 @@ import type {
   Vec2,
 } from "./protocol";
 
-export const HERO_IDS = [
-  "warden",
-  "riftstalker",
-  "ashcaller",
-  "gravebinder",
-] as const satisfies readonly HeroId[];
+export const HERO_IDS = ["defender"] as const satisfies readonly HeroId[];
 
 export const LANE_IDS = ["north", "east", "south", "west"] as const satisfies readonly LaneId[];
 
@@ -38,80 +33,23 @@ export interface HeroDefinition {
 }
 
 export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
-  warden: {
-    id: "warden",
-    name: "The Warden",
-    role: "Frontline shockwaves",
-    color: 0x3f74c8,
-    accent: 0xbad8ff,
-    maxHp: 190,
-    speed: 10.5,
-    basicName: "Iron Cleave",
-    basicDamage: 30,
-    basicCooldown: 0.52,
-    basicRange: 5.4,
-    abilities: {
-      ability1: { name: "Vanguard Rush", description: "Charge and break the line.", cooldown: 6, maxRank: 3, unlockLevel: 1 },
-      ability2: { name: "Rupturing Arc", description: "A heavy frontal shockwave.", cooldown: 8, maxRank: 3, unlockLevel: 1 },
-      ability3: { name: "War Standard", description: "Hold an empowered ground.", cooldown: 12, maxRank: 3, unlockLevel: 1 },
-      ultimate: { name: "Last Bastion", description: "Detonate a fortress-sized shockwave.", cooldown: 35, maxRank: 2, unlockLevel: 3 },
-    },
-  },
-  riftstalker: {
-    id: "riftstalker",
-    name: "The Riftstalker",
-    role: "Mobile ranged execution",
-    color: 0x6655a8,
-    accent: 0xd8c7ff,
-    maxHp: 125,
-    speed: 12.5,
-    basicName: "Repeater Shot",
-    basicDamage: 19,
-    basicCooldown: 0.28,
-    basicRange: 22,
-    abilities: {
-      ability1: { name: "Vaulting Blade", description: "Vault and fire through pursuers.", cooldown: 5, maxRank: 3, unlockLevel: 1 },
-      ability2: { name: "Splitbolt", description: "Drive a piercing bolt down the lane; its first kill branches off two more bolts.", cooldown: 7, maxRank: 3, unlockLevel: 1 },
-      ability3: { name: "Snarefield", description: "Trap a dense enemy pack.", cooldown: 11, maxRank: 3, unlockLevel: 1 },
-      ultimate: { name: "Execution Volley", description: "Flood the aimed lane with arrows.", cooldown: 34, maxRank: 2, unlockLevel: 3 },
-    },
-  },
-  ashcaller: {
-    id: "ashcaller",
-    name: "The Ashcaller",
-    role: "Explosive area control",
-    color: 0xb8472d,
-    accent: 0xffc061,
-    maxHp: 120,
-    speed: 10.8,
-    basicName: "Ember Lance",
-    basicDamage: 24,
-    basicCooldown: 0.44,
-    basicRange: 20,
-    abilities: {
-      ability1: { name: "Flame Ring", description: "Burn and repel nearby demons.", cooldown: 6, maxRank: 3, unlockLevel: 1 },
-      ability2: { name: "Cinder Wall", description: "Cut a lane with living fire.", cooldown: 9, maxRank: 3, unlockLevel: 1 },
-      ability3: { name: "Falling Star", description: "Call a delayed meteor at the cursor.", cooldown: 12, maxRank: 3, unlockLevel: 1 },
-      ultimate: { name: "Worldfire", description: "Ignite everything in a vast radius.", cooldown: 38, maxRank: 2, unlockLevel: 3 },
-    },
-  },
-  gravebinder: {
-    id: "gravebinder",
-    name: "The Gravebinder",
-    role: "Sustain and soul magic",
-    color: 0x3d806b,
-    accent: 0x9ef2c9,
-    maxHp: 155,
+  defender: {
+    id: "defender",
+    name: "Citadel Defender",
+    role: "Weapon-defined guardian",
+    color: 0x596b86,
+    accent: 0xe8d3a1,
+    maxHp: 150,
     speed: 11.2,
-    basicName: "Soul Scythe",
-    basicDamage: 27,
-    basicCooldown: 0.5,
-    basicRange: 5.8,
+    basicName: "Training Sweep",
+    basicDamage: 14,
+    basicCooldown: 0.68,
+    basicRange: 4.6,
     abilities: {
-      ability1: { name: "Reap", description: "Pull prey into a lethal sweep.", cooldown: 6, maxRank: 3, unlockLevel: 1 },
-      ability2: { name: "Bone Ward", description: "Raise a soul-fed barrier.", cooldown: 10, maxRank: 3, unlockLevel: 1 },
-      ability3: { name: "Wraith Host", description: "Loose hungry spirits; at most five remain, and each fades after its third strike.", cooldown: 12, maxRank: 3, unlockLevel: 1 },
-      ultimate: { name: "Death Tide", description: "Send a wide soul wave up the lane.", cooldown: 37, maxRank: 2, unlockLevel: 3 },
+      ability1: { name: "Unassigned", description: "Learn and equip a Greatsword skill.", cooldown: 0, maxRank: 1, unlockLevel: 1 },
+      ability2: { name: "Unassigned", description: "Learn and equip a Greatsword skill.", cooldown: 0, maxRank: 1, unlockLevel: 1 },
+      ability3: { name: "Unassigned", description: "Learn and equip a Greatsword skill.", cooldown: 0, maxRank: 1, unlockLevel: 1 },
+      ultimate: { name: "Unassigned", description: "Learn one branch mastery.", cooldown: 0, maxRank: 1, unlockLevel: 8 },
     },
   },
 };
