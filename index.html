@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <main id="game-shell" aria-label="Siegeheart game">
+    <main id="game-shell" tabindex="-1" aria-label="Siegeheart battlefield and game interface">
       <div id="viewport" aria-hidden="true"></div>
       <div class="screen-noise" aria-hidden="true"></div>
       <div class="screen-vignette" aria-hidden="true"></div>
@@ -240,6 +240,14 @@
                 </button>
                 <button type="button" class="ability-upgrade" data-upgrade="ultimate" aria-label="Upgrade Ultimate" hidden>+</button>
               </div>
+            </div>
+            <div id="dodge-readout" class="dodge-readout is-ready" role="group" aria-label="Space, Dodge, ready.">
+              <span class="dodge-key">SPACE</span>
+              <span class="dodge-icon" aria-hidden="true">➜</span>
+              <span class="dodge-name">Dodge</span>
+              <span id="dodge-status" class="dodge-status">READY</span>
+              <span id="dodge-cooldown" class="dodge-cooldown" aria-hidden="true"></span>
+              <i aria-hidden="true"></i>
             </div>
           </div>
           <div class="resource-readout">

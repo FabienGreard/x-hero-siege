@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { armingKeyboardAction, deriveArmingUiState, deriveArsenalRespecView, reconcileArsenalOpen } from "../src/client/arming-ui";
+import { armingKeyboardAction, deriveArmingUiState, deriveArsenalRespecView, reconcileArsenalOpen, shouldCloseArsenalAfterWeaponAcceptance } from "../src/client/arming-ui";
 
 describe("arming UI view model", () => {
   test("uses only purchasing, waiting, and countdown while arming", () => {
@@ -35,5 +35,11 @@ describe("arming UI view model", () => {
     expect(reconcileArsenalOpen({ phase: "arming", arsenalInRange: false, open: true })).toBe(false);
     expect(reconcileArsenalOpen({ phase: "defense", arsenalInRange: true, open: true })).toBe(true);
     expect(reconcileArsenalOpen({ phase: "victory", arsenalInRange: true, open: true })).toBe(false);
+  });
+
+  test("accepted weapon snapshots close only the matching pending Arsenal request", () => {
+    expect(shouldCloseArsenalAfterWeaponAcceptance(true, false)).toBe(false);
+    expect(shouldCloseArsenalAfterWeaponAcceptance(false, true)).toBe(false);
+    expect(shouldCloseArsenalAfterWeaponAcceptance(true, true)).toBe(true);
   });
 });

@@ -3330,7 +3330,8 @@ kbd,
 
 .basic-readout,
 .ability-slot,
-.ability-slot.ultimate {
+.ability-slot.ultimate,
+.dodge-readout {
   width: 62px;
   height: 62px;
   margin: 0;
@@ -3373,7 +3374,12 @@ kbd,
   font-family: Georgia, "Times New Roman", serif;
   font-size: 7px;
   letter-spacing: 0.04em;
-  line-height: 1;
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.05;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .basic-readout::after {
@@ -3423,12 +3429,49 @@ kbd,
 }
 
 .ability-point-bank {
-  right: 0;
+  right: auto;
+  left: -40px;
   bottom: calc(100% + 8px);
   color: #261c0d;
   background: #d9b65d;
   border-color: #f0d488;
 }
+
+.dodge-readout {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  color: #d8d4c8;
+}
+
+.dodge-readout > i {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(7, 9, 12, 0.88) var(--cooldown, 0%), transparent var(--cooldown, 0%));
+}
+
+.dodge-key {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  padding: 2px 3px;
+  color: #f2e9d4;
+  background: rgba(5, 5, 7, 0.88);
+  border: 1px solid rgba(210, 178, 119, 0.36);
+  font-size: 6px;
+  font-weight: 900;
+}
+
+.dodge-icon { margin-top: -7px; font-size: 23px; transform: rotate(-20deg); }
+.dodge-name { position: absolute; right: 3px; bottom: 10px; left: 3px; font: 700 7px/1 Georgia, serif; text-align: center; text-transform: uppercase; }
+.dodge-status { position: absolute; top: 27px; z-index: 2; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.dodge-cooldown { position: absolute; top: 18px; z-index: 3; font: 700 17px/1 Georgia, serif; }
+.dodge-readout.is-ready { border-color: rgba(224, 199, 141, .68); }
+.dodge-readout.is-cooling .dodge-icon { opacity: .42; }
 
 .hero-orb-wrap {
   height: 62px;
@@ -3525,7 +3568,7 @@ kbd,
   .minimap { width: 114px; height: 114px; margin: 12px; }
   .action-hud { grid-template-columns: 102px auto 78px; }
   .basic-readout { display: grid; }
-  .basic-readout, .ability-slot, .ability-slot.ultimate { width: 54px; height: 54px; }
+  .basic-readout, .ability-slot, .ability-slot.ultimate, .dodge-readout { width: 54px; height: 54px; }
   .ability-name { font-size: 6px; }
   .hero-orb { width: 56px; height: 56px; }
   .hero-orb-wrap { height: 56px; padding-left: 56px; }
@@ -3538,8 +3581,8 @@ kbd,
   .action-hud { transform: translateX(-50%) scale(0.72); transform-origin: bottom center; }
 }
 .arming-panel {
-  position: fixed; top: 76px; left: 50%; z-index: 32; transform: translateX(-50%);
-  width: min(460px, calc(100vw - 32px)); padding: 18px; text-align: center;
+  position: fixed; right: 18px; bottom: 96px; z-index: 32;
+  width: min(460px, calc(100vw - 36px)); max-height: 510px; padding: 18px; overflow: auto; text-align: center;
   pointer-events: auto;
 }
 .arming-panel strong, .arming-panel p { display: block; margin: 7px 0; }

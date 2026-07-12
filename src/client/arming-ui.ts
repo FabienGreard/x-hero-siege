@@ -12,6 +12,10 @@ export function deriveArmingUiState(input: {
   return input.armed ? "waiting" : "purchasing";
 }
 
+export function shouldCloseArsenalAfterWeaponAcceptance(pending: boolean, armed: boolean): boolean {
+  return pending && armed;
+}
+
 export function armingKeyboardAction(input: {
   phase: GamePhase;
   arsenalInRange: boolean;

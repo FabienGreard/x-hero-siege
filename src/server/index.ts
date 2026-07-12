@@ -261,6 +261,22 @@ export function createGameServer(options: CreateServerOptions = {}) {
         });
       }
 
+      const devDefenderProof = "/assets/models/proof/siegeheart-defender-proof.glb";
+      const builtDefenderProof = runningBuiltServer && /^\/assets\/models\/proof\/siegeheart-defender-proof-[a-f0-9]{16}\.glb$/.test(url.pathname);
+      if (url.pathname === devDefenderProof || builtDefenderProof) {
+        if (runningBuiltServer && !builtDefenderProof) return new Response("Not found", { status: 404 });
+        const asset = Bun.file(runningBuiltServer
+          ? new URL(url.pathname.slice(1), builtRoot)
+          : new URL(`public${devDefenderProof}`, root));
+        if (!await asset.exists()) return new Response("Not found", { status: 404 });
+        return new Response(asset, {
+          headers: {
+            "content-type": "model/gltf-binary",
+            "cache-control": runningBuiltServer ? "public, max-age=31536000, immutable" : "no-store",
+          },
+        });
+      }
+
       return new Response("Not found", { status: 404 });
     },
     websocket: {

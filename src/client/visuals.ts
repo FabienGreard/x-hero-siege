@@ -416,8 +416,8 @@ export interface EntityVisual extends THREE.Group {
   userData: {
     entityKind: string;
     variant: HeroId | string;
-    sprite: THREE.Sprite;
-    silhouette: THREE.Sprite;
+    sprite: THREE.Sprite | null;
+    silhouette: THREE.Sprite | null;
     shadow: THREE.Sprite;
     facingIndicator: THREE.Group;
     attackTelegraph: THREE.Group;
@@ -600,7 +600,30 @@ export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | n
 
 export function setEntityFlash(visual: EntityVisual, now: number, color = 0xffffff): void {
   visual.userData.flashUntil = now + 90;
-  (visual.userData.sprite.material as THREE.SpriteMaterial).color.setHex(color);
+  const sprite = visual.userData.sprite;
+  if (sprite) (sprite.material as THREE.SpriteMaterial).color.setHex(color);
+}
+
+export function setEntityAccent(visual: EntityVisual, color: number): void {
+  const indicator = visual.userData.facingIndicator;
+  const ringMaterial = indicator.userData.ringMaterial as THREE.MeshBasicMaterial | undefined;
+  const lineMaterials = indicator.userData.lineMaterials as THREE.MeshBasicMaterial[] | undefined;
+  ringMaterial?.color.setHex(color);
+  for (const material of lineMaterials ?? []) material.color.setHex(color);
+}
+
+export function removeEntityFallback(visual: EntityVisual): void {
+  const { sprite, silhouette } = visual.userData;
+  if (sprite) {
+    visual.remove(sprite);
+    (sprite.material as THREE.Material).dispose();
+    visual.userData.sprite = null;
+  }
+  if (silhouette) {
+    visual.remove(silhouette);
+    (silhouette.material as THREE.Material).dispose();
+    visual.userData.silhouette = null;
+  }
 }
 
 export function updateEntityVisual(
@@ -622,7 +645,7 @@ export function updateEntityVisual(
   const hero = visual.userData.entityKind === "hero";
   const variant = visual.userData.variant;
   const moving = Math.hypot(velocity.x, velocity.z) > 0.1;
-  if (now >= visual.userData.flashUntil) (sprite.material as THREE.SpriteMaterial).color.setHex(0xffffff);
+  if (sprite && now >= visual.userData.flashUntil) (sprite.material as THREE.SpriteMaterial).color.setHex(0xffffff);
 
   const actionDirection = action && Math.hypot(action.direction.x, action.direction.z) > 0.01
     ? action.direction
@@ -680,19 +703,26 @@ export function updateEntityVisual(
     offset = settle * baseScale * 0.045;
   }
 
-  sprite.scale.set(scaleX, scaleY, 1);
-  sprite.position.set(direction.x * offset, baseScale * 0.49 + bounce, direction.z * offset);
-  sprite.material.rotation = lean;
-  silhouette.scale.set(scaleX * 1.09, scaleY * 1.085, 1);
-  silhouette.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.025);
-  silhouette.material.rotation = lean;
+  const poseX = direction.x * offset;
+  const poseY = baseScale * 0.49 + bounce;
+  const poseZ = direction.z * offset;
+  if (sprite) {
+    sprite.scale.set(scaleX, scaleY, 1);
+    sprite.position.set(poseX, poseY, poseZ);
+    sprite.material.rotation = lean;
+  }
+  if (silhouette) {
+    silhouette.scale.set(scaleX * 1.09, scaleY * 1.085, 1);
+    silhouette.position.set(poseX, poseY, poseZ + 0.025);
+    silhouette.material.rotation = lean;
+  }
   if (buildSignature?.visible) {
     buildSignature.scale.set(
       scaleX * 1.34,
       scaleY * 1.2,
       1,
     );
-    buildSignature.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.012);
+    buildSignature.position.set(poseX, poseY, poseZ + 0.012);
     const signatureMaterial = buildSignature.material as THREE.SpriteMaterial;
     signatureMaterial.rotation = lean;
     signatureMaterial.opacity = visual.userData.isLocal ? 0.76 : 0.56;
@@ -713,7 +743,7 @@ export function updateEntityVisual(
       );
       const bloom = 0.92 + Math.sin(receiptProgress * Math.PI) * 0.18;
       wareReceipt.scale.set(scaleX * 1.48 * bloom, scaleY * 1.34 * bloom, 1);
-      wareReceipt.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.01);
+      wareReceipt.position.set(poseX, poseY, poseZ + 0.01);
       const material = wareReceipt.material as THREE.SpriteMaterial;
       material.rotation = lean;
       material.opacity = Math.sin(receiptProgress * Math.PI) * 0.48;

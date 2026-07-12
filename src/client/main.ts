@@ -84,9 +84,18 @@ import {
 import { deriveShopReplacementOffer } from "./shop-replacement-offer";
 import { deriveWraithImpactPresentation } from "./wraith-impact";
 import { transitionAdministrativeSurface } from "./administrative-surfaces";
-import { armingKeyboardAction, deriveArmingUiState, deriveArsenalRespecView, reconcileArsenalOpen } from "./arming-ui";
+import { armingKeyboardAction, deriveArmingUiState, deriveArsenalRespecView, reconcileArsenalOpen, shouldCloseArsenalAfterWeaponAcceptance } from "./arming-ui";
 import { pendingRevisionAfterDispatch } from "./pending-revision";
 import { nearestInRangeVendorId } from "./vendor-routing";
+import {
+  createArsenalProofLandmark,
+  createDefenderProofInstance,
+  createProceduralArsenalFallback,
+  defenderAccentColor,
+  getDefenderProofLoadMetrics,
+  loadDefenderProof,
+  type DefenderProofInstance,
+} from "./defender-proof";
 import {
   BUILD_SIGNATURE_COLORS,
   HERO_PRESENTATION,
@@ -99,8 +108,10 @@ import {
   createProjectileVisual,
   createWraithVisual,
   pulseEntityWareReceipt,
+  removeEntityFallback,
   setEntityFlash,
   setEntityBuildSignature,
+  setEntityAccent,
   updateEffectVisual,
   updateEntityVisual,
   updateHealthBar,
@@ -108,6 +119,7 @@ import {
   updateWraithVisual,
   type EntityVisual,
 } from "./visuals";
+import { arsenalCloseFocusTarget, deriveDodgeReadout, deriveVendorPrompt } from "./action-ui";
 
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -201,6 +213,9 @@ const heroHealth = requiredElement<HTMLDivElement>("hero-health");
 const heroHealthValue = requiredElement<HTMLSpanElement>("hero-health-value");
 const basicAttackName = requiredElement<HTMLSpanElement>("basic-attack-name");
 const abilityBar = requiredElement<HTMLDivElement>("ability-bar");
+const dodgeReadout = requiredElement<HTMLDivElement>("dodge-readout");
+const dodgeStatus = requiredElement<HTMLSpanElement>("dodge-status");
+const dodgeCooldown = requiredElement<HTMLSpanElement>("dodge-cooldown");
 const goldValue = requiredElement<HTMLElement>("gold-value");
 const goldLabel = requiredElement<HTMLElement>("gold-label");
 const goldReadout = requiredElement<HTMLElement>("gold-readout");
@@ -260,6 +275,10 @@ interface TrackedEntity {
   kind: string;
   facing: Vec2;
   action: ActionSnapshot | null;
+  defenderProof: DefenderProofInstance | null;
+  weaponId: PlayerSnapshot["weaponId"];
+  accentId: string;
+  dodgeActive: boolean;
 }
 
 interface TrackedObject {
@@ -273,12 +292,125 @@ const playerVisuals = new Map<string, TrackedEntity>();
 const enemyVisuals = new Map<string, TrackedEntity>();
 const projectileVisuals = new Map<string, TrackedObject>();
 const summonVisuals = new Map<string, TrackedObject>();
+const runtimeQuery = new URLSearchParams(window.location.search);
+const proceduralProofFallback = runtimeQuery.has("proceduralProofFallback");
+const defenderProofAsset = proceduralProofFallback ? null : loadDefenderProof();
+const visualBenchmarkEnabled = runtimeQuery.has("visualBenchmark");
+const visualCaptureEnabled = runtimeQuery.has("visualCapture");
+const visualDiagnostics = visualBenchmarkEnabled || visualCaptureEnabled ? {
+  frameTimesMs: [] as number[],
+  asset: null as ReturnType<typeof getDefenderProofLoadMetrics>,
+  warmCloneMs: [] as number[],
+  renderer: { calls: 0, triangles: 0, geometries: 0, textures: 0 },
+  camera: { position: [27, 34, 29] as [number, number, number], target: [0, 0, -4] as [number, number, number], viewHeight: 42 },
+  localPlayerId: null as string | null,
+  playerScreen: null as { x: number; y: number } | null,
+  state: {} as Record<string, unknown>,
+} : null;
+if (visualDiagnostics) (window as typeof window & { __SIEGEHEART_VISUAL_DIAGNOSTICS__?: typeof visualDiagnostics }).__SIEGEHEART_VISUAL_DIAGNOSTICS__ = visualDiagnostics;
+let arsenalLandmark = createProceduralArsenalFallback();
+arsenalLandmark.root.position.set(ARSENAL_POSITION.x + 5.5, 0, ARSENAL_POSITION.z);
+arsenalLandmark.root.rotation.y = Math.PI / 2;
+scene.add(arsenalLandmark.root);
+if (defenderProofAsset) {
+  void defenderProofAsset.then((asset) => {
+    const proofLandmark = createArsenalProofLandmark(asset);
+    // Side-mount the non-colliding landmark along the lane while keeping its
+    // centre inside the authoritative eight-unit Arsenal interaction radius.
+    proofLandmark.root.position.set(ARSENAL_POSITION.x + 5.5, 0, ARSENAL_POSITION.z);
+    proofLandmark.root.rotation.y = Math.PI / 2;
+    scene.add(proofLandmark.root);
+    arsenalLandmark.dispose();
+    arsenalLandmark = proofLandmark;
+  }).catch(() => {
+    // The bounded procedural landmark remains when the shared proof cannot decode.
+  });
+}
 const pickupVisuals = new Map<string, TrackedObject>();
 const effectVisuals = new Map<string, { visual: THREE.Group; snapshot: EffectSnapshot }>();
 const floatingTexts: THREE.Sprite[] = [];
 const particles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; born: number; life: number }> = [];
 const previousHp = new Map<string, number>();
 const seenEvents = new Set<string>();
+if (visualCaptureEnabled) {
+  const silhouetteMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  let silhouetteState: { visibility: Map<THREE.Object3D, boolean>; background: THREE.Color | THREE.Texture | null; hudVisibility: string } | null = null;
+  (window as typeof window & { __SIEGEHEART_CAPTURE__?: {
+    setSilhouette(enabled: boolean): void;
+    render(): void;
+    darkBounds(): { minX: number; minY: number; maxX: number; maxY: number; pixels: number } | null;
+  } }).__SIEGEHEART_CAPTURE__ = {
+    setSilhouette(enabled): void {
+      if (enabled && !silhouetteState) {
+        const local = localPlayerId ? playerVisuals.get(localPlayerId) : null;
+        if (!local) return;
+        const visibility = new Map<THREE.Object3D, boolean>();
+        for (const child of scene.children) {
+          visibility.set(child, child.visible);
+          child.visible = child === world;
+        }
+        for (const child of world.children) {
+          visibility.set(child, child.visible);
+          child.visible = child === local.visual;
+        }
+        local.visual.traverse((object) => {
+          if (!(object instanceof THREE.Sprite)) return;
+          visibility.set(object, object.visible);
+          object.visible = false;
+        });
+        silhouetteState = { visibility, background: scene.background, hudVisibility: hud.style.visibility };
+        scene.background = new THREE.Color(0xffffff);
+        scene.overrideMaterial = silhouetteMaterial;
+        hud.style.visibility = "hidden";
+      } else if (!enabled && silhouetteState) {
+        for (const [object, visible] of silhouetteState.visibility) object.visible = visible;
+        scene.background = silhouetteState.background;
+        scene.overrideMaterial = null;
+        hud.style.visibility = silhouetteState.hudVisibility;
+        silhouetteState = null;
+      }
+    },
+    render(): void {
+      renderer.render(scene, camera);
+    },
+    darkBounds(): { minX: number; minY: number; maxX: number; maxY: number; pixels: number } | null {
+      if (!silhouetteState) return null;
+      renderer.render(scene, camera);
+      const gl = renderer.getContext();
+      const width = renderer.domElement.width;
+      const height = renderer.domElement.height;
+      const pixels = new Uint8Array(width * height * 4);
+      gl.finish();
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+      let count = 0;
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const offset = (y * width + x) * 4;
+          if (pixels[offset]! > 32 || pixels[offset + 1]! > 32 || pixels[offset + 2]! > 32 || pixels[offset + 3]! < 200) continue;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+          count += 1;
+        }
+      }
+      if (count === 0) return null;
+      const scaleX = window.innerWidth / width;
+      const scaleY = window.innerHeight / height;
+      return {
+        minX: minX * scaleX,
+        minY: window.innerHeight - maxY * scaleY,
+        maxX: maxX * scaleX,
+        maxY: window.innerHeight - minY * scaleY,
+        pixels: count,
+      };
+    },
+  };
+}
 
 const RESUME_TOKEN_STORAGE_KEY = "siegeheart.resume.v1";
 const RECONNECT_DELAYS_MS = [500, 1_000, 2_000, 4_000, 5_000] as const;
@@ -863,7 +995,10 @@ function updateArmingUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
   gameShell.dataset.gamePhase = state.phase;
   const arming = state.phase === "arming";
   const armed = Boolean(self && state.arming?.armedPlayerIds.includes(self.id));
-  if (weaponPurchasePending && armed) weaponPurchasePending = false;
+  if (shouldCloseArsenalAfterWeaponAcceptance(weaponPurchasePending, armed)) {
+    weaponPurchasePending = false;
+    closeArsenalPanel(arsenalCloseFocusTarget(true));
+  }
   if (respecRequestRevision !== null && self?.mastery?.revision !== respecRequestRevision) respecRequestRevision = null;
   const inRange = Boolean(self && distanceBetween(self.position, ARSENAL_POSITION) <= ARSENAL_INTERACTION_RADIUS);
   arsenalOpen = reconcileArsenalOpen({ phase: state.phase, arsenalInRange: inRange, open: arsenalOpen });
@@ -922,10 +1057,15 @@ function arsenalStatusFromSnapshot(): void {
   if (snapshot) updateArmingUi(snapshot, currentPlayer(snapshot));
 }
 
-function closeArsenalPanel(): void {
+function focusBattlefield(): void {
+  gameShell.focus({ preventScroll: true });
+}
+
+function closeArsenalPanel(focusTarget: "previous" | "battlefield" = "previous"): void {
   arsenalOpen = false;
   armingPanel.classList.add("is-hidden");
-  armingFocusReturn?.focus();
+  if (focusTarget === "battlefield") focusBattlefield();
+  else armingFocusReturn?.focus();
   armingFocusReturn = null;
 }
 
@@ -1979,15 +2119,18 @@ function updateArmoryUi(state: GameSnapshot, self: PlayerSnapshot | undefined): 
   }
 
   const nearbyVendor = nearestInRangeVendor(state, self);
+  const arsenalPromptOpen = Boolean(nearbyVendor?.id === "citadel_arsenal" && arsenalOpen);
   interactionPrompt.classList.toggle("is-hidden", !nearbyVendor || shopOpen);
   interactionPrompt.classList.toggle("is-shop", Boolean(nearbyVendor && !shopOpen));
   if (nearbyVendor && !shopOpen) {
-    if (interactionPrompt.dataset.vendor !== nearbyVendor.id) {
+    if (interactionPrompt.dataset.vendor !== nearbyVendor.id || interactionPrompt.dataset.open !== String(arsenalPromptOpen)) {
       interactionPrompt.dataset.vendor = nearbyVendor.id;
-      interactionPrompt.innerHTML = `<kbd>B</kbd> BROWSE · ${nearbyVendor.name.toUpperCase()}`;
+      interactionPrompt.dataset.open = String(arsenalPromptOpen);
+      interactionPrompt.innerHTML = deriveVendorPrompt({ vendorName: nearbyVendor.name, arsenalOpen: arsenalPromptOpen });
     }
   } else {
     delete interactionPrompt.dataset.vendor;
+    delete interactionPrompt.dataset.open;
   }
   const activeVendor = vendorSnapshot(activeVendorId, state);
   if (shopOpen && activeVendor) {
@@ -2317,11 +2460,35 @@ function roman(number: number): string {
   return ["0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"][number] ?? String(number);
 }
 
+function attachDefenderProof(playerId: string, tracked: TrackedEntity): void {
+  if (!defenderProofAsset) return;
+  void defenderProofAsset.then((asset) => {
+    if (playerVisuals.get(playerId) !== tracked || tracked.defenderProof) return;
+    const cloneStartedAt = performance.now();
+    const instance = createDefenderProofInstance(asset);
+    visualDiagnostics?.warmCloneMs.push(performance.now() - cloneStartedAt);
+    if (playerVisuals.get(playerId) !== tracked) {
+      instance.dispose();
+      return;
+    }
+    tracked.defenderProof = instance;
+    instance.setAccent(tracked.accentId);
+    instance.setWeapon(tracked.weaponId);
+    tracked.visual.add(instance.root);
+    removeEntityFallback(tracked.visual);
+  }).catch(() => {
+    // The procedural Defender remains visible when fetch or decode fails.
+  });
+}
+
 function trackedPlayer(player: PlayerSnapshot): TrackedEntity | null {
   if (!player.heroId) return null;
   let tracked = playerVisuals.get(player.id);
   if (!tracked || tracked.kind !== player.heroId) {
-    if (tracked) world.remove(tracked.visual);
+    if (tracked) {
+      tracked.defenderProof?.dispose();
+      world.remove(tracked.visual);
+    }
     const visual = createEntityVisual("hero", player.heroId);
     const health = createHealthBar(HERO_DEFINITIONS[player.heroId].accent, 4.5);
     health.position.y = 7;
@@ -2338,8 +2505,13 @@ function trackedPlayer(player: PlayerSnapshot): TrackedEntity | null {
       kind: player.heroId,
       facing: player.aim,
       action: player.action,
+      defenderProof: null,
+      weaponId: player.weaponId,
+      accentId: player.accentId,
+      dodgeActive: player.dodge.invulnerable,
     };
     playerVisuals.set(player.id, tracked);
+    attachDefenderProof(player.id, tracked);
   }
   return tracked;
 }
@@ -2355,6 +2527,12 @@ function syncPlayers(players: PlayerSnapshot[]): void {
     tracked.velocity = player.velocity;
     tracked.facing = player.aim;
     tracked.action = player.action;
+    tracked.weaponId = player.weaponId;
+    tracked.accentId = player.accentId;
+    tracked.dodgeActive = player.dodge.invulnerable;
+    tracked.defenderProof?.setAccent(player.accentId);
+    tracked.defenderProof?.setWeapon(player.weaponId);
+    setEntityAccent(tracked.visual, defenderAccentColor(player.accentId));
     tracked.visual.userData.isLocal = player.id === localPlayerId;
     const dominantStack = dominantEquipmentStack(player.equipment);
     setEntityBuildSignature(tracked.visual, dominantStack?.itemId ?? null);
@@ -2379,6 +2557,7 @@ function syncPlayers(players: PlayerSnapshot[]): void {
   }
   for (const [id, tracked] of playerVisuals) {
     if (active.has(id)) continue;
+    tracked.defenderProof?.dispose();
     world.remove(tracked.visual);
     playerVisuals.delete(id);
   }
@@ -2408,6 +2587,10 @@ function syncEnemies(enemies: EnemySnapshot[]): void {
         kind: visualKind,
         facing: enemy.facing,
         action: enemy.action,
+        defenderProof: null,
+        weaponId: "practice",
+        accentId: "defender-1",
+        dodgeActive: false,
       };
       enemyVisuals.set(enemy.id, tracked);
       spawnBurst(enemy.position, enemy.elite ? 0xc46eff : 0x8e2e43, enemy.elite ? 7 : 3, 0.6);
@@ -2749,6 +2932,13 @@ function updateAbilityBar(self: PlayerSnapshot): void {
   abilityBar.setAttribute("aria-label", greatswordEquipped
     ? "Defender equipped Greatsword skills"
     : "Practice Blade basic attack only; Greatsword skills unavailable");
+  const dodge = deriveDodgeReadout(self.dodge);
+  dodgeReadout.style.setProperty("--cooldown", `${dodge.progress * 100}%`);
+  dodgeReadout.classList.toggle("is-ready", dodge.ready);
+  dodgeReadout.classList.toggle("is-cooling", !dodge.ready);
+  dodgeReadout.setAttribute("aria-label", dodge.ariaLabel);
+  dodgeStatus.textContent = dodge.status;
+  dodgeCooldown.textContent = dodge.cooldownText;
 }
 
 const SKILL_SLOTS: ReadonlyArray<{ slot: AbilitySlot; key: "Q" | "E" | "R" | "F" }> = [
@@ -3304,8 +3494,8 @@ function updateCamera(delta: number): void {
     const maxX = inPush ? WORLD_LAYOUT.pushHalfWidth : WORLD_LAYOUT.defenseHalfExtent;
     const minZ = inPush ? WORLD_LAYOUT.pushNorthZ - 8 : -WORLD_LAYOUT.defenseHalfExtent;
     const maxZ = WORLD_LAYOUT.defenseHalfExtent;
-    const lookAheadX = THREE.MathUtils.clamp(aimWorld.x - self.position.x, -9, 9) * 0.2;
-    const lookAheadZ = THREE.MathUtils.clamp(aimWorld.z - self.position.z, -9, 9) * 0.2;
+    const lookAheadX = visualCaptureEnabled ? 0 : THREE.MathUtils.clamp(aimWorld.x - self.position.x, -9, 9) * 0.2;
+    const lookAheadZ = visualCaptureEnabled ? 0 : THREE.MathUtils.clamp(aimWorld.z - self.position.z, -9, 9) * 0.2;
     desiredCameraTarget.set(
       THREE.MathUtils.clamp(self.position.x + lookAheadX, minX, maxX),
       0,
@@ -3315,8 +3505,8 @@ function updateCamera(delta: number): void {
     desiredCameraTarget.set(0, 0, -4);
   }
   cameraTarget.lerp(desiredCameraTarget, 1 - Math.exp(-delta * 5));
-  const shakeX = (Math.random() - 0.5) * screenShake;
-  const shakeZ = (Math.random() - 0.5) * screenShake;
+  const shakeX = visualCaptureEnabled ? 0 : (Math.random() - 0.5) * screenShake;
+  const shakeZ = visualCaptureEnabled ? 0 : (Math.random() - 0.5) * screenShake;
   camera.position.copy(cameraTarget).add(cameraOffset).add(new THREE.Vector3(shakeX, 0, shakeZ));
   camera.lookAt(cameraTarget.x, 0, cameraTarget.z);
   screenShake = Math.max(0, screenShake - delta * 2.8);
@@ -3328,6 +3518,7 @@ function updateWorld(now: number, delta: number): void {
   for (const tracked of playerVisuals.values()) {
     tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 17));
     updateEntityVisual(tracked.visual, now, tracked.velocity, elapsed, tracked.facing, tracked.action);
+    tracked.defenderProof?.update(delta, tracked.velocity, tracked.facing, tracked.action, tracked.dodgeActive);
   }
   for (const tracked of enemyVisuals.values()) {
     tracked.visual.position.lerp(tracked.target, 1 - Math.exp(-delta * 15));
@@ -3422,6 +3613,80 @@ function frame(now: number): void {
   updateCamera(delta);
   updateWorld(now, delta);
   renderer.render(scene, camera);
+  if (visualDiagnostics && delta > 0) {
+    if (visualBenchmarkEnabled) {
+      visualDiagnostics.frameTimesMs.push(delta * 1000);
+      if (visualDiagnostics.frameTimesMs.length > 600) visualDiagnostics.frameTimesMs.shift();
+    }
+    visualDiagnostics.asset = getDefenderProofLoadMetrics();
+    visualDiagnostics.renderer = {
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      geometries: renderer.info.memory.geometries,
+      textures: renderer.info.memory.textures,
+    };
+    visualDiagnostics.camera = {
+      position: [camera.position.x, camera.position.y, camera.position.z],
+      target: [cameraTarget.x, cameraTarget.y, cameraTarget.z],
+      viewHeight: cameraViewHeight,
+    };
+    visualDiagnostics.localPlayerId = localPlayerId;
+    const localVisual = localPlayerId ? playerVisuals.get(localPlayerId) : null;
+    if (localVisual) {
+      const projected = localVisual.visual.position.clone().project(camera);
+      visualDiagnostics.playerScreen = {
+        x: (projected.x + 1) * 0.5 * window.innerWidth,
+        y: (1 - projected.y) * 0.5 * window.innerHeight,
+      };
+    } else {
+      visualDiagnostics.playerScreen = null;
+    }
+    visualDiagnostics.state = {
+      tick: snapshot?.tick ?? 0,
+      phase: snapshot?.phase ?? "lobby",
+      phaseElapsed: snapshot?.phaseElapsed ?? 0,
+      runElapsed: snapshot?.runElapsed ?? 0,
+      objective: snapshot?.objective ?? "",
+      pressureLane: snapshot?.pressureLane ?? null,
+      activeLanes: snapshot?.activeLanes ?? [],
+      objectives: snapshot ? {
+        nexus: { hp: snapshot.nexus.hp, maxHp: snapshot.nexus.maxHp, shielded: snapshot.nexus.shielded },
+        gates: snapshot.gates.map((gate) => ({ lane: gate.lane, hp: gate.hp, maxHp: gate.maxHp, breached: gate.breached })),
+        riftHeart: { hp: snapshot.riftHeart.hp, maxHp: snapshot.riftHeart.maxHp, active: snapshot.riftHeart.active },
+      } : null,
+      players: (snapshot?.players ?? []).map((player) => ({
+        id: player.id,
+        local: player.id === localPlayerId,
+        position: player.position,
+        weaponId: player.weaponId,
+        mastery: player.mastery,
+        equipment: player.equipment,
+        effects: { barrier: player.barrier, invulnerable: player.invulnerable, downed: player.downed },
+        action: player.action,
+        dodge: player.dodge,
+        visual: playerVisuals.get(player.id)?.defenderProof?.debugState() ?? null,
+      })),
+      enemies: snapshot?.enemies.length ?? 0,
+      enemyKinds: Object.fromEntries(
+        ["imp", "hound", "brute", "siege", "rift_guard"].map((kind) => [
+          kind,
+          snapshot?.enemies.filter((enemy) => enemy.kind === kind).length ?? 0,
+        ]),
+      ),
+      enemyLanes: Object.fromEntries(
+        ["north", "east", "south", "west"].map((lane) => [
+          lane,
+          snapshot?.enemies.filter((enemy) => enemy.lane === lane).length ?? 0,
+        ]),
+      ),
+      effects: Object.entries(
+        (snapshot?.effects ?? []).reduce<Record<string, number>>((counts, effect) => {
+          counts[effect.kind] = (counts[effect.kind] ?? 0) + 1;
+          return counts;
+        }, {}),
+      ).sort(([left], [right]) => left.localeCompare(right)),
+    };
+  }
   requestAnimationFrame(frame);
 }
 
