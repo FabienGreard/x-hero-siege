@@ -47,6 +47,27 @@ export const GREATSWORD_SLASH_OUTER_COLOR = 0xf1e6d0;
 export const GREATSWORD_SLASH_EDGE_COLOR = 0xd8bd78;
 export const GREATSWORD_SLASH_DECAY_SECONDS = 0.18;
 
+export interface WardenChargeStreakStyle {
+  length: number;
+  width: number;
+  tailWidth: number;
+  tipWidth: number;
+  opacity: number;
+}
+
+export function wardenChargeStreakStyle(radius: number): WardenChargeStreakStyle {
+  const safeRadius = Number.isFinite(radius) ? Math.max(0, radius) : 0;
+  const length = THREE.MathUtils.clamp(safeRadius * 1.15, 2.4, 6.5);
+  const width = THREE.MathUtils.clamp(safeRadius * 0.18, 0.65, 1.35);
+  return {
+    length,
+    width,
+    tailWidth: width * 0.5,
+    tipWidth: width * 0.08,
+    opacity: 0.22,
+  };
+}
+
 export function greatswordSlashOpacity(ageSeconds: number): number {
   if (!Number.isFinite(ageSeconds)) return 0;
   return Math.max(0, Math.min(1, 1 - Math.max(0, ageSeconds) / GREATSWORD_SLASH_DECAY_SECONDS));
@@ -1066,6 +1087,29 @@ function addFlatRing(
   return mesh;
 }
 
+function taperedGroundStreakGeometry(style: WardenChargeStreakStyle): THREE.BufferGeometry {
+  const tailX = -style.length * 0.5;
+  const coreX = -style.length * 0.08;
+  const tipX = style.length * 0.5;
+  const geometry = new THREE.BufferGeometry();
+  geometry.name = "warden-charge-tapered-streak";
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute([
+    tailX, 0, style.tailWidth * 0.5,
+    tailX, 0, -style.tailWidth * 0.5,
+    coreX, 0, style.width * 0.5,
+    coreX, 0, -style.width * 0.5,
+    tipX, 0, style.tipWidth * 0.5,
+    tipX, 0, -style.tipWidth * 0.5,
+  ], 3));
+  geometry.setIndex([
+    0, 1, 2,
+    1, 3, 2,
+    2, 3, 4,
+    3, 5, 4,
+  ]);
+  return geometry;
+}
+
 export function createEffectVisual(kind: EffectKind, radius: number, rotation: number): THREE.Group {
   const group = new THREE.Group();
   group.userData.kind = kind;
@@ -1177,16 +1221,19 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
     addFlatRing(group, radius * 0.42, radius, color, 0.78, -0.56, 1.12);
     addFlatRing(group, radius * 0.81, radius * 0.88, GREATSWORD_SLASH_EDGE_COLOR, 0.72, -0.7, 1.4);
   } else if (kind === "warden_charge") {
-    // The effect position is the path midpoint and radius is half its length.
-    const trailLength = Math.max(3, radius * 2);
-    const width = Math.max(1.4, Math.min(2.4, radius * 0.34));
-    addEffectMesh(group, new THREE.BoxGeometry(trailLength, 0.035, width), color, 0.3, true);
-    const edgeA = addEffectMesh(group, new THREE.BoxGeometry(trailLength, 0.045, 0.13), 0xd9f3ff, 0.82, true);
-    edgeA.position.set(0, 0.14, width * 0.5);
-    const edgeB = addEffectMesh(group, new THREE.BoxGeometry(trailLength, 0.045, 0.13), 0xd9f3ff, 0.82, true);
-    edgeB.position.set(0, 0.14, -width * 0.5);
-    const cap = addEffectMesh(group, new THREE.BoxGeometry(0.24, 0.06, width * 1.28), 0xffffff, 0.9, true);
-    cap.position.set(trailLength * 0.5, 0.16, 0);
+    // Radius still describes the authoritative path half-length. Presentation
+    // uses one shorter, low-opacity tapered fill so the trail cannot compete
+    // with the attached weapon or read as a second rigid blade.
+    const style = wardenChargeStreakStyle(radius);
+    const streak = addEffectMesh(
+      group,
+      taperedGroundStreakGeometry(style),
+      color,
+      style.opacity,
+      true,
+    );
+    streak.name = "warden-charge-streak";
+    group.userData.wardenChargeStreakStyle = style;
   } else if (kind === "warden_wave") {
     const cone = addEffectMesh(
       group,
@@ -1292,7 +1339,7 @@ export function updateEffectVisual(group: THREE.Group, remaining: number, elapse
   if (compactImpact) {
     group.scale.setScalar(1);
   } else if (kind === "warden_charge") {
-    group.scale.z = 0.82 + Math.abs(Math.sin(elapsed * 18)) * 0.18;
+    group.scale.setScalar(1);
   } else if (kind === "warden_wave") {
     group.scale.setScalar(pulse);
   } else if (kind === "warden_bastion") {
