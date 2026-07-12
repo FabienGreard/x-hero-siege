@@ -27,7 +27,7 @@ const state: ShopReadinessState = {
 
 function player(overrides: Partial<ShopReadinessPlayer> = {}): ShopReadinessPlayer {
   return {
-    heroId: "warden",
+    heroId: "defender",
     gold: 0,
     downed: false,
     equipment: empty,

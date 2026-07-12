@@ -15,6 +15,7 @@ import { deriveHeroStats } from "../src/shared/hero-stats";
 import type { EquipmentSlots, ItemId, VendorId } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
+import { completeArming } from "./support/defender-fixture";
 
 const ITEM_VENDOR: Record<ItemId, VendorId> = {
   tempered_edge: "ironbound_forge",
@@ -83,9 +84,9 @@ describe("canonical equipment projections", () => {
 
     const game = new GameWorld();
     expect(game.addPlayer("p1", "Preview Hero").ok).toBe(true);
-    expect(game.claimHero("p1", "warden").ok).toBe(true);
     expect(game.setReady("p1", true).ok).toBe(true);
     expect(game.startGame("p1").ok).toBe(true);
+    completeArming(game, ["p1"]);
     const player = game.players.get("p1")!;
     player.equipment = [...equipment] as EquipmentSlots;
     player.goldUnits = goldToUnits(ARMORY_WARE_PRICE);
@@ -100,7 +101,7 @@ describe("canonical equipment projections", () => {
     const snapshot = game.getSnapshot();
     const authoritative = snapshot.players[0]!;
     expect(authoritative.equipment).toEqual(projection!.equipment);
-    expect(authoritative.stats).toEqual(deriveHeroStats("warden", 1, projection!.equipment));
+    expect(authoritative.stats).toEqual(deriveHeroStats("defender", 1, projection!.equipment, "greatsword"));
     expect(authoritative.gold).toBe(0);
     expect(snapshot.events.find((event) => event.kind === "item_purchased")).toMatchObject({
       itemId: "fleetstep_greaves",
@@ -142,8 +143,8 @@ describe("canonical equipment projections", () => {
       ["quickening_sigil", 1],
     ]);
 
-    const currentStats = deriveHeroStats("warden", 1, full);
-    const projectedStats = deriveHeroStats("warden", 1, projection!.equipment);
+    const currentStats = deriveHeroStats("defender", 1, full, "greatsword");
+    const projectedStats = deriveHeroStats("defender", 1, projection!.equipment, "greatsword");
     expect(currentStats.basicDamage).toBeCloseTo(42);
     expect(projectedStats.basicDamage).toBeCloseTo(48);
     expect(currentStats.abilityPower).toBeCloseTo(1.3);
@@ -169,9 +170,9 @@ describe("canonical equipment projections", () => {
 
             const game = new GameWorld();
             expect(game.addPlayer("p1", "Preview Hero").ok).toBe(true);
-            expect(game.claimHero("p1", heroId).ok).toBe(true);
             expect(game.setReady("p1", true).ok).toBe(true);
             expect(game.startGame("p1").ok).toBe(true);
+            completeArming(game, ["p1"]);
             const player = game.players.get("p1")!;
             player.level = level;
             player.equipment = [...equipment] as EquipmentSlots;
@@ -179,7 +180,7 @@ describe("canonical equipment projections", () => {
             const vendorId = ITEM_VENDOR[incomingItemId];
             player.position = { ...VENDOR_DEFINITIONS[vendorId].position };
 
-            const projectedStats = deriveHeroStats(heroId, level, projection!.equipment);
+            const projectedStats = deriveHeroStats(heroId, level, projection!.equipment, "greatsword");
             const projectedStacks = summarizeEquipment(projection!.equipment);
             const projectedSignature = dominantEquipmentItem(projection!.equipment);
             const result = game.handleMessage("p1", {

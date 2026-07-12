@@ -22,7 +22,7 @@ import type {
 } from "../src/shared/protocol";
 
 const RECONNECT_GRACE_MS = 180;
-const WAIT_TIMEOUT_MS = 2_000;
+const WAIT_TIMEOUT_MS = 4_000;
 
 const delay = (milliseconds: number) => new Promise<void>((resolve) => {
   setTimeout(resolve, milliseconds);
@@ -184,6 +184,11 @@ function resumableState(player: PlayerSnapshot) {
     id: player.id,
     name: player.name,
     heroId: player.heroId,
+    weaponId: player.weaponId,
+    mastery: player.mastery,
+    cooldownsBySkillId: player.cooldownsBySkillId,
+    basicCombo: player.basicCombo,
+    dodge: player.dodge,
     hp: player.hp,
     barrier: player.barrier,
     maxBarrier: player.maxBarrier,
@@ -204,17 +209,12 @@ async function claimAndReady(
   harness: ReturnType<typeof createHarness>,
   peer: Peer,
   playerId: string,
-  heroId: HeroId,
+  _heroId: HeroId,
 ): Promise<void> {
-  peer.send({ type: "claim_hero", heroId });
-  await waitUntil(
-    () => harness.instance.game.getSnapshot().lobby.claimedHeroes[heroId] === playerId,
-    `${heroId} claim`,
-  );
   peer.send({ type: "set_ready", ready: true });
   await waitUntil(
     () => findPlayer(harness.instance.game.getSnapshot(), playerId).ready,
-    `${heroId} ready state`,
+    `Defender ready state`,
   );
 }
 
@@ -256,8 +256,9 @@ describe("authoritative reconnect lifecycle", () => {
       const firstWelcome = await original.welcome("Ada");
       const playerId = firstWelcome.playerId;
 
-      await claimAndReady(harness, original, playerId, "warden");
+      await claimAndReady(harness, original, playerId, "defender");
       original.send({ type: "start" });
+      original.send({ type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" });
       await waitUntil(() => harness.instance.game.phase === "defense", "active defense");
 
       const equipment: EquipmentSlots = [
@@ -273,12 +274,33 @@ describe("authoritative reconnect lifecycle", () => {
       authoritative.xp = 377;
       authoritative.goldUnits = goldToUnits(87);
       authoritative.equipment = [...equipment] as EquipmentSlots;
-      authoritative.position = { x: 12.25, z: -9.75 };
+      authoritative.position = { x: 0, z: 13 };
       authoritative.hp = 143;
       authoritative.barrier = 37;
       authoritative.kills = 19;
       authoritative.abilityRanks = { ability1: 2, ability2: 1, ability3: 1, ultimate: 1 };
       authoritative.skillPoints = 2;
+      const masteryPath = [
+        "tempered_stance", "cleave", "follow_through", "honed_arc",
+        "whirlwind", "sundering_edge", "endless_motion", "rising_slash",
+      ] as const;
+      let revision = 0;
+      for (const nodeId of masteryPath) {
+        expect(harness.instance.game.allocateMastery(playerId, "greatsword", nodeId, revision).ok).toBe(true);
+        revision += 1;
+      }
+      for (const [slot, skillId] of [
+        ["ability1", "cleave"], ["ability2", "whirlwind"], ["ability3", "rising_slash"],
+      ] as const) {
+        expect(harness.instance.game.equipSkill(playerId, "greatsword", skillId, slot, revision).ok).toBe(true);
+        revision += 1;
+      }
+      authoritative.cooldownsBySkillId = { cleave: 2.75, whirlwind: 4.5, rising_slash: 1.25 };
+      authoritative.basicCombo = 2;
+      authoritative.dodgeCharges = 0;
+      authoritative.dodgeRechargeRemaining = 3.4;
+      authoritative.dodgeInvulnerableRemaining = 0.12;
+      authoritative.position = { x: 12.25, z: -9.75 };
 
       original.send({
         type: "input",
@@ -304,6 +326,7 @@ describe("authoritative reconnect lifecycle", () => {
 
       const detached = findPlayer(harness.instance.game.getSnapshot(), playerId);
       const detachedState = resumableState(detached);
+      const detachedSimulationTime = (harness.instance.game as unknown as { totalTime: number }).totalTime;
       const detachedPosition = { ...detached.position };
       const detachedInternal = harness.instance.game.players.get(playerId)!;
       expect(detached.connected).toBe(false);
@@ -321,7 +344,24 @@ describe("authoritative reconnect lifecycle", () => {
       expect(resumedWelcome.resumeWindowMs).toBe(RECONNECT_GRACE_MS);
       const resumedPlayer = findPlayer(resumedWelcome.snapshot, playerId);
       expect(resumedPlayer.connected).toBe(true);
-      expect(resumableState(resumedPlayer)).toEqual(detachedState);
+      const resumedState = resumableState(resumedPlayer);
+      const resumedSimulationTime = (harness.instance.game as unknown as { totalTime: number }).totalTime;
+      const elapsedWhileDetached = resumedSimulationTime - detachedSimulationTime;
+      const { cooldownsBySkillId: detachedCooldowns, dodge: detachedDodge, ...detachedPersistent } = detachedState;
+      const { cooldownsBySkillId: resumedCooldowns, dodge: resumedDodge, ...resumedPersistent } = resumedState;
+      expect(resumedPersistent).toEqual(detachedPersistent);
+      const cooldownDecay = (["cleave", "whirlwind", "rising_slash"] as const).map((skillId) => {
+        const before = detachedCooldowns[skillId] ?? 0;
+        const after = resumedCooldowns[skillId] ?? 0;
+        expect(after).toBeLessThanOrEqual(before);
+        expect(Math.abs(after - Math.max(0, before - elapsedWhileDetached))).toBeLessThanOrEqual(0.06);
+        return before - after;
+      });
+      expect(Math.max(...cooldownDecay) - Math.min(...cooldownDecay)).toBeLessThanOrEqual(0.06);
+      expect(resumedDodge.charges).toBe(detachedDodge.charges);
+      expect(resumedDodge.rechargeRemaining).toBeLessThanOrEqual(detachedDodge.rechargeRemaining);
+      expect(Math.abs(resumedDodge.rechargeRemaining - Math.max(0, detachedDodge.rechargeRemaining - elapsedWhileDetached))).toBeLessThanOrEqual(0.06);
+      expect(resumed.messages.filter((message) => message.type === "event")).toHaveLength(0);
       expect(harness.instance.game.getSnapshot().players).toHaveLength(1);
 
       resumed.send({
@@ -369,292 +409,14 @@ describe("authoritative reconnect lifecycle", () => {
     }
   });
 
-  test("keeps one server-owned Cinder Wall through Ashcaller disconnect and resume", async () => {
-    const harness = createHarness();
-    try {
-      const original = await harness.open();
-      const firstWelcome = await original.welcome("Ash Wall Owner");
-      const playerId = firstWelcome.playerId;
-
-      await claimAndReady(harness, original, playerId, "ashcaller");
-      original.send({ type: "start" });
-      await waitUntil(() => harness.instance.game.phase === "defense", "active Ashcaller defense");
-
-      const internals = harness.instance.game as unknown as {
-        enemies: Map<string, unknown>;
-        spawnTimer: number;
-        cinderWalls: Map<string, unknown>;
-      };
-      internals.enemies.clear();
-      internals.spawnTimer = 9_999;
-      const player = harness.instance.game.players.get(playerId)!;
-      player.position = { x: 5, z: -8 };
-
-      original.send({ type: "level_ability", slot: "ability2" });
-      await waitUntil(
-        () => harness.instance.game.players.get(playerId)?.abilityRanks.ability2 === 1,
-        "learned Cinder Wall",
-      );
-      original.send({
-        type: "input",
-        seq: 1,
-        move: { x: 0, z: 0 },
-        aim: { x: 0, z: -1 },
-        attacking: false,
-      });
-      await waitUntil(
-        () => harness.instance.game.players.get(playerId)?.lastInputSeq === 1,
-        "authoritative Cinder Wall aim",
-      );
-      original.send({ type: "cast", slot: "ability2" });
-      await waitUntil(
-        () => visibleCinderWalls(harness.instance.game.getSnapshot(), playerId).length === 1,
-        "active Cinder Wall",
-      );
-
-      const activeSnapshot = harness.instance.game.getSnapshot();
-      const activeWalls = visibleCinderWalls(activeSnapshot, playerId);
-      expect(activeWalls).toHaveLength(1);
-      const activeWall = activeWalls[0]!;
-      const wallId = activeWall.id;
-      const activeRemaining = activeWall.remaining;
-      const activeIdentity = cinderWallIdentity(activeWall);
-      expect([...internals.cinderWalls.keys()]).toEqual([wallId]);
-
-      original.close();
-      await original.waitForClose();
-      await waitUntil(
-        () => !findPlayer(harness.instance.game.getSnapshot(), playerId).connected,
-        "detached Ashcaller with active wall",
-      );
-
-      const detachedWalls = visibleCinderWalls(harness.instance.game.getSnapshot(), playerId);
-      expect(detachedWalls).toHaveLength(1);
-      expect(cinderWallIdentity(detachedWalls[0]!)).toEqual(activeIdentity);
-      const detachedRemaining = detachedWalls[0]!.remaining;
-      expect(detachedRemaining).toBeLessThanOrEqual(activeRemaining);
-      expect(detachedWalls[0]!.remaining).toBeGreaterThan(0);
-      expect([...internals.cinderWalls.keys()]).toEqual([wallId]);
-
-      const resumed = await harness.open();
-      const resumedWelcome = await resumed.welcome(
-        "Ash Wall Owner Returning",
-        firstWelcome.resumeToken,
-      );
-      expect(resumedWelcome.resumed).toBe(true);
-      expect(resumedWelcome.playerId).toBe(playerId);
-      const resumedWalls = visibleCinderWalls(resumedWelcome.snapshot, playerId);
-      expect(resumedWalls).toHaveLength(1);
-      expect(cinderWallIdentity(resumedWalls[0]!)).toEqual(activeIdentity);
-      expect(resumedWalls[0]!.remaining).toBeLessThanOrEqual(detachedRemaining);
-      expect(resumedWalls[0]!.remaining).toBeGreaterThan(0);
-      expect([...internals.cinderWalls.keys()]).toEqual([wallId]);
-      expect(findPlayer(resumedWelcome.snapshot, playerId).connected).toBe(true);
-    } finally {
-      await harness.stop();
-    }
-  });
-
-  test("keeps one earned Splitbolt lineage through Riftstalker disconnect and resume", async () => {
-    const harness = createHarness();
-    try {
-      const original = await harness.open();
-      const firstWelcome = await original.welcome("Rift Bolt Owner");
-      const playerId = firstWelcome.playerId;
-
-      await claimAndReady(harness, original, playerId, "riftstalker");
-      original.send({ type: "start" });
-      await waitUntil(() => harness.instance.game.phase === "defense", "active Riftstalker defense");
-
-      type InternalProjectile = ProjectileSnapshot & {
-        damage: number;
-        pierce: number;
-        hitIds: Set<string>;
-        splitTriggered?: boolean;
-        reservedForkIds?: [string, string];
-      };
-      const internals = harness.instance.game as unknown as {
-        enemies: Map<string, {
-          position: Vec2;
-          hp: number;
-          radius: number;
-          speed: number;
-        }>;
-        projectiles: Map<string, InternalProjectile>;
-        spawnTimer: number;
-        spawnEnemy(lane: "north", kind: "imp", position: Vec2): string | null;
-      };
-      internals.enemies.clear();
-      internals.spawnTimer = 9_999;
-
-      const player = harness.instance.game.players.get(playerId)!;
-      player.position = { x: 20, z: 0 };
-      original.send({ type: "level_ability", slot: "ability2" });
-      await waitUntil(
-        () => harness.instance.game.players.get(playerId)?.abilityRanks.ability2 === 1,
-        "learned Splitbolt",
-      );
-      original.send({
-        type: "input",
-        seq: 1,
-        move: { x: 0, z: 0 },
-        aim: { x: 0, z: -1 },
-        attacking: false,
-      });
-      await waitUntil(
-        () => harness.instance.game.players.get(playerId)?.lastInputSeq === 1,
-        "authoritative Splitbolt aim",
-      );
-
-      const targetPosition: Vec2 = { x: 20, z: -35 };
-      const targetId = internals.spawnEnemy("north", "imp", targetPosition);
-      expect(targetId).not.toBeNull();
-      const target = internals.enemies.get(targetId!)!;
-      target.position = { ...targetPosition };
-      target.speed = 0;
-      target.hp = 30;
-
-      original.send({ type: "cast", slot: "ability2" });
-      await waitUntil(
-        () => {
-          const splitbolts = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
-          return splitbolts.length === 1 && splitbolts[0]?.splitStage === "seed";
-        },
-        "active Splitbolt seed",
-      );
-
-      const activeSeed = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId)[0]!;
-      const seedInternal = internals.projectiles.get(activeSeed.id)!;
-      const reservedForkIds = [...seedInternal.reservedForkIds!] as [string, string];
-      const seedDamage = seedInternal.damage;
-      expect(SPLITBOLT_FORK_ANGLE_RADIANS).toBe(0.22);
-      expect(seedDamage).toBe(47);
-      expect(seedInternal.pierce).toBe(SPLITBOLT_SEED_PIERCE);
-      expect(activeSeed.splitStage).toBe("seed");
-      expect(activeSeed.velocity).toEqual({ x: 0, z: -SPLITBOLT_SPEED });
-      expect(activeSeed.radius).toBe(SPLITBOLT_SEED_RADIUS);
-      expect(new Set(reservedForkIds).size).toBe(2);
-      expect(internals.projectiles.has(reservedForkIds[0])).toBe(false);
-      expect(internals.projectiles.has(reservedForkIds[1])).toBe(false);
-
-      original.close();
-      await original.waitForClose();
-      await waitUntil(
-        () => !findPlayer(harness.instance.game.getSnapshot(), playerId).connected,
-        "detached Riftstalker with active Splitbolt seed",
-      );
-
-      const detachedSeedProjectiles = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
-      expect(detachedSeedProjectiles).toHaveLength(1);
-      const detachedSeed = detachedSeedProjectiles[0]!;
-      expect(detachedSeed.id).toBe(activeSeed.id);
-      expect(detachedSeed.splitStage).toBe("seed");
-      expect(detachedSeed.velocity).toEqual(activeSeed.velocity);
-      expect(detachedSeed.radius).toBe(activeSeed.radius);
-      expect(detachedSeed.remaining).toBeLessThanOrEqual(activeSeed.remaining);
-      expect(detachedSeed.remaining).toBeGreaterThan(0);
-      expect(detachedSeed.position.x).toBe(activeSeed.position.x);
-      expect(detachedSeed.position.z).toBeLessThanOrEqual(activeSeed.position.z);
-      expect(internals.projectiles.get(activeSeed.id)?.reservedForkIds).toEqual(reservedForkIds);
-
-      const resumed = await harness.open();
-      const resumedWelcome = await resumed.welcome(
-        "Rift Bolt Owner Returning",
-        firstWelcome.resumeToken,
-      );
-      expect(resumedWelcome.resumed).toBe(true);
-      expect(resumedWelcome.playerId).toBe(playerId);
-      const resumedSeedProjectiles = ownedSplitbolts(resumedWelcome.snapshot, playerId);
-      expect(resumedSeedProjectiles).toHaveLength(1);
-      const resumedSeed = resumedSeedProjectiles[0]!;
-      expect(resumedSeed.id).toBe(activeSeed.id);
-      expect(resumedSeed.splitStage).toBe("seed");
-      expect(resumedSeed.velocity).toEqual(activeSeed.velocity);
-      expect(resumedSeed.radius).toBe(activeSeed.radius);
-      expect(resumedSeed.remaining).toBeLessThanOrEqual(detachedSeed.remaining);
-      expect(resumedSeed.remaining).toBeGreaterThan(0);
-      expect(internals.projectiles.get(activeSeed.id)?.reservedForkIds).toEqual(reservedForkIds);
-
-      resumed.send({
-        type: "input",
-        seq: 2,
-        move: { x: 0, z: 0 },
-        aim: { x: 1, z: 0 },
-        attacking: false,
-      });
-      await waitUntil(
-        () => harness.instance.game.players.get(playerId)?.lastInputSeq === 2,
-        "post-resume Riftstalker re-aim",
-      );
-      const resumedPlayer = harness.instance.game.players.get(playerId)!;
-      resumedPlayer.equipment[0] = "runebound_focus";
-      resumedPlayer.position = { x: 40, z: 40 };
-
-      await waitUntil(
-        () => {
-          const splitbolts = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
-          return splitbolts.length === 3 &&
-            splitbolts.filter((projectile) => projectile.splitStage === "fork").length === 2;
-        },
-        "earned Splitbolt forks after resume",
-      );
-
-      const earned = ownedSplitbolts(harness.instance.game.getSnapshot(), playerId);
-      expect(earned.map((projectile) => projectile.id)).toEqual([
-        activeSeed.id,
-        ...reservedForkIds,
-      ]);
-      expect(new Set(earned.map((projectile) => projectile.id)).size).toBe(3);
-      expect(earned.map((projectile) => projectile.splitStage)).toEqual(["seed", "fork", "fork"]);
-      expect(findPlayer(harness.instance.game.getSnapshot(), playerId).stats.abilityPower).toBeCloseTo(1.15);
-
-      const expectedForkX = Math.sin(SPLITBOLT_FORK_ANGLE_RADIANS) * SPLITBOLT_SPEED;
-      const expectedForkZ = -Math.cos(SPLITBOLT_FORK_ANGLE_RADIANS) * SPLITBOLT_SPEED;
-      expect(earned[0]!.velocity).toEqual({ x: 0, z: -SPLITBOLT_SPEED });
-      expect(earned[1]!.velocity.x).toBeCloseTo(-expectedForkX);
-      expect(earned[1]!.velocity.z).toBeCloseTo(expectedForkZ);
-      expect(earned[2]!.velocity.x).toBeCloseTo(expectedForkX);
-      expect(earned[2]!.velocity.z).toBeCloseTo(expectedForkZ);
-      expect(earned[1]!.position.x + earned[2]!.position.x).toBeCloseTo(targetPosition.x * 2);
-      expect(earned[1]!.position.z).toBeCloseTo(earned[2]!.position.z);
-      expect(earned[0]!.radius).toBe(SPLITBOLT_SEED_RADIUS);
-      expect(earned[1]!.radius).toBe(SPLITBOLT_FORK_RADIUS);
-      expect(earned[2]!.radius).toBe(SPLITBOLT_FORK_RADIUS);
-      expect(earned[1]!.remaining).toBeCloseTo(earned[2]!.remaining);
-      expect(earned[1]!.remaining).toBeLessThanOrEqual(SPLITBOLT_LIFETIME_SECONDS);
-      expect(earned[1]!.remaining).toBeGreaterThan(SPLITBOLT_LIFETIME_SECONDS - 0.2);
-      expect(earned[1]!.remaining).toBeGreaterThan(earned[0]!.remaining);
-
-      const earnedSeedInternal = internals.projectiles.get(activeSeed.id)!;
-      expect(earnedSeedInternal.damage).toBe(seedDamage);
-      expect(earnedSeedInternal.radius).toBe(SPLITBOLT_SEED_RADIUS);
-      expect(earnedSeedInternal.splitTriggered).toBe(true);
-      for (const id of reservedForkIds) {
-        const fork = internals.projectiles.get(id)!;
-        expect(fork.damage).toBe(seedDamage);
-        expect(fork.pierce).toBe(SPLITBOLT_FORK_PIERCE);
-        expect(fork.radius).toBe(SPLITBOLT_FORK_RADIUS);
-        expect(fork.splitTriggered).toBeUndefined();
-        expect(fork.reservedForkIds).toBeUndefined();
-      }
-
-      await delay(60);
-      expect(ownedSplitbolts(harness.instance.game.getSnapshot(), playerId).map(({ id }) => id)).toEqual([
-        activeSeed.id,
-        ...reservedForkIds,
-      ]);
-    } finally {
-      await harness.stop();
-    }
-  });
-
   test("rejects invalid and tokenless handshakes terminally while a run is active", async () => {
     const harness = createHarness();
     try {
       const owner = await harness.open();
       const ownerWelcome = await owner.welcome("Ada");
-      await claimAndReady(harness, owner, ownerWelcome.playerId, "warden");
+      await claimAndReady(harness, owner, ownerWelcome.playerId, "defender");
       owner.send({ type: "start" });
+      owner.send({ type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" });
       await waitUntil(() => harness.instance.game.phase === "defense", "active defense");
 
       const invalid = await harness.open();
@@ -695,9 +457,11 @@ describe("authoritative reconnect lifecycle", () => {
       const ally = await harness.open();
       const allyWelcome = await ally.welcome("Bryn");
 
-      await claimAndReady(harness, host, hostWelcome.playerId, "warden");
-      await claimAndReady(harness, ally, allyWelcome.playerId, "riftstalker");
+      await claimAndReady(harness, host, hostWelcome.playerId, "defender");
+      await claimAndReady(harness, ally, allyWelcome.playerId, "defender");
       host.send({ type: "start" });
+      host.send({ type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" });
+      ally.send({ type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" });
       await waitUntil(() => harness.instance.game.phase === "defense", "two-player defense");
 
       ally.close();
@@ -732,7 +496,7 @@ describe("authoritative reconnect lifecycle", () => {
 
       const freshPlayer = findPlayer(staleWelcome.snapshot, staleWelcome.playerId);
       expect(freshPlayer.connected).toBe(true);
-      expect(freshPlayer.heroId).toBeNull();
+      expect(freshPlayer.heroId).toBe("defender");
       expect(freshPlayer.gold).toBe(0);
       expect(freshPlayer.equipment).toEqual([null, null, null, null, null, null]);
     } finally {

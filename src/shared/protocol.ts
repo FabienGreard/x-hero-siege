@@ -71,6 +71,9 @@ export interface MasterySnapshot {
   revision: number;
   pointBudget: number;
   learnedNodeIds: MasteryNodeId[];
+  legalNodeIds: MasteryNodeId[];
+  excludedNodeIds: MasteryNodeId[];
+  unavailableNodeReasons: Partial<Record<MasteryNodeId, string>>;
   equipped: MasteryLoadout;
   loadoutMutationContext: "none" | "arsenal" | "level_up";
   freeRespecUsed: boolean;
@@ -78,6 +81,7 @@ export interface MasterySnapshot {
 
 export interface ArmingSnapshot {
   armedPlayerIds: string[];
+  waitingPlayerIds: string[];
   countdownEndsAt: number | null;
 }
 
@@ -360,12 +364,6 @@ export interface GameEvent {
   slotIndex?: EquipmentSlotIndex;
   replacedItemId?: ItemId;
   goldDelta?: number;
-  attunementTransition?: {
-    itemId: ItemId;
-    change: "gained" | "lost";
-    fromCount: number;
-    toCount: number;
-  };
 }
 
 export interface GameSnapshot {

@@ -24,16 +24,17 @@ import type {
 } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
+import { completeArming } from "./support/defender-fixture";
 
 function equipmentOf(itemId: ItemId, count: number): EquipmentSlots {
   return Array.from({ length: 6 }, (_, index) => index < count ? itemId : null) as EquipmentSlots;
 }
 
-function readyHero(game: GameWorld, heroId: HeroId = "warden"): void {
+function readyHero(game: GameWorld, heroId: HeroId = "defender"): void {
   expect(game.addPlayer("p1", "Gateward").ok).toBe(true);
-  expect(game.claimHero("p1", heroId).ok).toBe(true);
   expect(game.setReady("p1", true).ok).toBe(true);
   expect(game.startGame("p1").ok).toBe(true);
+  completeArming(game, ["p1"]);
 }
 
 function placeAt(game: GameWorld, vendorId: VendorId): void {
@@ -90,7 +91,7 @@ describe("authoritative Gateward Plate", () => {
   });
 
   test("adds exactly 15 flat Max Health per effective copy for every hero and changes no other stat", () => {
-    const expectedHealthGains = [0, 15, 30, 45, 75, 90, 105];
+    const expectedHealthGains = [0, 15, 30, 45, 60, 75, 90];
     expect(Array.from({ length: 7 }, (_, count) => 15 * effectiveStackCopies(count))).toEqual(
       expectedHealthGains,
     );
@@ -120,9 +121,9 @@ describe("authoritative Gateward Plate", () => {
       expect(buy(game).ok).toBe(true);
       let player = game.getSnapshot().players[0]!;
       expect(player.equipment).toEqual(["gateward_plate", null, null, null, null, null]);
-      expect(player.stats.maxHp).toBe(205);
-      expect(player.hp).toBeCloseTo(102.5);
-      expect(player.hp / player.stats.maxHp).toBeCloseTo(0.5);
+      expect(player.stats.maxHp).toBe(165);
+      expect(player.hp).toBeCloseTo(104.5);
+      expect(player.hp / player.stats.maxHp).toBeCloseTo(95 / 150);
       expect(player.gold).toBe(0);
       expect(game.takePendingEvents()).toEqual([
         expect.objectContaining({
@@ -138,9 +139,9 @@ describe("authoritative Gateward Plate", () => {
       expect(sell(game, sellVendorId, 0).ok).toBe(true);
       player = game.getSnapshot().players[0]!;
       expect(player.equipment).toEqual([null, null, null, null, null, null]);
-      expect(player.stats.maxHp).toBe(190);
+      expect(player.stats.maxHp).toBe(150);
       expect(player.hp).toBeCloseTo(95);
-      expect(player.hp / player.stats.maxHp).toBeCloseTo(0.5);
+      expect(player.hp / player.stats.maxHp).toBeCloseTo(95 / 150);
       expect(player.gold).toBe(30);
       expect(game.takePendingEvents()).toEqual([
         expect.objectContaining({
@@ -198,9 +199,9 @@ describe("authoritative Gateward Plate", () => {
       "tempered_edge",
       "tempered_edge",
     ]);
-    expect(player.stats.maxHp).toBe(205);
-    expect(player.hp).toBeCloseTo(51.25);
-    expect(player.hp / player.stats.maxHp).toBeCloseTo(0.25);
+    expect(player.stats.maxHp).toBe(165);
+    expect(player.hp).toBeCloseTo(52.25);
+    expect(player.hp / player.stats.maxHp).toBeCloseTo(47.5 / 150);
     expect(player.gold).toBe(0);
     expect(game.takePendingEvents()).toEqual([
       expect.objectContaining({
@@ -213,57 +214,33 @@ describe("authoritative Gateward Plate", () => {
     ]);
   });
 
-  test("the fourth Plate Attunes once and preserves health percentage through its doubled step", () => {
+  test("the fourth Plate remains linear and preserves health percentage", () => {
     const game = new GameWorld();
     readyHero(game);
     const state = game.players.get("p1")!;
     state.equipment = equipmentOf("gateward_plate", 3);
-    state.hp = 117.5;
+    state.hp = 97.5;
     fund(game, ARMORY_WARE_PRICE);
     placeAt(game, "ironbound_forge");
     game.takePendingEvents();
 
     expect(buy(game).ok).toBe(true);
     const player = game.getSnapshot().players[0]!;
-    expect(player.stats.maxHp).toBe(265);
-    expect(player.hp).toBeCloseTo(132.5);
+    expect(player.stats.maxHp).toBe(210);
+    expect(player.hp).toBeCloseTo(105);
     expect(player.hp / player.stats.maxHp).toBeCloseTo(0.5);
     expect(game.takePendingEvents()).toEqual([
-      expect.objectContaining({
-        kind: "item_purchased",
-        itemId: "gateward_plate",
-        attunementTransition: {
-          itemId: "gateward_plate",
-          change: "gained",
-          fromCount: 3,
-          toCount: 4,
-        },
-      }),
+      expect.objectContaining({ kind: "item_purchased", itemId: "gateward_plate" }),
     ]);
   });
 
-  test("does not strengthen any authoritative Gravebinder skill magnitude", () => {
+  test("does not strengthen Defender ability power", () => {
     const game = new GameWorld();
-    readyHero(game, "gravebinder");
+    readyHero(game, "defender");
     const player = game.players.get("p1")!;
-    const internals = game as unknown as {
-      abilityMagnitude(
-        source: typeof player,
-        slot: AbilitySlot,
-        rank: number,
-        metricId?: AbilityImpactMetricId,
-      ): number;
-    };
-
-    const slots = ["ability1", "ability2", "ability3", "ultimate"] as const;
-    for (const slot of slots) {
-      for (const metricId of ["primary", "secondary"] as const) {
-        if (!ABILITY_IMPACT_DEFINITIONS.gravebinder[slot][metricId]) continue;
-        player.equipment = equipmentOf("gateward_plate", 0);
-        const baseline = internals.abilityMagnitude(player, slot, 3, metricId);
-        player.equipment = equipmentOf("gateward_plate", 6);
-        expect(internals.abilityMagnitude(player, slot, 3, metricId)).toBeCloseTo(baseline);
-      }
-    }
+    player.equipment = equipmentOf("gateward_plate", 0);
+    const baseline = game.getSnapshot().players[0]!.stats.abilityPower;
+    player.equipment = equipmentOf("gateward_plate", 6);
+    expect(game.getSnapshot().players[0]!.stats.abilityPower).toBeCloseTo(baseline);
   });
 });

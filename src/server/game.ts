@@ -4,9 +4,7 @@ import {
   VENDOR_DEFINITIONS,
   armoryReforgeNetCost,
   createEmptyEquipment,
-  equipmentCopyCount,
   isItemId,
-  isStackAttuned,
   isVendorId,
   projectEquipmentChange,
   projectEquipmentRemoval,
@@ -94,6 +92,7 @@ import { deriveHeroStats, projectHealthAtPreservedRatio } from "./hero-stats";
 import {
   ARSENAL_INTERACTION_RADIUS,
   ARSENAL_POSITION,
+  GREATSWORD_MASTERY_NODES,
   GREATSWORD_NODE_BY_ID,
   PRACTICE_WEAPON,
   SKILL_DEFINITIONS,
@@ -123,9 +122,9 @@ export interface GameWorldOptions {
 }
 
 export interface AuthoritativeTelemetryEvent {
-  simulationTime: number;
+  at: number;
   sourcePlayerId: string;
-  skillId: SkillId | "greatsword_basic" | "practice_basic";
+  actionId: SkillId | "greatsword_basic" | "practice_basic";
   targetId: string;
   targetClass: "normal" | "elite" | "objective";
   outcome: "damage" | "stagger" | "interrupt" | "displace" | "control";
@@ -154,6 +153,16 @@ interface PlayerState {
   dodgeRechargeRemaining: number;
   dodgeInvulnerableRemaining: number;
   loadoutEditRemaining: number;
+  guardRemaining: number;
+  guardDirection: Vec2;
+  counterRemaining: number;
+  unbreakableRemaining: number;
+  unbreakableResponses: number;
+  riposteReady: boolean;
+  counterchargeReady: boolean;
+  skillRecoveryMultiplier: number;
+  basicDamageMultiplier: number;
+  telemetryActionOverride: SkillId | null;
   ready: boolean;
   position: Vec2;
   velocity: Vec2;
@@ -190,6 +199,20 @@ interface EnemyState extends EnemySnapshot {
   engagementAngle: number;
   engagementBias: number;
   engagementArc: number;
+  staggerFor: number;
+  exposedFor: number;
+}
+
+interface TimedGreatswordStrike {
+  at: number;
+  ownerId: string;
+  skillId: SkillId;
+  center: Vec2;
+  radius: number;
+  damage: number;
+  displace?: Vec2;
+  stagger?: number;
+  playerPosition?: Vec2;
 }
 
 interface ProjectileState extends ProjectileSnapshot {
@@ -341,6 +364,7 @@ export class GameWorld {
   private effects = new Map<string, EffectState>();
   private cinderWalls = new Map<string, CinderWallState>();
   private delayed: DelayedStrike[] = [];
+  private greatswordStrikes: TimedGreatswordStrike[] = [];
   private pendingEvents: GameEvent[] = [];
   private recentEvents: GameEvent[] = [];
   private elapsed = 0;
@@ -386,6 +410,16 @@ export class GameWorld {
       dodgeRechargeRemaining: 0,
       dodgeInvulnerableRemaining: 0,
       loadoutEditRemaining: 0,
+      guardRemaining: 0,
+      guardDirection: { x: 0, z: -1 },
+      counterRemaining: 0,
+      unbreakableRemaining: 0,
+      unbreakableResponses: 0,
+      riposteReady: false,
+      counterchargeReady: false,
+      skillRecoveryMultiplier: 1,
+      basicDamageMultiplier: 1,
+      telemetryActionOverride: null,
       ready: false,
       position: { x: 0, z: 8 },
       velocity: { x: 0, z: 0 },
@@ -477,6 +511,8 @@ export class GameWorld {
     this.pickups.clear();
     this.effects.clear();
     this.cinderWalls.clear();
+    this.delayed = [];
+    this.greatswordStrikes = [];
     this.recentEvents = [];
     this.pendingEvents = [];
     this.resetStructures();
@@ -495,6 +531,15 @@ export class GameWorld {
       player.dodgeRechargeRemaining = 0;
       player.dodgeInvulnerableRemaining = 0;
       player.loadoutEditRemaining = 0;
+      player.guardRemaining = 0;
+      player.counterRemaining = 0;
+      player.unbreakableRemaining = 0;
+      player.unbreakableResponses = 0;
+      player.riposteReady = false;
+      player.counterchargeReady = false;
+      player.skillRecoveryMultiplier = 1;
+      player.basicDamageMultiplier = 1;
+      player.telemetryActionOverride = null;
       player.equipment = createEmptyEquipment();
       player.abilityRanks = ZERO_ABILITY_RANKS();
       player.skillPoints = 0;
@@ -534,6 +579,7 @@ export class GameWorld {
     if (this.phase === "lobby" || this.phase === "victory" || this.phase === "defeat") return;
     this.runElapsed += dt;
     this.updatePlayers(dt);
+    this.updateGreatswordStrikes();
     if (this.phase === "arming") {
       const connected = [...this.players.values()].filter((player) => player.connected);
       if (connected.length > 0 && connected.every((player) => player.weaponId === "greatsword")) {
@@ -562,7 +608,7 @@ export class GameWorld {
   }
 
   private canEditLoadout(player: PlayerState): boolean {
-    return this.phase === "arming" || this.atArsenal(player) || player.loadoutEditRemaining > 0;
+    return this.atArsenal(player) || player.loadoutEditRemaining > 0;
   }
 
   allocateMastery(
@@ -648,8 +694,9 @@ export class GameWorld {
 
   damageRiftHeart(amount: number, sourceSummonId: string | null = null, source: PlayerState | null = null): void {
     if (!this.riftHeart.active || this.phase !== "push") return;
-    this.riftHeart.hp = Math.max(0, this.riftHeart.hp - Math.max(0, amount));
-    if (source) this.recordTelemetry(source, this.telemetrySkill(source), "rift_heart", "objective", "damage", Math.max(0, amount));
+    const resolvedDamage = Math.min(this.riftHeart.hp, Math.max(0, amount));
+    this.riftHeart.hp = Math.max(0, this.riftHeart.hp - resolvedDamage);
+    if (source) this.recordTelemetry(source, this.telemetrySkill(source), "rift_heart", "objective", "damage", resolvedDamage);
     this.effect("rift_hit", WORLD_LAYOUT.riftHeart, 8, null, 0.35, null, undefined, sourceSummonId);
     if (this.riftHeart.hp <= 0) this.setPhase("victory");
   }
@@ -733,6 +780,7 @@ export class GameWorld {
       activeLanes: [...this.activeLanes],
       arming: this.phase === "arming" ? {
         armedPlayerIds,
+        waitingPlayerIds,
         countdownEndsAt: armingCountdown,
       } : null,
       lobby: {
@@ -786,8 +834,9 @@ export class GameWorld {
     this.effects.clear();
     this.cinderWalls.clear();
     this.delayed = [];
+    this.greatswordStrikes = [];
     this.resetStructures();
-    const starts: Vec2[] = [{ x: -4, z: 7 }, { x: 4, z: 7 }, { x: -4, z: -7 }, { x: 4, z: -7 }];
+    const starts: Vec2[] = [{ x: -4, z: 10 }, { x: 4, z: 10 }, { x: -4, z: 16 }, { x: 4, z: 16 }];
     let index = 0;
     for (const player of this.players.values()) {
       player.position = copy(starts[index++]!);
@@ -808,6 +857,14 @@ export class GameWorld {
       player.dodgeRechargeRemaining = 0;
       player.dodgeInvulnerableRemaining = 0;
       player.loadoutEditRemaining = 0;
+      player.guardRemaining = 0;
+      player.counterRemaining = 0;
+      player.unbreakableRemaining = 0;
+      player.unbreakableResponses = 0;
+      player.riposteReady = false;
+      player.skillRecoveryMultiplier = 1;
+      player.basicDamageMultiplier = 1;
+      player.telemetryActionOverride = null;
       player.equipment = createEmptyEquipment();
       player.hp = this.heroStats(player).maxHp;
       player.xp = 0;
@@ -910,19 +967,24 @@ export class GameWorld {
   private stateAfterEquipmentChange(
     player: PlayerState,
     nextEquipment: EquipmentSlots,
-  ): { cooldowns: Record<ActionSlot, number>; hp: number } {
-    if (!player.heroId) return { cooldowns: { ...player.cooldowns }, hp: player.hp };
+  ): { cooldowns: Record<ActionSlot, number>; cooldownsBySkillId: Partial<Record<SkillId, number>>; hp: number } {
+    if (!player.heroId) return { cooldowns: { ...player.cooldowns }, cooldownsBySkillId: { ...player.cooldownsBySkillId }, hp: player.hp };
     const previousStats = this.heroStats(player);
     const nextStats = deriveHeroStats(player.heroId, player.level, nextEquipment, player.weaponId);
     const nextCooldowns = { ...player.cooldowns };
+    const nextSkillCooldowns = { ...player.cooldownsBySkillId };
     if (nextStats.cooldownRecovery !== previousStats.cooldownRecovery) {
       const progressScale = previousStats.cooldownRecovery / nextStats.cooldownRecovery;
       for (const slot of ["ability1", "ability2", "ability3", "ultimate"] as const) {
         nextCooldowns[slot] *= progressScale;
       }
+      for (const skillId of Object.keys(nextSkillCooldowns) as SkillId[]) {
+        nextSkillCooldowns[skillId] = (nextSkillCooldowns[skillId] ?? 0) * progressScale;
+      }
     }
     return {
       cooldowns: nextCooldowns,
+      cooldownsBySkillId: nextSkillCooldowns,
       hp: projectHealthAtPreservedRatio(player.hp, previousStats.maxHp, nextStats.maxHp),
     };
   }
@@ -963,21 +1025,11 @@ export class GameWorld {
     const projection = projectEquipmentRemoval(player.equipment, slotIndex, expectedItemId);
     if (!projection) return this.failure("EQUIPMENT_CHANGED", "The equipment sale is no longer available.");
 
-    const beforeCount = equipmentCopyCount(player.equipment, expectedItemId);
-    const afterCount = equipmentCopyCount(projection.equipment, expectedItemId);
-    const lostAttunement = isStackAttuned(beforeCount) && !isStackAttuned(afterCount);
-    const attunementTransition: GameEvent["attunementTransition"] = lostAttunement
-      ? {
-          itemId: expectedItemId,
-          change: "lost",
-          fromCount: beforeCount,
-          toCount: afterCount,
-        }
-      : undefined;
     const nextState = this.stateAfterEquipmentChange(player, projection.equipment);
     player.goldUnits += goldToUnits(ARMORY_SELL_VALUE);
     player.equipment = projection.equipment;
     player.cooldowns = nextState.cooldowns;
+    player.cooldownsBySkillId = nextState.cooldownsBySkillId;
     player.hp = nextState.hp;
     this.emit(
       "item_sold",
@@ -988,7 +1040,6 @@ export class GameWorld {
         itemId: expectedItemId,
         slotIndex,
         goldDelta: ARMORY_SELL_VALUE,
-        ...(attunementTransition ? { attunementTransition } : {}),
         position: vendor.position,
       },
     );
@@ -1056,49 +1107,16 @@ export class GameWorld {
     if (!projection) return this.failure("EQUIPMENT_CHANGED", "The equipment change is no longer available.");
     slotIndex = projection.slotIndex;
     const nextEquipment = projection.equipment;
-    const incomingBeforeCount = equipmentCopyCount(player.equipment, itemId);
-    const incomingAfterCount = equipmentCopyCount(nextEquipment, itemId);
-    const outgoingBeforeCount = replacedItemId
-      ? equipmentCopyCount(player.equipment, replacedItemId)
-      : 0;
-    const outgoingAfterCount = replacedItemId
-      ? equipmentCopyCount(nextEquipment, replacedItemId)
-      : 0;
-    const gainedAttunement =
-      !isStackAttuned(incomingBeforeCount) && isStackAttuned(incomingAfterCount);
-    const lostAttunement = Boolean(
-      replacedItemId &&
-      isStackAttuned(outgoingBeforeCount) &&
-      !isStackAttuned(outgoingAfterCount),
-    );
-    const attunementTransition: GameEvent["attunementTransition"] = gainedAttunement
-      ? {
-          itemId,
-          change: "gained",
-          fromCount: incomingBeforeCount,
-          toCount: incomingAfterCount,
-        }
-      : lostAttunement && replacedItemId
-        ? {
-            itemId: replacedItemId,
-            change: "lost",
-            fromCount: outgoingBeforeCount,
-            toCount: outgoingAfterCount,
-          }
-        : undefined;
     const nextState = this.stateAfterEquipmentChange(player, nextEquipment);
     player.goldUnits -= priceUnits;
     player.equipment = nextEquipment;
     player.cooldowns = nextState.cooldowns;
+    player.cooldownsBySkillId = nextState.cooldownsBySkillId;
     player.hp = nextState.hp;
 
-    const eventText = attunementTransition?.change === "gained"
-      ? `${player.name} attuned ${ITEM_DEFINITIONS[attunementTransition.itemId].name} at ${vendor.name}.`
-      : attunementTransition?.change === "lost"
-        ? `${player.name} released ${ITEM_DEFINITIONS[attunementTransition.itemId].name} Attunement for ${item.name} at ${vendor.name}.`
-        : replacedItemId
-          ? `${player.name} replaced ${ITEM_DEFINITIONS[replacedItemId].name} with ${item.name} at ${vendor.name}.`
-          : `${player.name} equipped ${item.name} at ${vendor.name}.`;
+    const eventText = replacedItemId
+      ? `${player.name} replaced ${ITEM_DEFINITIONS[replacedItemId].name} with ${item.name} at ${vendor.name}.`
+      : `${player.name} equipped ${item.name} at ${vendor.name}.`;
     this.emit("item_purchased", eventText, {
       playerId,
       vendorId,
@@ -1106,7 +1124,6 @@ export class GameWorld {
       slotIndex,
       goldDelta: -price,
       ...(replacedItemId ? { replacedItemId } : {}),
-      ...(attunementTransition ? { attunementTransition } : {}),
       position: vendor.position,
     });
     return { ok: true };
@@ -1126,6 +1143,10 @@ export class GameWorld {
     player.cooldownsBySkillId[skillId] = cooldown;
     player.cooldowns[slot] = cooldown;
     player.activeSkillId = skillId;
+    player.skillRecoveryMultiplier = 1;
+    if (skillId === "colossal_strike" && this.hasNode(player, "stand_and_deliver") && this.hasNode(player, "rallying_sweep")) {
+      player.barrier = Math.min(player.maxBarrier, player.barrier + 25);
+    }
     player.action = this.action(slot, "windup", definition.windup, normalize(player.aim));
     return { ok: true };
   }
@@ -1134,34 +1155,108 @@ export class GameWorld {
     return player.weaponAllocations.greatsword?.spentNodeIds.includes(nodeId) ?? false;
   }
 
+  private mutationActive(player: PlayerState, nodeId: MasteryNodeId, skillId: StandardSkillId): boolean {
+    const mutation = GREATSWORD_NODE_BY_ID[nodeId];
+    const loadout = player.weaponAllocations.greatsword?.loadout;
+    return this.hasNode(player, nodeId)
+      && (mutation.mutationFor?.includes(skillId) ?? false)
+      && !!loadout
+      && (loadout.ability1 === skillId || loadout.ability2 === skillId || loadout.ability3 === skillId);
+  }
+
+  private enemiesInLine(origin: Vec2, direction: Vec2, reach: number, width: number): EnemyState[] {
+    const facing = normalize(direction);
+    const end = { x: origin.x + facing.x * reach, z: origin.z + facing.z * reach };
+    return [...this.enemies.values()]
+      .map((enemy) => ({ enemy, progress: segmentHitProgress(origin, end, enemy.position, width + enemy.radius) }))
+      .filter((contact): contact is { enemy: EnemyState; progress: number } => contact.progress !== null)
+      .sort((left, right) => left.progress - right.progress)
+      .map(({ enemy }) => enemy);
+  }
+
+  private scheduleGreatswordStrike(
+    player: PlayerState,
+    skillId: SkillId,
+    delay: number,
+    center: Vec2,
+    radius: number,
+    damage: number,
+    playerPosition?: Vec2,
+  ): void {
+    this.greatswordStrikes.push({
+      at: this.totalTime + delay,
+      ownerId: player.id,
+      skillId,
+      center: copy(center),
+      radius,
+      damage,
+      ...(playerPosition ? { playerPosition: copy(playerPosition) } : {}),
+    });
+  }
+
+  private updateGreatswordStrikes(): void {
+    const pending: TimedGreatswordStrike[] = [];
+    for (const strike of this.greatswordStrikes) {
+      if (strike.at > this.totalTime) {
+        pending.push(strike);
+        continue;
+      }
+      const player = this.players.get(strike.ownerId);
+      if (!player || player.downedFor > 0) continue;
+      if (strike.playerPosition) {
+        player.position = copy(strike.playerPosition);
+        this.clampPlayer(player);
+      }
+      player.telemetryActionOverride = strike.skillId;
+      this.damageCircle(player, strike.center, strike.radius, strike.damage);
+      player.telemetryActionOverride = null;
+      this.effect("slash", strike.center, strike.radius, player.id, 0.3);
+    }
+    this.greatswordStrikes = pending;
+  }
+
   private resolveGreatswordSkill(player: PlayerState, skillId: SkillId, aim: Vec2): void {
     const skill = SKILL_DEFINITIONS[skillId];
     const power = this.heroStats(player).abilityPower;
     const damage = skill.damage * power * (this.hasNode(player, "citadel_training") ? 1.08 : 1);
     const target = { x: player.position.x + aim.x * Math.min(skill.reach || 4, 12), z: player.position.z + aim.z * Math.min(skill.reach || 4, 12) };
     if (skillId === "cleave") {
-      this.damageLine(player, player.position, aim, skill.reach, this.hasNode(player, "honed_arc") ? 5.2 : skill.radius, damage);
+      const hits = this.enemiesInLine(player.position, aim, skill.reach, this.hasNode(player, "honed_arc") ? 5.2 : skill.radius);
+      for (const enemy of hits) {
+        this.damageEnemy(enemy, damage, player);
+        if (this.mutationActive(player, "sundering_edge", "cleave")) enemy.exposedFor = Math.max(enemy.exposedFor, 3);
+      }
+      if (this.mutationActive(player, "follow_through", "cleave") && hits.length >= 2) player.skillRecoveryMultiplier = 0.55;
       this.effect("slash", target, skill.radius, player.id, 0.45, null, this.directionYaw(aim));
     } else if (skillId === "whirlwind") {
-      const strikes = this.hasNode(player, "endless_motion") ? 4 : 3;
-      for (let index = 0; index < strikes; index += 1) this.damageCircle(player, player.position, skill.radius, damage);
+      const strikes = this.mutationActive(player, "endless_motion", "whirlwind") ? 4 : 3;
+      for (let index = 0; index < strikes; index += 1) {
+        this.scheduleGreatswordStrike(player, skillId, index * 0.16, player.position, skill.radius, damage);
+      }
       this.effect("warden_wave", player.position, skill.radius, player.id, 0.7);
     } else if (skillId === "rising_slash") {
-      this.damageLine(player, player.position, aim, skill.reach, skill.radius, damage);
-      for (const enemy of this.enemies.values()) {
-        if (distance(enemy.position, player.position) > skill.reach + enemy.radius) continue;
-        enemy.position.x += aim.x * 2.5;
-        enemy.position.z += aim.z * 2.5;
-        this.recordTelemetry(player, skillId, enemy.id, enemy.elite ? "elite" : "normal", "displace", 2.5);
+      for (const enemy of this.enemiesInLine(player.position, aim, skill.reach, skill.radius)) {
+        this.damageEnemy(enemy, damage, player);
+        if (this.mutationActive(player, "sundering_edge", "rising_slash")) enemy.exposedFor = Math.max(enemy.exposedFor, 3);
+        if (enemy.elite) {
+          enemy.staggerFor = Math.max(enemy.staggerFor, 0.65);
+          this.recordTelemetry(player, skillId, enemy.id, "elite", "stagger", 1, 0.65);
+        } else {
+          enemy.position.x += aim.x * 3.2;
+          enemy.position.z += aim.z * 3.2;
+          enemy.staggerFor = Math.max(enemy.staggerFor, 1.1);
+          this.recordTelemetry(player, skillId, enemy.id, "normal", "displace", 3.2, 1.1);
+        }
       }
       this.effect("warden_wave", target, skill.reach * 0.5, player.id, 0.5, null, this.directionYaw(aim));
     } else if (skillId === "guard") {
-      player.barrier = Math.min(player.maxBarrier, player.barrier + 32 * power);
+      player.guardRemaining = skill.active;
+      player.guardDirection = copy(aim);
       this.effect("warden_bastion", player.position, 4.5, player.id, 0.8);
     } else if (skillId === "counterstrike") {
-      this.damageCircle(player, player.position, skill.radius, damage);
-      player.barrier = Math.min(player.maxBarrier, player.barrier + 12);
-      this.effect("slash", player.position, skill.radius, player.id, 0.45, null, this.directionYaw(aim));
+      player.counterRemaining = skill.active;
+      player.guardDirection = copy(aim);
+      this.effect("warden_bastion", player.position, skill.radius, player.id, skill.active);
     } else if (skillId === "rallying_sweep") {
       const hits = this.damageCircle(player, player.position, skill.radius, damage);
       player.barrier = Math.min(player.maxBarrier, player.barrier + hits * 10 + 10);
@@ -1171,23 +1266,55 @@ export class GameWorld {
       }
       this.effect("warden_bastion", player.position, skill.radius, player.id, 0.65);
     } else if (skillId === "charge") {
-      const reach = skill.reach + (this.hasNode(player, "momentum") ? 2 : 0);
+      const reach = skill.reach + (this.mutationActive(player, "momentum", "charge") ? 2 : 0);
       const origin = copy(player.position);
-      this.damageLine(player, origin, aim, reach, skill.radius, damage);
+      const contacts = this.enemiesInLine(origin, aim, reach, skill.radius);
+      const carried = this.mutationActive(player, "relentless_charge", "charge")
+        ? contacts.find((enemy) => !enemy.elite)
+        : undefined;
+      let eliteHit = false;
+      for (const enemy of contacts) {
+        eliteHit ||= enemy.elite;
+        this.damageEnemy(enemy, damage, player);
+        if (enemy.elite) {
+          const empowered = this.hasNode(player, "countercharge") && player.counterchargeReady;
+          enemy.staggerFor = Math.max(enemy.staggerFor, empowered ? 1.25 : 0.45);
+          this.recordTelemetry(player, skillId, enemy.id, "elite", empowered ? "interrupt" : "stagger", 1, enemy.staggerFor);
+        } else if (enemy !== carried) {
+          enemy.position.x += aim.x * 3;
+          enemy.position.z += aim.z * 3;
+          this.recordTelemetry(player, skillId, enemy.id, "normal", "displace", 3);
+        }
+      }
       player.position.x += aim.x * reach;
       player.position.z += aim.z * reach;
       this.clampPlayer(player);
+      if (carried) {
+        carried.position = { x: player.position.x + aim.x * 1.5, z: player.position.z + aim.z * 1.5 };
+        this.recordTelemetry(player, skillId, carried.id, "normal", "displace", reach);
+      }
+      if (eliteHit && this.mutationActive(player, "momentum", "charge")) {
+        player.cooldownsBySkillId.charge = Math.max(0, (player.cooldownsBySkillId.charge ?? 0) - 2);
+      }
+      player.counterchargeReady = false;
       if (this.hasNode(player, "sweeping_advance")) this.damageCircle(player, player.position, 4, SKILL_DEFINITIONS.cleave.damage * power * 0.55);
       this.effect("warden_charge", { x: (origin.x + player.position.x) / 2, z: (origin.z + player.position.z) / 2 }, reach / 2, player.id, 0.5, null, this.directionYaw(aim));
     } else if (skillId === "impale") {
-      this.damageLine(player, player.position, aim, skill.reach, skill.radius, damage);
+      const reach = skill.reach + (this.mutationActive(player, "executioners_reach", "impale") ? 2.5 : 0);
+      for (const enemy of this.enemiesInLine(player.position, aim, reach, skill.radius)) {
+        const weakened = enemy.hp / enemy.maxHp <= 0.35;
+        const executionBonus = this.mutationActive(player, "executioners_reach", "impale") && weakened ? 1.45 : 1;
+        this.damageEnemy(enemy, damage * (enemy.elite ? 1.35 : 1) * executionBonus, player);
+      }
       this.effect("warden_wave", target, skill.reach * 0.5, player.id, 0.4, null, this.directionYaw(aim));
     } else if (skillId === "colossal_strike") {
-      if (this.hasNode(player, "stand_and_deliver")) player.barrier = Math.min(player.maxBarrier, player.barrier + 25);
-      this.damageCircle(player, target, skill.radius, damage);
+      const stableAim = aim.x * normalize(player.aim).x + aim.z * normalize(player.aim).z >= 0.985;
+      const resolvedDamage = damage * (this.mutationActive(player, "measured_blow", "colossal_strike") && stableAim ? 1.25 : 1);
+      this.damageCircle(player, target, skill.radius, resolvedDamage);
       for (const enemy of this.enemies.values()) {
         if (distance(enemy.position, target) <= skill.radius + enemy.radius) {
-          this.recordTelemetry(player, skillId, enemy.id, enemy.elite ? "elite" : "normal", "stagger", enemy.elite ? 1.2 : 2);
+          enemy.staggerFor = Math.max(enemy.staggerFor, enemy.elite ? 1.2 : 2);
+          this.recordTelemetry(player, skillId, enemy.id, enemy.elite ? "elite" : "normal", "stagger", 1, enemy.staggerFor);
         }
       }
       this.effect("shock", target, skill.radius, player.id, 0.75);
@@ -1195,23 +1322,18 @@ export class GameWorld {
       const origin = copy(player.position);
       for (let index = 1; index <= 4; index += 1) {
         const center = { x: origin.x + aim.x * skill.reach * index / 4, z: origin.z + aim.z * skill.reach * index / 4 };
-        this.damageCircle(player, center, skill.radius, damage);
-        this.effect("slash", center, skill.radius, player.id, 0.55, null, this.directionYaw(aim) + index);
+        this.scheduleGreatswordStrike(player, skillId, (index - 1) * 0.18, center, skill.radius, damage, center);
       }
-      player.position = { x: origin.x + aim.x * skill.reach, z: origin.z + aim.z * skill.reach };
-      this.clampPlayer(player);
     } else if (skillId === "unbreakable") {
-      player.barrier = Math.min(player.maxBarrier, player.barrier + 70);
-      for (let index = 0; index < 3; index += 1) this.damageCircle(player, player.position, skill.radius, damage);
+      player.unbreakableRemaining = skill.active;
+      player.unbreakableResponses = 3;
       this.effect("warden_bastion", player.position, skill.radius, player.id, 1.8);
     } else if (skillId === "onslaught") {
       const origin = copy(player.position);
       for (let index = 1; index <= 3; index += 1) {
         const step = { x: origin.x + aim.x * skill.reach * index / 3, z: origin.z + aim.z * skill.reach * index / 3 };
-        this.damageCircle(player, step, skill.radius, damage);
+        this.scheduleGreatswordStrike(player, skillId, (index - 1) * 0.28, step, skill.radius, damage, step);
       }
-      player.position = { x: origin.x + aim.x * skill.reach, z: origin.z + aim.z * skill.reach };
-      this.clampPlayer(player);
       this.effect("warden_charge", target, skill.reach * 0.5, player.id, 0.9, null, this.directionYaw(aim));
     }
   }
@@ -1312,12 +1434,25 @@ export class GameWorld {
         player.cooldownsBySkillId[skillId] = Math.max(0, (player.cooldownsBySkillId[skillId] ?? 0) - dt);
       }
       player.loadoutEditRemaining = Math.max(0, player.loadoutEditRemaining - dt);
+      player.guardRemaining = Math.max(0, player.guardRemaining - dt);
+      player.counterRemaining = Math.max(0, player.counterRemaining - dt);
+      player.unbreakableRemaining = Math.max(0, player.unbreakableRemaining - dt);
       player.dodgeInvulnerableRemaining = Math.max(0, player.dodgeInvulnerableRemaining - dt);
       if (player.dodgeCharges === 0) {
         player.dodgeRechargeRemaining = Math.max(0, player.dodgeRechargeRemaining - dt);
         if (player.dodgeRechargeRemaining <= 0) player.dodgeCharges = 1;
       }
       player.invulnerableFor = Math.max(0, player.invulnerableFor - dt);
+      if (player.guardRemaining > 0 && this.mutationActive(player, "perfect_guard", "guard")) {
+        for (const enemy of this.enemies.values()) {
+          if (enemy.action?.phase !== "windup" || distance(enemy.position, player.position) > enemy.radius + 5) continue;
+          const towardEnemy = normalize({ x: enemy.position.x - player.position.x, z: enemy.position.z - player.position.z });
+          if (towardEnemy.x * player.guardDirection.x + towardEnemy.z * player.guardDirection.z < 0.35) continue;
+          enemy.action = null;
+          enemy.staggerFor = Math.max(enemy.staggerFor, enemy.elite ? 0.55 : 1.1);
+          this.recordTelemetry(player, "guard", enemy.id, enemy.elite ? "elite" : "normal", "interrupt", 1, enemy.staggerFor);
+        }
+      }
       if (player.downedFor > 0) {
         player.downedFor -= dt;
         if (player.downedFor <= 0) {
@@ -1339,7 +1474,9 @@ export class GameWorld {
         player.cooldowns.basic <= 0
       ) this.startBasicAttack(player);
       const movement = length(player.move) > 1 ? normalize(player.move) : player.move;
-      const movementScale = actionMoveRetention(player.action, stats);
+      const movementScale = player.guardRemaining > 0 && this.mutationActive(player, "guarded_advance", "guard")
+        ? 0.32
+        : actionMoveRetention(player.action, stats);
       player.velocity = { x: movement.x * stats.moveSpeed * movementScale, z: movement.z * stats.moveSpeed * movementScale };
       player.position.x += player.velocity.x * dt;
       player.position.z += player.velocity.z * dt;
@@ -1370,7 +1507,7 @@ export class GameWorld {
         ? Math.max(0.1, this.heroStats(player).basicAttackInterval * 0.28) * (
             player.basicCombo === 0 && this.hasNode(player, "balanced_grip") ? 0.72 : 1
           )
-        : player.activeSkillId ? SKILL_DEFINITIONS[player.activeSkillId].recovery : 0.16;
+        : player.activeSkillId ? SKILL_DEFINITIONS[player.activeSkillId].recovery * player.skillRecoveryMultiplier : 0.16;
       player.action = this.action(current.kind, "recovery", duration, current.direction);
       return;
     }
@@ -1382,7 +1519,10 @@ export class GameWorld {
     if (!player.heroId) return;
     const stats = this.heroStats(player);
     player.cooldowns.basic = stats.basicAttackInterval;
-    const windup = clamp(stats.basicAttackInterval * 0.34, 0.08, 0.18);
+    const empowered = player.riposteReady;
+    player.basicDamageMultiplier = empowered ? 1.6 : 1;
+    player.riposteReady = false;
+    const windup = empowered ? 0.04 : clamp(stats.basicAttackInterval * 0.34, 0.08, 0.18);
     player.action = this.action("basic", "windup", windup, normalize(player.aim));
   }
 
@@ -1402,11 +1542,12 @@ export class GameWorld {
     if (!player.heroId) return;
     const damage = this.heroStats(player).basicDamage;
     const finisher = player.weaponId === "greatsword" && player.basicCombo === 2;
-    const finalDamage = damage * (finisher ? 1.45 : 1);
+    const finalDamage = damage * (finisher ? 1.45 : 1) * player.basicDamageMultiplier;
     const center = { x: player.position.x + direction.x * 3.2, z: player.position.z + direction.z * 3.2 };
     this.damageCircle(player, center, finisher ? 4.5 : 3.8, finalDamage);
     this.effect("slash", center, finisher ? 4.8 : 4, player.id, 0.35, null, this.directionYaw(direction));
     player.basicCombo = player.weaponId === "greatsword" ? ((player.basicCombo + 1) % 3) as 0 | 1 | 2 : 0;
+    player.basicDamageMultiplier = 1;
   }
 
   private updateProjectiles(dt: number): void {
@@ -1667,7 +1808,13 @@ export class GameWorld {
   private updateEnemies(dt: number): void {
     for (const enemy of [...this.enemies.values()]) {
       enemy.slowFor = Math.max(0, enemy.slowFor - dt);
+      enemy.staggerFor = Math.max(0, enemy.staggerFor - dt);
+      enemy.exposedFor = Math.max(0, enemy.exposedFor - dt);
       enemy.slowed = enemy.slowFor > 0;
+      if (enemy.staggerFor > 0) {
+        enemy.velocity = { x: 0, z: 0 };
+        continue;
+      }
       if (enemy.action) {
         enemy.velocity = { x: 0, z: 0 };
         this.updateEnemyAction(enemy, dt);
@@ -1736,7 +1883,7 @@ export class GameWorld {
   private resolveEnemyAttack(enemy: EnemyState): void {
     if (enemy.attackTargetKind === "player" && enemy.attackTargetId) {
       const target = this.players.get(enemy.attackTargetId);
-      if (target && target.downedFor <= 0 && distance(enemy.position, target.position) <= enemy.radius + 3.75) this.damagePlayer(target, enemy.damage);
+      if (target && target.downedFor <= 0 && distance(enemy.position, target.position) <= enemy.radius + 3.75) this.damagePlayer(target, enemy.damage, enemy);
       return;
     }
     if (enemy.attackTargetKind === "gate" && enemy.attackTargetId) {
@@ -1854,6 +2001,8 @@ export class GameWorld {
       engagementAngle: this.stableAngle(id),
       engagementBias: this.stableUnit(id, 53),
       engagementArc: this.stableUnit(id, 91),
+      staggerFor: 0,
+      exposedFor: 0,
     };
     this.enemies.set(enemy.id, enemy);
     this.spawned += 1;
@@ -1983,7 +2132,7 @@ export class GameWorld {
   }
 
   private telemetrySkill(player: PlayerState): SkillId | "greatsword_basic" | "practice_basic" {
-    return player.activeSkillId ?? (player.weaponId === "greatsword" ? "greatsword_basic" : "practice_basic");
+    return player.telemetryActionOverride ?? player.activeSkillId ?? (player.weaponId === "greatsword" ? "greatsword_basic" : "practice_basic");
   }
 
   private recordTelemetry(
@@ -1997,9 +2146,9 @@ export class GameWorld {
   ): void {
     if (!this.telemetry) return;
     this.telemetry({
-      simulationTime: this.totalTime,
+      at: this.totalTime,
       sourcePlayerId: source.id,
-      skillId,
+      actionId: skillId,
       targetId,
       targetClass,
       outcome,
@@ -2016,14 +2165,16 @@ export class GameWorld {
     impactRotation?: number,
     sourceSummonId: string | null = null,
   ): void {
-    enemy.hp -= baseDamage;
+    const exposedMultiplier = enemy.exposedFor > 0 ? 1.15 : 1;
+    const resolvedDamage = Math.min(Math.max(0, enemy.hp), Math.max(0, baseDamage * exposedMultiplier));
+    enemy.hp -= resolvedDamage;
     this.recordTelemetry(
       source,
       this.telemetrySkill(source),
       enemy.id,
       enemy.elite ? "elite" : "normal",
       "damage",
-      baseDamage,
+      resolvedDamage,
     );
     if (impactKind) {
       this.effect(
@@ -2061,11 +2212,37 @@ export class GameWorld {
     }
   }
 
-  private damagePlayer(player: PlayerState, amount: number): void {
+  private damagePlayer(player: PlayerState, amount: number, source?: EnemyState): void {
     if (player.invulnerableFor > 0 || player.downedFor > 0) return;
-    const absorbed = Math.min(player.barrier, amount);
+    const incoming = source
+      ? normalize({ x: source.position.x - player.position.x, z: source.position.z - player.position.z })
+      : { x: 0, z: 0 };
+    const frontal = !!source && incoming.x * player.guardDirection.x + incoming.z * player.guardDirection.z >= 0.35;
+    let resolvedAmount = amount;
+    if (player.guardRemaining > 0 && frontal) {
+      resolvedAmount *= 0.28;
+      if (this.mutationActive(player, "riposte", "guard")) player.riposteReady = true;
+      if (this.hasNode(player, "countercharge")) player.counterchargeReady = true;
+    }
+    if (player.counterRemaining > 0 && frontal && source) {
+      player.counterRemaining = 0;
+      player.telemetryActionOverride = "counterstrike";
+      this.damageEnemy(source, SKILL_DEFINITIONS.counterstrike.damage * this.heroStats(player).abilityPower, player);
+      player.telemetryActionOverride = null;
+      source.staggerFor = Math.max(source.staggerFor, source.elite ? 0.45 : 0.9);
+      this.recordTelemetry(player, "counterstrike", source.id, source.elite ? "elite" : "normal", "stagger", 1, source.staggerFor);
+    }
+    if (player.unbreakableRemaining > 0 && player.unbreakableResponses > 0 && source) {
+      resolvedAmount *= 0.4;
+      player.unbreakableResponses -= 1;
+      player.telemetryActionOverride = "unbreakable";
+      this.damageCircle(player, player.position, SKILL_DEFINITIONS.unbreakable.radius, SKILL_DEFINITIONS.unbreakable.damage * this.heroStats(player).abilityPower);
+      player.telemetryActionOverride = null;
+      if (player.unbreakableResponses === 0) player.unbreakableRemaining = 0;
+    }
+    const absorbed = Math.min(player.barrier, resolvedAmount);
     player.barrier -= absorbed;
-    player.hp -= amount - absorbed;
+    player.hp -= resolvedAmount - absorbed;
     if (player.hp <= 0) {
       player.hp = 0; player.downedFor = 5; player.attacking = false; player.action = null;
       this.emit("player_downed", `${player.name} was overwhelmed.`, { playerId: player.id, position: player.position });
@@ -2330,6 +2507,9 @@ export class GameWorld {
       : player.loadoutEditRemaining > 0
         ? "level_up"
         : "none";
+    const nodeAvailability = allocation
+      ? GREATSWORD_MASTERY_NODES.map((node) => [node.id, deriveMasteryNodeAvailability(node.id, allocation.spentNodeIds, player.level)] as const)
+      : [];
     return {
       id: player.id, name: player.name, connected: player.connected, heroId: player.heroId, ready: player.ready, position: copy(player.position),
       identity: "defender", accentId: `defender-${[...this.players.keys()].indexOf(player.id) + 1}`,
@@ -2339,6 +2519,11 @@ export class GameWorld {
         revision: allocation.revision,
         pointBudget: player.level,
         learnedNodeIds: [...allocation.spentNodeIds],
+        legalNodeIds: nodeAvailability.filter(([, availability]) => availability.state === "legal").map(([nodeId]) => nodeId),
+        excludedNodeIds: nodeAvailability.filter(([, availability]) => availability.state === "excluded").map(([nodeId]) => nodeId),
+        unavailableNodeReasons: Object.fromEntries(nodeAvailability.flatMap(([nodeId, availability]) =>
+          availability.state === "locked" || availability.state === "excluded" ? [[nodeId, availability.reason]] : []
+        )),
         equipped: { ...allocation.loadout },
         loadoutMutationContext,
         freeRespecUsed: allocation.freeRespecUsed,

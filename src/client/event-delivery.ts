@@ -2,14 +2,12 @@ import type { GameEvent } from "../shared/protocol";
 
 export interface ItemPurchaseDeliveryPolicy {
   acknowledgeLocalPurchase: boolean;
-  playAttunementTransient: boolean;
   playLocalPurchaseFeedback: boolean;
   playWareReceiptTransient: boolean;
 }
 
 export interface ItemSaleDeliveryPolicy {
   acknowledgeLocalSale: boolean;
-  playAttunementTransient: boolean;
   playLocalSaleFeedback: boolean;
 }
 
@@ -19,12 +17,10 @@ export function itemPurchaseDeliveryPolicy(
   direct: boolean,
 ): ItemPurchaseDeliveryPolicy {
   const local = event.playerId === localPlayerId;
-  const transition = event.attunementTransition !== undefined;
   return {
     acknowledgeLocalPurchase: local,
-    playAttunementTransient: transition && direct,
-    playLocalPurchaseFeedback: local && (!transition || direct),
-    playWareReceiptTransient: local && !transition && direct,
+    playLocalPurchaseFeedback: local && direct,
+    playWareReceiptTransient: local && direct,
   };
 }
 
@@ -36,7 +32,6 @@ export function itemSaleDeliveryPolicy(
   const local = event.playerId === localPlayerId;
   return {
     acknowledgeLocalSale: local,
-    playAttunementTransient: event.attunementTransition !== undefined && direct,
     playLocalSaleFeedback: local && direct,
   };
 }

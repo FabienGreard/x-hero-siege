@@ -70,10 +70,10 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
   };
 
   game.addPlayer(playerId, "Route Warden");
-  send({ type: "claim_hero", heroId: "warden" });
   send({ type: "set_ready", ready: true });
   send({ type: "start" });
-  send({ type: "level_ability", slot: "ability2" });
+  send({ type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" });
+  while (game.phase === "arming") game.update(1 / 60);
 
   let departure: {
     elapsed: number;
@@ -131,7 +131,6 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
       }
     }
 
-    if (player.skillPoints > 0) send({ type: "level_ability", slot: "ability2" });
     // Empty basic swings lock movement, so only attack within the real cleave envelope.
     tick(move, aim, targetDistance <= 7);
   }
@@ -195,7 +194,7 @@ function runNormalReliquaryRoute(seed: number): RouteResult {
 }
 
 describe("normal-timing local shop route", () => {
-  test("stratified Warden routes preserve a useful solo defense margin", () => {
+  test("stratified Defender routes preserve a useful solo defense margin", () => {
     const results = ROUTE_SEEDS.map(runNormalReliquaryRoute);
     const gateHealth = results.map((result) => result.returnGateHp);
     const departureTimes = results.map((result) => result.departureElapsed);

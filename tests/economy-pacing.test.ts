@@ -7,6 +7,7 @@ import {
 import type { EquipmentSlots, Vec2 } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
+import { progressDefenderMastery } from "./support/normal-solo-controller";
 
 const DT = 1 / 60;
 const MIDPOINT_CHECK_SECONDS = 85;
@@ -44,22 +45,22 @@ function runNormalDefenseBudget(seed: number): EconomyPacingResult {
   let threeWaresAffordableElapsed: number | null = null;
 
   expect(game.addPlayer(playerId, "Pacing Warden").ok).toBe(true);
-  expect(game.claimHero(playerId, "warden").ok).toBe(true);
   expect(game.setReady(playerId, true).ok).toBe(true);
   expect(game.startGame(playerId).ok).toBe(true);
-  expect(game.levelAbility(playerId, "ability2").ok).toBe(true);
+  expect(game.handleMessage(playerId, { type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" }).ok).toBe(true);
+  progressDefenderMastery(game, playerId);
+  while (game.phase === "arming") game.update(DT);
 
   while (elapsed <= PACING_WINDOW_END_SECONDS) {
     const snapshot = game.getSnapshot();
     const player = snapshot.players[0]!;
+    progressDefenderMastery(game, playerId);
 
     if (goldAtMidpoint === null && elapsed >= MIDPOINT_CHECK_SECONDS) {
       goldAtMidpoint = player.gold;
     }
     if (firstWareAffordableElapsed === null && player.gold >= ARMORY_WARE_PRICE) firstWareAffordableElapsed = elapsed;
     if (threeWaresAffordableElapsed === null && player.gold >= THREE_WARE_GOLD) threeWaresAffordableElapsed = elapsed;
-
-    if (player.skillPoints > 0) game.levelAbility(playerId, "ability2");
 
     const target = [...snapshot.enemies].sort((left, right) => right.position.z - left.position.z)[0];
     let aim: Vec2 = { x: 0, z: -1 };
@@ -78,8 +79,8 @@ function runNormalDefenseBudget(seed: number): EconomyPacingResult {
           ? { x: -aim.x, z: -aim.z }
           : { x: 0, z: 0 };
 
-      if (player.cooldowns.ability2 <= 0 && targetDistance < 16) {
-        game.handleMessage(playerId, { type: "cast", slot: "ability2" });
+      for (const slot of ["ability2", "ability1"] as const) {
+        if (player.cooldowns[slot] <= 0 && targetDistance < 16 && game.handleMessage(playerId, { type: "cast", slot }).ok) break;
       }
     }
 
@@ -101,7 +102,7 @@ function runNormalDefenseBudget(seed: number): EconomyPacingResult {
 }
 
 describe("normal-timing economy pacing", () => {
-  test("100 Warden defenses fund one 60-gold choice early but only three wares late", () => {
+  test("100 Defender defenses fund one 60-gold choice early but only three wares late", () => {
     const results = Array.from({ length: 100 }, (_, index) => runNormalDefenseBudget(index + 1));
 
     expect(results.every((result) => result.goldAtMidpoint < THREE_WARE_GOLD)).toBe(true);
@@ -114,9 +115,10 @@ describe("normal-timing economy pacing", () => {
     const game = new GameWorld();
     const playerId = "replacement-warden";
     expect(game.addPlayer(playerId, "Replacement Warden").ok).toBe(true);
-    expect(game.claimHero(playerId, "warden").ok).toBe(true);
     expect(game.setReady(playerId, true).ok).toBe(true);
-    expect(game.startGame(playerId).ok).toBe(true);
+  expect(game.startGame(playerId).ok).toBe(true);
+  expect(game.handleMessage(playerId, { type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" }).ok).toBe(true);
+  while (game.phase === "arming") game.update(DT);
 
     const player = game.players.get(playerId)!;
     const fullBuild: EquipmentSlots = [

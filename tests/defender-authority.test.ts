@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GameWorld } from "../src/server/game";
+import type { AuthoritativeTelemetryEvent } from "../src/server/game";
 import { parseClientMessage } from "../src/shared/protocol";
 import {
   GREATSWORD_MASTERY_NODES,
@@ -58,7 +59,7 @@ describe("Forge the First Defender contracts", () => {
     }))).toEqual({ type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" });
     expect(parseClientMessage(JSON.stringify({ type: "buy_weapon", arsenalId: "ironbound_forge", weaponId: "greatsword" }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ type: "buy_weapon", weaponId: "greatsword" }))).toBeNull();
-    expect(parseClientMessage(JSON.stringify({ type: "claim_hero", heroId: "warden" }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ type: "claim_hero", heroId: "defender" }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ type: "level_ability", slot: "ability1" }))).toBeNull();
   });
 
@@ -69,12 +70,12 @@ describe("Forge the First Defender contracts", () => {
       ["defender", "practice", 100],
       ["defender", "practice", 100],
     ]);
-    expect(snapshot.arming).toMatchObject({ armedPlayerIds: [], countdownEndsAt: null });
+    expect(snapshot.arming).toMatchObject({ armedPlayerIds: [], waitingPlayerIds: ["p1", "p2"], countdownEndsAt: null });
 
     buyGreatsword(game, "p1");
     snapshot = game.getSnapshot();
     expect(snapshot.players.find((player) => player.id === "p1")).toMatchObject({ weaponId: "greatsword", gold: 0 });
-    expect(snapshot.arming).toMatchObject({ armedPlayerIds: ["p1"], countdownEndsAt: null });
+    expect(snapshot.arming).toMatchObject({ armedPlayerIds: ["p1"], waitingPlayerIds: ["p2"], countdownEndsAt: null });
 
     buyGreatsword(game, "p2");
     expect(game.getSnapshot().arming?.countdownEndsAt).toBeNumber();
@@ -104,6 +105,10 @@ describe("Forge the First Defender contracts", () => {
     }
     expect(game.allocateMastery("p1", "greatsword", "unbreakable", revision)).toMatchObject({ ok: false, code: "MASTERY_EXCLUDED" });
     expect(game.getSnapshot().players[0]!.mastery?.equipped).toEqual({ ability1: null, ability2: null, ability3: null, ultimate: null });
+    const authority = game.getSnapshot().players[0]!.mastery!;
+    expect(authority.excludedNodeIds).toContain("unbreakable");
+    expect(authority.unavailableNodeReasons.unbreakable).toContain("Excluded by");
+    expect(authority.legalNodeIds).not.toContain("unbreakable");
 
     expect(game.equipSkill("p1", "greatsword", "cleave", "ability1", revision).ok).toBe(true);
     revision += 1;
@@ -134,5 +139,24 @@ describe("Forge the First Defender contracts", () => {
     expect(player.action).toBeNull();
     expect(player.dodge).toMatchObject({ charges: 0, rechargeRemaining: 6, rechargeDuration: 6, invulnerable: true });
     expect(game.handleMessage("p1", { type: "dodge", seq: 3, direction: { x: 1, z: 0 } })).toMatchObject({ ok: false, code: "DODGE_RECHARGING" });
+  });
+
+  test("test-only telemetry observes resolved authoritative contribution without snapshot growth", () => {
+    const events: AuthoritativeTelemetryEvent[] = [];
+    const game = new GameWorld({ accelerated: true, telemetry: (event) => events.push(event) });
+    expect(game.addPlayer("p1", "Telemetry Defender").ok).toBe(true);
+    expect(game.setReady("p1", true).ok).toBe(true);
+    expect(game.startGame("p1").ok).toBe(true);
+    buyGreatsword(game, "p1");
+    for (let index = 0; index < 26; index += 1) game.update(0.1);
+    expect(game.debugAdvance().ok).toBe(true);
+    expect(game.debugAdvance().ok).toBe(true);
+    expect(game.phase).toBe("push");
+    const authority = game.players.get("p1")!;
+    authority.position = { x: 0, z: -154 };
+    game.handleMessage("p1", { type: "input", seq: 1, move: { x: 0, z: 0 }, aim: { x: 0, z: -1 }, attacking: true });
+    for (let index = 0; index < 8; index += 1) game.update(0.1);
+    expect(events.some((event) => event.actionId === "greatsword_basic" && event.targetClass === "objective" && event.outcome === "damage")).toBe(true);
+    expect(JSON.stringify(game.getSnapshot())).not.toContain("actionId");
   });
 });

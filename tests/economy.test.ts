@@ -10,17 +10,19 @@ import {
   ARMORY_SELL_VALUE,
   ARMORY_WARE_PRICE,
 } from "../src/shared/armory-data";
-import { HERO_IDS } from "../src/shared/game-data";
 import { GameWorld } from "../src/server/game";
 
 function readyParty(game: GameWorld, count: number): void {
   for (let index = 0; index < count; index += 1) {
     const playerId = `p${index + 1}`;
-    expect(game.addPlayer(playerId, `Hero ${index + 1}`).ok).toBe(true);
-    expect(game.claimHero(playerId, HERO_IDS[index]!).ok).toBe(true);
+    expect(game.addPlayer(playerId, `Defender ${index + 1}`).ok).toBe(true);
     expect(game.setReady(playerId, true).ok).toBe(true);
   }
   expect(game.startGame("p1").ok).toBe(true);
+  for (let index = 0; index < count; index += 1) {
+    expect(game.handleMessage(`p${index + 1}`, { type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" }).ok).toBe(true);
+  }
+  advance(game, 2.6);
 }
 
 function advance(game: GameWorld, seconds: number): void {
@@ -96,6 +98,8 @@ describe("authoritative run economy", () => {
     expect(game.resetRun("p1").ok).toBe(true);
     expect(game.setReady("p1", true).ok).toBe(true);
     expect(game.startGame("p1").ok).toBe(true);
+    expect(game.getSnapshot().players[0]!.gold).toBe(100);
+    expect(game.handleMessage("p1", { type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" }).ok).toBe(true);
     expect(game.getSnapshot().players[0]!.gold).toBe(0);
   });
 });

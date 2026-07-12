@@ -12,8 +12,6 @@ export function armoryReforgeNetCost(itemPrice: number): number {
   return Math.max(0, normalizedPrice - ARMORY_SELL_VALUE);
 }
 export const ARMORY_REFORGE_NET_COST = armoryReforgeNetCost(ARMORY_WARE_PRICE);
-export const ITEM_ATTUNEMENT_THRESHOLD = 4;
-export const FLEETSTEP_COMBAT_STRIDE_RETENTION = 0.15;
 
 export type EquipmentPrimaryStatKey =
   | "maxHp"
@@ -53,34 +51,12 @@ export interface EquipmentStackSummary {
   itemId: ItemId;
   count: number;
   effectiveCount: number;
-  attuned: boolean;
   totalEffectLabel: string;
-}
-
-export type AttunementProgressState = "unowned" | "building" | "next" | "attuned";
-
-export interface AttunementProgress {
-  copyCount: number;
-  effectiveCount: number;
-  state: AttunementProgressState;
-  visualLabel: string | null;
-  accessibleDescription: string;
-}
-
-export type ItemEvolutionState = "building" | "next" | "active";
-
-export interface ItemEvolutionProgress {
-  name: "Combat Stride";
-  state: ItemEvolutionState;
-  moveRetention: number;
-  visualLabel: "UNLOCKS COMBAT STRIDE" | "COMBAT STRIDE" | null;
-  accessibleDescription: string;
 }
 
 export interface DominantEquipmentStack {
   itemId: ItemId;
   count: number;
-  attuned: boolean;
 }
 
 export interface EquipmentChangeProjection {
@@ -208,63 +184,8 @@ function normalizedStackCount(count: number): number {
   return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
 }
 
-/** Direction 1.0 removes universal duplicate Attunement; raw copies are exhaustive. */
 export function effectiveStackCopies(count: number): number {
   return normalizedStackCount(count);
-}
-
-export function isStackAttuned(count: number): boolean {
-  return false;
-}
-
-/** One canonical read of the existing four-copy commitment for every armory surface. */
-export function deriveAttunementProgress(count: number): AttunementProgress {
-  const copyCount = normalizedStackCount(count);
-  const effectiveCount = effectiveStackCopies(copyCount);
-  if (copyCount === 0) {
-    return {
-      copyCount,
-      effectiveCount,
-      state: "unowned",
-      visualLabel: null,
-      accessibleDescription: `Attunes at ${ITEM_ATTUNEMENT_THRESHOLD} matching copies; the fourth copy contributes twice its normal effect.`,
-    };
-  }
-  if (copyCount < ITEM_ATTUNEMENT_THRESHOLD - 1) {
-    return {
-      copyCount,
-      effectiveCount,
-      state: "building",
-      visualLabel: `ATTUNEMENT ${copyCount}/${ITEM_ATTUNEMENT_THRESHOLD}`,
-      accessibleDescription: `Attunement ${copyCount} of ${ITEM_ATTUNEMENT_THRESHOLD}. At four matching copies, the fourth copy contributes twice its normal effect.`,
-    };
-  }
-  if (copyCount === ITEM_ATTUNEMENT_THRESHOLD - 1) {
-    return {
-      copyCount,
-      effectiveCount,
-      state: "next",
-      visualLabel: "NEXT ATTUNES",
-      accessibleDescription: `Attunement ${copyCount} of ${ITEM_ATTUNEMENT_THRESHOLD}. The next matching copy Attunes this stack and contributes twice its normal effect.`,
-    };
-  }
-  return {
-    copyCount,
-    effectiveCount,
-    state: "attuned",
-    visualLabel: "ATTUNED",
-    accessibleDescription: `Attuned: the fourth copy contributes twice its normal effect, so ${copyCount} equipped copies count as ${effectiveCount} copies.`,
-  };
-}
-
-/** The first earned ware evolution: Fleetstep becomes active at the existing Attunement threshold. */
-export function deriveItemEvolutionProgress(
-  itemId: ItemId,
-  count: number,
-): ItemEvolutionProgress | null {
-  void itemId;
-  void count;
-  return null;
 }
 
 export function equipmentCopyCount(
@@ -383,7 +304,6 @@ export function summarizeEquipment(equipment: EquipmentSlots): EquipmentStackSum
       itemId,
       count,
       effectiveCount,
-      attuned: isStackAttuned(count),
       totalEffectLabel: totalEffectLabel(itemId, effectiveCount),
     };
   });
@@ -395,7 +315,7 @@ export function dominantEquipmentStack(equipment: EquipmentSlots): DominantEquip
     if (!itemId) continue;
     const count = equipmentCopyCount(equipment, itemId);
     if (!dominant || count > dominant.count) {
-      dominant = { itemId, count, attuned: isStackAttuned(count) };
+      dominant = { itemId, count };
     }
   }
   return dominant;

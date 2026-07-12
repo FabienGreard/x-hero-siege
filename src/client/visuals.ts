@@ -17,7 +17,6 @@ import {
   CINDER_WALL_LENGTH,
 } from "../shared/cinder-wall";
 import { HERO_DEFINITIONS, WORLD_LAYOUT } from "../shared/game-data";
-import { deriveCombatStrideEcho } from "./combat-stride-visual";
 
 export const HERO_PRESENTATION: Record<HeroId, {
   symbol: string;
@@ -428,11 +427,6 @@ export interface EntityVisual extends THREE.Group {
     wareReceiptStartedAt: number;
     wareReceiptUntil: number;
     buildSignatureItemId: ItemId | null;
-    buildSignatureAttuned: boolean;
-    buildSignatureTransitionChange: "gained" | "lost" | null;
-    buildSignatureTransitionItemId: ItemId | null;
-    buildSignatureTransitionStartedAt: number;
-    buildSignatureTransitionUntil: number;
     flashUntil: number;
     baseScale: number;
     isLocal: boolean;
@@ -563,11 +557,6 @@ export function createEntityVisual(
     wareReceiptStartedAt: 0,
     wareReceiptUntil: 0,
     buildSignatureItemId: null,
-    buildSignatureAttuned: false,
-    buildSignatureTransitionChange: null,
-    buildSignatureTransitionItemId: null,
-    buildSignatureTransitionStartedAt: 0,
-    buildSignatureTransitionUntil: 0,
     flashUntil: 0,
     baseScale: scale,
     isLocal: false,
@@ -591,50 +580,22 @@ export function pulseEntityWareReceipt(
   visual.userData.wareReceiptUntil = now + 760;
 }
 
-export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | null, attuned = false): void {
+export function setEntityBuildSignature(visual: EntityVisual, itemId: ItemId | null): void {
   const signature = visual.userData.buildSignature;
   const echo = visual.userData.buildSignatureEcho;
-  const nextAttuned = Boolean(itemId && attuned);
-  if (
-    !signature || !echo ||
-    (visual.userData.buildSignatureItemId === itemId && visual.userData.buildSignatureAttuned === nextAttuned)
-  ) return;
+  if (!signature || !echo || visual.userData.buildSignatureItemId === itemId) return;
   const itemChanged = visual.userData.buildSignatureItemId !== itemId;
   visual.userData.buildSignatureItemId = itemId;
-  visual.userData.buildSignatureAttuned = nextAttuned;
   signature.visible = itemId !== null;
-  const lossTransitionActive =
-    visual.userData.buildSignatureTransitionChange === "lost" &&
-    performance.now() < visual.userData.buildSignatureTransitionUntil;
-  echo.visible = nextAttuned || lossTransitionActive;
+  echo.visible = false;
   if (!itemId || !itemChanged) return;
   const texture = buildSignatureTexture(itemId);
   const material = signature.material as THREE.SpriteMaterial;
   material.map = texture;
   material.needsUpdate = true;
-  if (!lossTransitionActive) {
-    const echoMaterial = echo.material as THREE.SpriteMaterial;
-    echoMaterial.map = texture;
-    echoMaterial.needsUpdate = true;
-  }
-}
-
-export function pulseEntityBuildSignature(
-  visual: EntityVisual,
-  itemId: ItemId,
-  change: "gained" | "lost",
-  now = performance.now(),
-): void {
-  const echo = visual.userData.buildSignatureEcho;
-  if (!echo) return;
   const echoMaterial = echo.material as THREE.SpriteMaterial;
   echoMaterial.map = buildSignatureTexture(itemId);
   echoMaterial.needsUpdate = true;
-  echo.visible = true;
-  visual.userData.buildSignatureTransitionChange = change;
-  visual.userData.buildSignatureTransitionItemId = itemId;
-  visual.userData.buildSignatureTransitionStartedAt = now;
-  visual.userData.buildSignatureTransitionUntil = now + (change === "gained" ? 650 : 520);
 }
 
 export function setEntityFlash(visual: EntityVisual, now: number, color = 0xffffff): void {
@@ -726,86 +687,16 @@ export function updateEntityVisual(
   silhouette.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.025);
   silhouette.material.rotation = lean;
   if (buildSignature?.visible) {
-    const attuned = visual.userData.buildSignatureAttuned;
-    const transitionChange = visual.userData.buildSignatureTransitionChange;
-    const transitionActive = Boolean(
-      transitionChange && now < visual.userData.buildSignatureTransitionUntil,
-    );
-    const transitionDuration = Math.max(
-      1,
-      visual.userData.buildSignatureTransitionUntil - visual.userData.buildSignatureTransitionStartedAt,
-    );
-    const transitionProgress = transitionActive
-      ? THREE.MathUtils.clamp(
-          (now - visual.userData.buildSignatureTransitionStartedAt) / transitionDuration,
-          0,
-          1,
-        )
-      : 1;
-    const signatureMatchesTransition =
-      visual.userData.buildSignatureItemId === visual.userData.buildSignatureTransitionItemId;
-    const signaturePulse = transitionActive && transitionChange === "gained" && signatureMatchesTransition
-      ? 1 + Math.sin(transitionProgress * Math.PI) * 0.1
-      : 1;
     buildSignature.scale.set(
-      scaleX * (attuned ? 1.43 : 1.34) * signaturePulse,
-      scaleY * (attuned ? 1.27 : 1.2) * signaturePulse,
+      scaleX * 1.34,
+      scaleY * 1.2,
       1,
     );
     buildSignature.position.set(sprite.position.x, sprite.position.y, sprite.position.z + 0.012);
     const signatureMaterial = buildSignature.material as THREE.SpriteMaterial;
     signatureMaterial.rotation = lean;
-    signatureMaterial.opacity = visual.userData.isLocal
-      ? attuned ? 0.84 : 0.76
-      : attuned ? 0.62 : 0.56;
-
-    if (buildSignatureEcho) {
-      const echoVisible = attuned || transitionActive;
-      buildSignatureEcho.visible = echoVisible;
-      if (echoVisible) {
-        const breath = 1 + Math.sin(elapsed * 2.4) * 0.025;
-        const gainBloom = transitionActive && transitionChange === "gained"
-          ? 0.76 + (1 - Math.pow(1 - transitionProgress, 3)) * 0.24
-          : 1;
-        const lossCollapse = transitionActive && transitionChange === "lost"
-          ? 1 - transitionProgress * 0.28
-          : 1;
-        const echoScale = breath * gainBloom * lossCollapse;
-        buildSignatureEcho.scale.set(scaleX * 1.64 * echoScale, scaleY * 1.46 * echoScale, 1);
-        const combatStrideEcho = transitionActive
-          ? { offset: { x: 0, z: 0 }, opacityBoost: 0 }
-          : deriveCombatStrideEcho({
-              itemId: visual.userData.buildSignatureItemId,
-              attuned,
-              velocity,
-              action,
-              baseScale,
-              isLocal: visual.userData.isLocal,
-            });
-        buildSignatureEcho.position.set(
-          sprite.position.x + combatStrideEcho.offset.x,
-          sprite.position.y,
-          sprite.position.z + combatStrideEcho.offset.z + 0.008,
-        );
-        const echoMaterial = buildSignatureEcho.material as THREE.SpriteMaterial;
-        echoMaterial.rotation = lean;
-        const settledOpacity = visual.userData.isLocal ? 0.24 : 0.12;
-        if (transitionActive && transitionChange === "gained") {
-          echoMaterial.opacity = settledOpacity +
-            Math.sin(transitionProgress * Math.PI) * (visual.userData.isLocal ? 0.34 : 0.15);
-        } else if (transitionActive && transitionChange === "lost") {
-          echoMaterial.opacity = settledOpacity * (1 - transitionProgress);
-        } else {
-          echoMaterial.opacity = settledOpacity + combatStrideEcho.opacityBoost;
-        }
-      }
-    }
-
-    if (!transitionActive && transitionChange) {
-      visual.userData.buildSignatureTransitionChange = null;
-      visual.userData.buildSignatureTransitionItemId = null;
-      if (buildSignatureEcho && !attuned) buildSignatureEcho.visible = false;
-    }
+    signatureMaterial.opacity = visual.userData.isLocal ? 0.76 : 0.56;
+    if (buildSignatureEcho) buildSignatureEcho.visible = false;
   }
   if (wareReceipt) {
     const receiptActive = now < visual.userData.wareReceiptUntil;

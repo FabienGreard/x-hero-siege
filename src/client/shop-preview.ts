@@ -2,10 +2,8 @@ import {
   ITEM_DEFINITIONS,
   effectiveStackCopies,
   equipmentCopyCount,
-  isStackAttuned,
   projectEquipmentChange,
 } from "../shared/armory-data";
-import { deriveAbilityImpactReadout } from "../shared/ability-impact";
 import { deriveHeroStats } from "../shared/hero-stats";
 import type {
   AbilitySlot,
@@ -15,6 +13,9 @@ import type {
   HeroStatsSnapshot,
   ItemId,
 } from "../shared/protocol";
+import type { EquippedWeaponId } from "../shared/weapon-data";
+import { SKILL_DEFINITIONS, isSkillId, type SkillId } from "../shared/weapon-data";
+import type { MasterySnapshot } from "../shared/protocol";
 
 export const EQUIPMENT_STAT_FIELDS = [
   { key: "basicDamage", label: "Basic Damage" },
@@ -59,9 +60,9 @@ const ABILITY_SLOTS = [
 ] as const satisfies readonly AbilitySlot[];
 
 export interface LearnedAbilityCooldownProjection {
+  skillId: SkillId;
   slot: AbilitySlot;
   name: string;
-  rank: number;
   currentSeconds: number;
   projectedSeconds: number;
   currentValue: string;
@@ -69,38 +70,27 @@ export interface LearnedAbilityCooldownProjection {
 }
 
 /** Exact fresh-cast returns for currently learned abilities whose cooldown changes. */
-export function projectLearnedAbilityCooldowns(
-  heroId: HeroId,
-  abilityRanks: Record<AbilitySlot, number>,
+export function projectLearnedSkillCooldowns(
+  mastery: MasterySnapshot | null,
   currentStats: HeroStatsSnapshot,
   projectedStats: HeroStatsSnapshot,
 ): LearnedAbilityCooldownProjection[] {
+  if (!mastery) return [];
   return ABILITY_SLOTS.flatMap((slot) => {
-    const rank = abilityRanks[slot] ?? 0;
-    const current = deriveAbilityImpactReadout(
-      heroId,
-      slot,
-      rank,
-      currentStats.abilityPower,
-      currentStats.cooldownRecovery,
-    );
-    if (!current.learned) return [];
-    const projected = deriveAbilityImpactReadout(
-      heroId,
-      slot,
-      rank,
-      projectedStats.abilityPower,
-      projectedStats.cooldownRecovery,
-    );
-    if (Math.abs(current.cooldown - projected.cooldown) <= 1e-9) return [];
+    const skillId = mastery.equipped[slot];
+    if (!skillId || !isSkillId(skillId)) return [];
+    const definition = SKILL_DEFINITIONS[skillId];
+    const currentCooldown = definition.cooldown / currentStats.cooldownRecovery;
+    const projectedCooldown = definition.cooldown / projectedStats.cooldownRecovery;
+    if (Math.abs(currentCooldown - projectedCooldown) <= 1e-9) return [];
     return [{
+      skillId,
       slot,
-      name: current.name,
-      rank: current.rank,
-      currentSeconds: current.cooldown,
-      projectedSeconds: projected.cooldown,
-      currentValue: `${formatNumber(current.cooldown, 1)}S`,
-      projectedValue: `${formatNumber(projected.cooldown, 1)}S`,
+      name: definition.name,
+      currentSeconds: currentCooldown,
+      projectedSeconds: projectedCooldown,
+      currentValue: `${formatNumber(currentCooldown, 1)}S`,
+      projectedValue: `${formatNumber(projectedCooldown, 1)}S`,
     }];
   });
 }
@@ -110,51 +100,10 @@ function accessibleLearnedCooldownResult(
 ): string {
   if (projections.length === 0) return "";
   const consequences = projections
-    .map(({ name, rank, currentSeconds, projectedSeconds }) =>
-      `${name} rank ${rank} fresh-cast cooldown ${formatNumber(currentSeconds, 1)} seconds to ${formatNumber(projectedSeconds, 1)} seconds`)
+    .map(({ name, currentSeconds, projectedSeconds }) =>
+      `${name} fresh-cast cooldown ${formatNumber(currentSeconds, 1)} seconds to ${formatNumber(projectedSeconds, 1)} seconds`)
     .join("; ");
   return ` Learned cast returns: ${consequences}.`;
-}
-
-export interface CombatStridePreview {
-  currentSpeed: number;
-  projectedSpeed: number;
-  currentValue: string;
-  projectedValue: string;
-  resultText: string;
-  accessibleResult: string;
-}
-
-function projectCombatStride(
-  current: HeroStatsSnapshot,
-  projected: HeroStatsSnapshot,
-): CombatStridePreview | null {
-  const currentSpeed = current.moveSpeed * current.basicMoveRetention;
-  const projectedSpeed = projected.moveSpeed * projected.basicMoveRetention;
-  if (Math.abs(currentSpeed - projectedSpeed) <= 1e-9) return null;
-  const currentValue = formatNumber(currentSpeed, 1);
-  const projectedValue = formatNumber(projectedSpeed, 1);
-  return {
-    currentSpeed,
-    projectedSpeed,
-    currentValue,
-    projectedValue,
-    resultText: currentSpeed <= 0
-      ? `COMBAT STRIDE · ${projectedValue} WORLD/S DURING LMB`
-      : `COMBAT STRIDE ${currentValue} → ${projectedValue} WORLD/S`,
-    accessibleResult: `Combat Stride changes from ${currentSpeed <= 0 ? "locked" : `${currentValue} world units per second`} to ${projectedValue} world units per second during LMB windup and impact. It retains ${formatNumber(projected.basicMoveRetention * 100)} percent Move Speed and does not apply to abilities.`,
-  };
-}
-
-function appendCombatStrideResult<
-  T extends Pick<OrdinaryPurchasePreview, "resultText" | "accessibleResult">,
->(formatted: T, combatStride: CombatStridePreview | null): T {
-  if (!combatStride) return formatted;
-  return {
-    ...formatted,
-    resultText: `${formatted.resultText} · ${combatStride.resultText}`,
-    accessibleResult: `${formatted.accessibleResult} ${combatStride.accessibleResult}`,
-  };
 }
 
 export interface OrdinaryPurchasePreviewSource {
@@ -162,7 +111,8 @@ export interface OrdinaryPurchasePreviewSource {
   level: number;
   equipment: EquipmentSlots;
   stats: HeroStatsSnapshot;
-  abilityRanks: Record<AbilitySlot, number>;
+  mastery: MasterySnapshot | null;
+  weaponId: EquippedWeaponId;
 }
 
 export interface OrdinaryPurchasePreview {
@@ -178,8 +128,6 @@ export interface OrdinaryPurchasePreview {
   currentCount: number;
   projectedCount: number;
   effectiveProjectedCount: number;
-  attunes: boolean;
-  combatStride: CombatStridePreview | null;
   learnedCooldowns: LearnedAbilityCooldownProjection[];
 }
 
@@ -200,7 +148,6 @@ export function formatOrdinaryPurchaseResult(
   statLabel: string,
   current: number,
   projected: number,
-  attunes = false,
 ): Pick<OrdinaryPurchasePreview, "currentValue" | "projectedValue" | "resultText" | "accessibleResult" | "changed"> {
   const currentValue = formatEquipmentStat(statKey, current);
   const projectedValue = formatEquipmentStat(statKey, projected);
@@ -210,10 +157,10 @@ export function formatOrdinaryPurchaseResult(
     projectedValue,
     resultText: changed
       ? `${statLabel.toUpperCase()} ${currentValue} → ${projectedValue}`
-      : "NO HERO STAT CHANGE",
+      : "NO BUILD STAT CHANGE",
     accessibleResult: changed
-      ? `${statLabel} ${currentValue} to ${projectedValue}${attunes ? ", and the stack Attunes" : ""}.`
-      : "No Hero Stat change.",
+      ? `${statLabel} ${currentValue} to ${projectedValue}.`
+      : "No Build stat change.",
     changed,
   };
 }
@@ -227,15 +174,12 @@ export function projectOrdinaryPurchasePreview(
   if (!projection || projection.replacedItemId !== null) return null;
 
   const field = equipmentStatFieldForItem(itemId);
-  const projectedStats = deriveHeroStats(source.heroId, source.level, projection.equipment);
+  const projectedStats = deriveHeroStats(source.heroId, source.level, projection.equipment, source.weaponId);
   const currentCount = equipmentCopyCount(source.equipment, itemId);
   const projectedCount = equipmentCopyCount(projection.equipment, itemId);
-  const attunes = !isStackAttuned(currentCount) && isStackAttuned(projectedCount);
-  const combatStride = projectCombatStride(source.stats, projectedStats);
   const learnedCooldowns = Math.abs(source.stats.cooldownRecovery - projectedStats.cooldownRecovery) > 1e-9
-    ? projectLearnedAbilityCooldowns(
-        source.heroId,
-        source.abilityRanks,
+    ? projectLearnedSkillCooldowns(
+        source.mastery,
         source.stats,
         projectedStats,
       )
@@ -245,7 +189,6 @@ export function projectOrdinaryPurchasePreview(
     field.label,
     source.stats[field.key],
     projectedStats[field.key],
-    attunes,
   );
 
   return {
@@ -257,12 +200,8 @@ export function projectOrdinaryPurchasePreview(
     currentCount,
     projectedCount,
     effectiveProjectedCount: effectiveStackCopies(projectedCount),
-    attunes,
-    combatStride,
     learnedCooldowns,
-    accessibleResult: `${formatted.accessibleResult}${
-      combatStride ? ` ${combatStride.accessibleResult}` : ""
-    }${accessibleLearnedCooldownResult(learnedCooldowns)}`,
+    accessibleResult: `${formatted.accessibleResult}${accessibleLearnedCooldownResult(learnedCooldowns)}`,
   };
 }
 
@@ -284,20 +223,17 @@ export function projectAcceptedPurchaseImpact(
   );
   if (!projection) return null;
   const field = equipmentStatFieldForItem(itemId);
-  const projectedStats = deriveHeroStats(source.heroId, source.level, projection.equipment);
+  const projectedStats = deriveHeroStats(source.heroId, source.level, projection.equipment, source.weaponId);
   return {
     itemId,
     equipment: projection.equipment,
     statKey: field.key,
     statLabel: field.label,
-    ...appendCombatStrideResult(
-      formatOrdinaryPurchaseResult(
-        field.key,
-        field.label,
-        source.stats[field.key],
-        projectedStats[field.key],
-      ),
-      projectCombatStride(source.stats, projectedStats),
+    ...formatOrdinaryPurchaseResult(
+      field.key,
+      field.label,
+      source.stats[field.key],
+      projectedStats[field.key],
     ),
   };
 }

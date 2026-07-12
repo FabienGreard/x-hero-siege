@@ -15,6 +15,22 @@
       <div class="screen-vignette" aria-hidden="true"></div>
 
       <section id="hud" class="hud is-hidden" aria-label="Game status">
+        <aside id="arming-panel" class="arming-panel panel-chrome is-hidden" role="region" aria-labelledby="arming-title" aria-describedby="arming-status" tabindex="-1">
+          <span class="eyebrow">CITADEL ARSENAL</span>
+          <strong id="arming-title">FORGE YOUR GREATSWORD</strong>
+          <p id="arming-status" role="status" aria-live="polite">Move within the Arsenal seal and forge the first Defender weapon.</p>
+          <button id="greatsword-purchase" type="button">FORGE GREATSWORD · 100 GOLD</button>
+          <div id="arsenal-loadout" class="arsenal-loadout"></div>
+          <button id="arsenal-mastery" type="button">INSPECT MASTERY NETWORK · M</button>
+          <button id="arsenal-respec" type="button">RESET MASTERY · FIRST FREE</button>
+        </aside>
+
+        <aside id="mastery-panel" class="mastery-panel panel-chrome is-hidden" aria-hidden="true" aria-labelledby="mastery-title">
+          <header><div><span class="eyebrow">GREATSWORD</span><strong id="mastery-title">MASTERY NETWORK</strong></div><button id="mastery-close" type="button">M · CLOSE</button></header>
+          <p id="mastery-status" role="status" aria-live="polite">Inspect the connected network.</p>
+          <div id="mastery-loadout" class="mastery-loadout" role="group" aria-label="Equipped Greatsword skills"></div>
+          <div id="mastery-network" class="mastery-network" role="group" aria-label="Greatsword mastery network"></div>
+        </aside>
         <div id="connection-pill" class="connection-pill is-connecting" role="status" aria-live="polite" aria-atomic="true" aria-label="Waking the realm">
           <span class="connection-dot"></span>
           <span id="connection-label">Waking the realm…</span>
@@ -38,7 +54,7 @@
         >
           <header class="hero-stats-header">
             <div>
-              <span id="hero-stats-title" class="eyebrow">HERO STATS</span>
+              <span id="hero-stats-title" class="eyebrow">DEFENDER STATS</span>
               <strong id="hero-stats-name">DEFENDER</strong>
             </div>
             <span class="hero-stats-close"><kbd>C</kbd> CLOSE</span>
@@ -116,7 +132,7 @@
                   <strong id="shop-replace-stacks">—</strong>
                 </div>
                 <div class="shop-replace-outcome">
-                  <span>HERO STATS</span>
+                  <span>DEFENDER STATS</span>
                   <strong id="shop-replace-stats">—</strong>
                 </div>
                 <div class="shop-replace-outcome">
@@ -249,11 +265,11 @@
             <p>THE LAST CITY STANDS</p>
           </div>
           <div class="select-heading">
-            <span class="eyebrow">1–4 PLAYER CO-OP · NO DUPLICATE HEROES</span>
-            <h2 id="select-title">Choose your defender</h2>
-            <p>Every hero can hold a gate. Together, you can break the siege.</p>
+            <span class="eyebrow">1–4 PLAYER CO-OP · ONE CITADEL DEFENDER EACH</span>
+            <h2 id="select-title">Enter as a Citadel Defender</h2>
+            <p>Your weapon and mastery shape your role. Together, break the siege.</p>
           </div>
-          <div id="hero-grid" class="hero-grid"></div>
+          <div id="hero-grid" class="defender-identity-container"></div>
           <div class="lobby-footer panel-chrome">
             <label class="name-field">
               <span>YOUR NAME</span>
@@ -261,7 +277,7 @@
             </label>
             <div class="lobby-status" role="status" aria-live="polite" aria-atomic="true">
               <span id="lobby-count">1 / 4 defenders</span>
-              <span id="lobby-note">Choose a hero to reserve them</span>
+              <span id="lobby-note">Ready your Defender for the Arsenal</span>
             </div>
             <button id="ready-button" class="ready-button" disabled>
               <span class="ready-main">READY</span>

@@ -20,18 +20,19 @@ import {
 } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
+import { completeArming } from "./support/defender-fixture";
 
 function readyParty(game: GameWorld, heroIds: HeroId[]): void {
   for (const [index, heroId] of heroIds.entries()) {
     const playerId = `p${index + 1}`;
     expect(game.addPlayer(playerId, `Hero ${index + 1}`).ok).toBe(true);
-    expect(game.claimHero(playerId, heroId).ok).toBe(true);
     expect(game.setReady(playerId, true).ok).toBe(true);
   }
   expect(game.startGame("p1").ok).toBe(true);
+  completeArming(game, heroIds.map((_, index) => `p${index + 1}`));
 }
 
-function readyHero(game: GameWorld, heroId: HeroId = "warden"): void {
+function readyHero(game: GameWorld, heroId: HeroId = "defender"): void {
   readyParty(game, [heroId]);
 }
 
@@ -149,11 +150,11 @@ describe("authoritative exact-slot item selling", () => {
     for (const scenario of scenarios) {
       const game = new GameWorld();
       expect(game.addPlayer("p1", "Hero 1").ok).toBe(true);
-      expect(game.claimHero("p1", "warden").ok).toBe(true);
       equip(game, ["tempered_edge", null, null, null, null, null], "p1", 17);
       if (scenario.start !== false) {
         expect(game.setReady("p1", true).ok).toBe(true);
         expect(game.startGame("p1").ok).toBe(true);
+        completeArming(game, ["p1"]);
         equip(game, ["tempered_edge", null, null, null, null, null], "p1", 17);
       }
       scenario.setup?.(game);
@@ -176,34 +177,6 @@ describe("authoritative exact-slot item selling", () => {
     }
   });
 
-  test("selling the fourth copy releases Attunement and Combat Stride while five to four stays Attuned", () => {
-    const four = new GameWorld();
-    readyHero(four);
-    equip(four, ["fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", null, null]);
-    placeAt(four, "veilglass_reliquary");
-    four.takePendingEvents();
-    expect(four.getSnapshot().players[0]!.stats.basicMoveRetention).toBeCloseTo(0.15);
-    expect(sell(four, "veilglass_reliquary", 3, "fleetstep_greaves").ok).toBe(true);
-    expect(four.getSnapshot().players[0]!.stats.basicMoveRetention).toBe(0);
-    expect(four.takePendingEvents()[0]).toMatchObject({
-      kind: "item_sold",
-      attunementTransition: {
-        itemId: "fleetstep_greaves",
-        change: "lost",
-        fromCount: 4,
-        toCount: 3,
-      },
-    });
-
-    const five = new GameWorld();
-    readyHero(five);
-    equip(five, ["fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", "fleetstep_greaves", null]);
-    placeAt(five, "veilglass_reliquary");
-    five.takePendingEvents();
-    expect(sell(five, "veilglass_reliquary", 4, "fleetstep_greaves").ok).toBe(true);
-    expect(five.getSnapshot().players[0]!.stats.basicMoveRetention).toBeCloseTo(0.15);
-    expect(five.takePendingEvents()[0]!.attunementTransition).toBeUndefined();
-  });
 
   test("selling Quickening preserves active ability progress without touching LMB or action timing", () => {
     const game = new GameWorld();
@@ -226,155 +199,10 @@ describe("authoritative exact-slot item selling", () => {
     expect(state.action).toEqual(actionBefore);
   });
 
-  test("selling Focus never rewrites existing projectiles, delayed strikes, or Wraiths", () => {
-    const focusBuild: EquipmentSlots = ["runebound_focus", null, null, null, null, null];
-
-    const projectileGame = new GameWorld();
-    readyHero(projectileGame, "riftstalker");
-    equip(projectileGame, focusBuild);
-    expect(projectileGame.levelAbility("p1", "ability2").ok).toBe(true);
-    expect(projectileGame.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
-    advance(projectileGame, 0.4);
-    const projectileInternal = projectileGame as unknown as {
-      projectiles: Map<string, {
-        damage: number;
-        kind: string;
-        position: { x: number; z: number };
-        velocity: { x: number; z: number };
-        splitStage?: "seed" | "fork";
-      }>;
-      enemies: Map<string, { hp: number; radius: number; speed: number }>;
-      spawnTimer: number;
-      spawnEnemy(
-        lane: "north",
-        kind: "imp",
-        position: { x: number; z: number },
-      ): string | null;
-    };
-    const splitboltDamage = () => [...projectileInternal.projectiles.values()].filter((projectile) => projectile.kind === "splitbolt").map((projectile) => projectile.damage);
-    expectNumbers(splitboltDamage(), [54.05]);
-    placeAt(projectileGame, "ironbound_forge");
-    expect(sell(projectileGame, "ironbound_forge", 0, "runebound_focus").ok).toBe(true);
-    expectNumbers(splitboltDamage(), [54.05]);
-    projectileInternal.spawnTimer = 1_000;
-    const seed = [...projectileInternal.projectiles.values()][0]!;
-    const speed = Math.hypot(seed.velocity.x, seed.velocity.z);
-    const forkTargetId = projectileInternal.spawnEnemy("north", "imp", {
-      x: seed.position.x + (seed.velocity.x / speed) * 2.9,
-      z: seed.position.z + (seed.velocity.z / speed) * 2.9,
-    });
-    expect(forkTargetId).not.toBeNull();
-    const forkTarget = projectileInternal.enemies.get(forkTargetId!)!;
-    forkTarget.hp = 1;
-    forkTarget.radius = 0;
-    forkTarget.speed = 0;
-    advance(projectileGame, 0.1);
-    expectNumbers(splitboltDamage(), [54.05, 54.05, 54.05]);
-    expect([...projectileInternal.projectiles.values()].map(({ splitStage }) => splitStage))
-      .toEqual(["seed", "fork", "fork"]);
-
-    const delayedGame = new GameWorld();
-    readyHero(delayedGame, "ashcaller");
-    equip(delayedGame, focusBuild);
-    expect(delayedGame.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(delayedGame.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(delayedGame, 0.4);
-    const delayedInternal = delayedGame as unknown as { delayed: Array<{ damage: number }> };
-    expectNumbers(delayedInternal.delayed.map((strike) => strike.damage), [120.75]);
-    placeAt(delayedGame, "ironbound_forge");
-    expect(sell(delayedGame, "ironbound_forge", 0, "runebound_focus").ok).toBe(true);
-    expectNumbers(delayedInternal.delayed.map((strike) => strike.damage), [120.75]);
-
-    const summonGame = new GameWorld();
-    readyHero(summonGame, "gravebinder");
-    equip(summonGame, focusBuild);
-    expect(summonGame.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(summonGame.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(summonGame, 0.4);
-    const summonInternal = summonGame as unknown as { summons: Map<string, { damage: number }> };
-    expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [27.6, 27.6, 27.6]);
-    placeAt(summonGame, "ironbound_forge");
-    expect(sell(summonGame, "ironbound_forge", 0, "runebound_focus").ok).toBe(true);
-    expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [27.6, 27.6, 27.6]);
-  });
-
-  test("selling Focus preserves a living Cinder Wall while the next wall uses current power", () => {
-    const game = new GameWorld({ timings: { defenseDuration: 200 }, enemyCap: 12, random: () => 0.5 });
-    readyHero(game, "ashcaller");
-    equip(game, ["runebound_focus", null, null, null, null, null]);
-    const player = game.players.get("p1")!;
-    player.position = { x: 0, z: 0 };
-    const internal = game as unknown as {
-      cinderWalls: Map<string, { damage: number }>;
-      enemies: Map<string, { position: { x: number; z: number }; hp: number; radius: number; speed: number }>;
-      spawnTimer: number;
-      spawnEnemy(lane: "north", kind: "imp", position: { x: number; z: number }): string | null;
-    };
-    internal.spawnTimer = 1_000;
-    internal.enemies.clear();
-
-    expect(game.levelAbility("p1", "ability2").ok).toBe(true);
-    expect(game.handleMessage("p1", {
-      type: "input",
-      seq: 1,
-      move: { x: 0, z: 0 },
-      aim: { x: 0, z: -1 },
-      attacking: false,
-    }).ok).toBe(true);
-    expect(game.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
-    advance(game, 0.4);
-    expect([...internal.cinderWalls.values()]).toHaveLength(1);
-    expect([...internal.cinderWalls.values()][0]!.damage).toBeCloseTo(48.3);
-
-    placeAt(game, "ironbound_forge");
-    expect(sell(game, "ironbound_forge", 0, "runebound_focus").ok).toBe(true);
-    expect(game.getSnapshot().players[0]!.stats.abilityPower).toBe(1);
-
-    const firstLateId = internal.spawnEnemy("north", "imp", { x: 0, z: -8 });
-    expect(firstLateId).not.toBeNull();
-    const firstLate = internal.enemies.get(firstLateId!)!;
-    firstLate.position = { x: 0, z: -8 };
-    firstLate.hp = 1_000;
-    firstLate.radius = 0;
-    firstLate.speed = 0;
-    advance(game, 0.05);
-    expect(firstLate.hp).toBeCloseTo(1_000 - 48.3);
-
-    for (
-      let step = 0;
-      step < 220 && (player.cooldowns.ability2 > 0 || internal.cinderWalls.size > 0);
-      step += 1
-    ) game.update(0.05);
-    expect(player.cooldowns.ability2).toBe(0);
-    expect(internal.cinderWalls.size).toBe(0);
-
-    player.position = { x: 0, z: 0 };
-    expect(game.handleMessage("p1", {
-      type: "input",
-      seq: 2,
-      move: { x: 0, z: 0 },
-      aim: { x: 0, z: -1 },
-      attacking: false,
-    }).ok).toBe(true);
-    expect(game.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
-    advance(game, 0.4);
-    expect([...internal.cinderWalls.values()]).toHaveLength(1);
-    expect([...internal.cinderWalls.values()][0]!.damage).toBe(42);
-
-    const secondLateId = internal.spawnEnemy("north", "imp", { x: 0, z: -12 });
-    expect(secondLateId).not.toBeNull();
-    const secondLate = internal.enemies.get(secondLateId!)!;
-    secondLate.position = { x: 0, z: -12 };
-    secondLate.hp = 1_000;
-    secondLate.radius = 0;
-    secondLate.speed = 0;
-    advance(game, 0.05);
-    expect(secondLate.hp).toBe(1_000 - 42);
-  });
 
   test("two heroes sell independently at opposite shops", () => {
     const game = new GameWorld();
-    readyParty(game, [HERO_IDS[0]!, HERO_IDS[1]!]);
+    readyParty(game, ["defender", "defender"]);
     equip(game, ["tempered_edge", null, null, null, null, null], "p1");
     equip(game, ["runebound_focus", null, null, null, null, null], "p2");
     placeAt(game, "ironbound_forge", "p1");

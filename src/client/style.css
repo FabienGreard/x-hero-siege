@@ -607,10 +607,6 @@ button {
   letter-spacing: 0.05em;
 }
 
-.equipment-stack.will-attune .equipment-stack-copy > em {
-  color: #f0ca72;
-}
-
 .equipment-stack[data-item="fleetstep_greaves"],
 .equipment-stack[data-item="quickening_sigil"] {
   border-color: rgba(104, 216, 255, 0.2);
@@ -641,21 +637,6 @@ button {
   color: #d99a72;
   background: rgba(217, 154, 114, 0.08);
   border-color: rgba(217, 154, 114, 0.24);
-}
-
-.equipment-stack.is-attuned {
-  border-color: rgba(255, 220, 135, 0.5);
-  box-shadow: inset 0 0 12px rgba(233, 186, 99, 0.08), 0 0 8px rgba(233, 186, 99, 0.08);
-}
-
-.equipment-stack.is-attuned .equipment-stack-copy strong b {
-  color: #ffe3a0;
-  text-shadow: 0 0 6px rgba(233, 186, 99, 0.38);
-}
-
-.equipment-stack.is-attuned .equipment-stack-copy > em {
-  color: #ffe3a0;
-  text-shadow: 0 0 6px rgba(233, 186, 99, 0.28);
 }
 
 .equipment-slot {
@@ -1270,21 +1251,6 @@ button.equipment-slot {
 .shop-item-owned.is-building {
   font-size: 5px;
   letter-spacing: 0.045em;
-}
-
-.shop-item-owned.will-attune {
-  color: #ffe8aa;
-  background: rgba(233, 186, 99, 0.1);
-  border-color: rgba(233, 186, 99, 0.44);
-  font-size: 4.5px;
-  letter-spacing: 0.045em;
-}
-
-.shop-item-owned.is-attuned {
-  color: #fff0bd;
-  background: rgba(233, 186, 99, 0.14);
-  border-color: rgba(255, 222, 143, 0.55);
-  box-shadow: 0 0 7px rgba(233, 186, 99, 0.13);
 }
 
 .shop-item-description {
@@ -2960,7 +2926,6 @@ kbd {
 .shop-item-effect,
 .shop-item-owned,
 .shop-item-owned.is-building,
-.shop-item-owned.will-attune,
 .shop-item-projection > small,
 .shop-item-projection > em,
 .shop-item-evolution,
@@ -3014,10 +2979,6 @@ kbd,
 
 .equipment-stack {
   min-height: 36px;
-}
-
-.equipment-stack.will-attune[data-item="fleetstep_greaves"] {
-  grid-column: 1 / -1;
 }
 
 .shop-item-owned,
@@ -3576,3 +3537,27 @@ kbd,
   .threat-panel { transform: scale(0.78); transform-origin: top right; }
   .action-hud { transform: translateX(-50%) scale(0.72); transform-origin: bottom center; }
 }
+.arming-panel {
+  position: fixed; top: 76px; left: 50%; z-index: 32; transform: translateX(-50%);
+  width: min(460px, calc(100vw - 32px)); padding: 18px; text-align: center;
+  pointer-events: auto;
+}
+.arming-panel strong, .arming-panel p { display: block; margin: 7px 0; }
+.arming-panel button { min-height: 44px; padding: 0 18px; }
+.arsenal-loadout { margin: 10px 0; font-size: 10px; line-height: 1.6; }
+.mastery-panel {
+  position: fixed; top: 70px; left: 24px; z-index: 34; width: min(880px, calc(100vw - 408px));
+  max-height: 548px; padding: 16px; overflow: auto;
+  pointer-events: auto;
+}
+.mastery-panel header { display: flex; justify-content: space-between; align-items: center; }
+.mastery-panel header strong { display: block; }
+.mastery-loadout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.mastery-network { position: relative; min-height: 390px; }
+.mastery-node { position: absolute; width: 160px; min-height: 50px; transform: translate(-50%, -50%); }
+.mastery-node.is-learned { border-color: #d7b978; }
+.mastery-node.is-selected { outline: 2px solid #f2d99b; }
+@media (max-width: 900px) { .mastery-panel { left: 12px; width: calc(100vw - 24px); } }
+.defender-identity-container { max-width: 680px; margin: 18px auto; }
+.defender-identity { padding: 24px; text-align: center; }
+.defender-identity strong { display: block; margin: 8px 0; font-size: 24px; }

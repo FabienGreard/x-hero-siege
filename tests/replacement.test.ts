@@ -17,6 +17,7 @@ import {
 } from "../src/shared/protocol";
 import { goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
+import { completeArming } from "./support/defender-fixture";
 
 const sixFocuses: EquipmentSlots = [
   "runebound_focus",
@@ -31,10 +32,10 @@ function readyParty(game: GameWorld, heroIds: HeroId[]): void {
   for (const [index, heroId] of heroIds.entries()) {
     const playerId = `p${index + 1}`;
     expect(game.addPlayer(playerId, `Hero ${index + 1}`).ok).toBe(true);
-    expect(game.claimHero(playerId, heroId).ok).toBe(true);
     expect(game.setReady(playerId, true).ok).toBe(true);
   }
   expect(game.startGame("p1").ok).toBe(true);
+  completeArming(game, heroIds.map((_, index) => `p${index + 1}`));
 }
 
 function readyHero(game: GameWorld, heroId: HeroId): void {
@@ -112,7 +113,7 @@ describe("authoritative full-build item replacement", () => {
   test("a 30-gold net reforge changes exactly the selected slot and emits one atomic receipt", () => {
     expect(ARMORY_WARE_PRICE - ARMORY_SELL_VALUE).toBe(ARMORY_REFORGE_NET_COST);
     const game = new GameWorld();
-    readyHero(game, "warden");
+    readyHero(game, "defender");
     equip(game, sixFocuses);
     placeAt(game, "ironbound_forge");
     game.takePendingEvents();
@@ -133,7 +134,7 @@ describe("authoritative full-build item replacement", () => {
     ]);
     expect(player.equipment).toHaveLength(6);
     expect(player.stats.basicDamage).toBeCloseTo(36);
-    expect(player.stats.abilityPower).toBeCloseTo(1.9);
+    expect(player.stats.abilityPower).toBeCloseTo(1.75);
 
     const pendingEvents = game.takePendingEvents();
     expect(pendingEvents.filter((event) => event.kind === "item_sold")).toHaveLength(0);
@@ -154,7 +155,7 @@ describe("authoritative full-build item replacement", () => {
 
   test("replacement is unavailable before six slots are filled and normal buying stays non-destructive", () => {
     const game = new GameWorld();
-    readyHero(game, "warden");
+    readyHero(game, "defender");
     const partial: EquipmentSlots = ["runebound_focus", null, null, null, null, null];
     equip(game, partial);
     placeAt(game, "ironbound_forge");
@@ -180,7 +181,7 @@ describe("authoritative full-build item replacement", () => {
 
   test("stale selection, invalid slot, and same-item confirmations never charge or mutate", () => {
     const game = new GameWorld();
-    readyHero(game, "warden");
+    readyHero(game, "defender");
     equip(game, sixFocuses, "p1", 3 * ARMORY_WARE_PRICE);
     placeAt(game, "ironbound_forge");
     game.takePendingEvents();
@@ -281,9 +282,11 @@ describe("authoritative full-build item replacement", () => {
     for (const scenario of scenarios) {
       const game = new GameWorld();
       expect(game.addPlayer("p1", "Hero 1").ok).toBe(true);
-      expect(game.claimHero("p1", "warden").ok).toBe(true);
       expect(game.setReady("p1", true).ok).toBe(true);
-      if (scenario.start !== false) expect(game.startGame("p1").ok).toBe(true);
+      if (scenario.start !== false) {
+        expect(game.startGame("p1").ok).toBe(true);
+        completeArming(game, ["p1"]);
+      }
       equip(game, sixFocuses);
       scenario.setup(game);
       game.takePendingEvents();
@@ -308,7 +311,7 @@ describe("authoritative full-build item replacement", () => {
 
   test("duplicates remain unrestricted while replacing a slot with its current item is rejected", () => {
     const game = new GameWorld();
-    readyHero(game, "warden");
+    readyHero(game, "defender");
     const equipment: EquipmentSlots = [
       "tempered_edge",
       "runebound_focus",
@@ -330,7 +333,7 @@ describe("authoritative full-build item replacement", () => {
 
   test("Quickening replacement preserves Q E R F progress in both directions without touching LMB or action timing", () => {
     const game = new GameWorld();
-    readyHero(game, "warden");
+    readyHero(game, "defender");
     const equipment: EquipmentSlots = [
       "quickening_sigil",
       "quickening_sigil",
@@ -378,85 +381,10 @@ describe("authoritative full-build item replacement", () => {
     expect(state.action).toEqual(actionBefore);
   });
 
-  test("removing Focus never rewrites existing projectiles, delayed strikes, or summons", () => {
-    const focusBuild: EquipmentSlots = [
-      "runebound_focus",
-      "fleetstep_greaves",
-      "fleetstep_greaves",
-      "fleetstep_greaves",
-      "fleetstep_greaves",
-      "fleetstep_greaves",
-    ];
-
-    const projectileGame = new GameWorld();
-    readyHero(projectileGame, "riftstalker");
-    equip(projectileGame, focusBuild);
-    expect(projectileGame.levelAbility("p1", "ability2").ok).toBe(true);
-    expect(projectileGame.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
-    advance(projectileGame, 0.4);
-    const projectileInternal = projectileGame as unknown as {
-      projectiles: Map<string, { damage: number; kind: string }>;
-    };
-    const splitboltDamage = () => [...projectileInternal.projectiles.values()]
-      .filter((projectile) => projectile.kind === "splitbolt")
-      .map((projectile) => projectile.damage);
-    expectNumbers(splitboltDamage(), [54.05]);
-    placeAt(projectileGame, "ironbound_forge");
-    expect(replace(projectileGame, "ironbound_forge", "tempered_edge", 0, "runebound_focus").ok).toBe(true);
-    expectNumbers(splitboltDamage(), [54.05]);
-    const projectilePlayer = projectileGame.players.get("p1")!;
-    projectilePlayer.cooldowns.ability2 = 0;
-    projectilePlayer.action = null;
-    expect(projectileGame.handleMessage("p1", { type: "cast", slot: "ability2" }).ok).toBe(true);
-    advance(projectileGame, 0.4);
-    expectNumbers(splitboltDamage(), [54.05, 47]);
-
-    const delayedGame = new GameWorld();
-    readyHero(delayedGame, "ashcaller");
-    equip(delayedGame, focusBuild);
-    expect(delayedGame.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(delayedGame.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(delayedGame, 0.4);
-    const delayedInternal = delayedGame as unknown as { delayed: Array<{ damage: number }> };
-    expectNumbers(delayedInternal.delayed.map((strike) => strike.damage), [120.75]);
-    placeAt(delayedGame, "ironbound_forge");
-    expect(replace(delayedGame, "ironbound_forge", "tempered_edge", 0, "runebound_focus").ok).toBe(true);
-    expectNumbers(delayedInternal.delayed.map((strike) => strike.damage), [120.75]);
-    const delayedPlayer = delayedGame.players.get("p1")!;
-    delayedPlayer.cooldowns.ability3 = 0;
-    delayedPlayer.action = null;
-    expect(delayedGame.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(delayedGame, 0.4);
-    expectNumbers(delayedInternal.delayed.map((strike) => strike.damage), [120.75, 105]);
-
-    const summonGame = new GameWorld();
-    readyHero(summonGame, "gravebinder");
-    equip(summonGame, focusBuild);
-    expect(summonGame.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(summonGame.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(summonGame, 0.4);
-    const summonInternal = summonGame as unknown as { summons: Map<string, { damage: number }> };
-    expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [27.6, 27.6, 27.6]);
-    placeAt(summonGame, "ironbound_forge");
-    expect(replace(summonGame, "ironbound_forge", "tempered_edge", 0, "runebound_focus").ok).toBe(true);
-    expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [27.6, 27.6, 27.6]);
-    const summonPlayer = summonGame.players.get("p1")!;
-    summonPlayer.cooldowns.ability3 = 0;
-    summonPlayer.action = null;
-    expect(summonGame.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(summonGame, 0.4);
-    expectNumbers([...summonInternal.summons.values()].map((summon) => summon.damage), [
-      27.6,
-      27.6,
-      24,
-      24,
-      24,
-    ]);
-  });
 
   test("two heroes can replace at different vendors without sharing wallets, slots, or stats", () => {
     const game = new GameWorld();
-    readyParty(game, [HERO_IDS[0]!, HERO_IDS[1]!]);
+    readyParty(game, ["defender", "defender"]);
     const sixEdges: EquipmentSlots = [
       "tempered_edge",
       "tempered_edge",
@@ -484,8 +412,8 @@ describe("authoritative full-build item replacement", () => {
     expect(reliquaryBuyer.equipment[4]).toBe("runebound_focus");
     expect(reliquaryBuyer.equipment.filter((itemId) => itemId === "tempered_edge")).toHaveLength(5);
     expect(forgeBuyer.stats.basicDamage).toBeCloseTo(36);
-    expect(forgeBuyer.stats.abilityPower).toBeCloseTo(1.9);
-    expect(reliquaryBuyer.stats.basicDamage).toBeCloseTo(41.8);
+    expect(forgeBuyer.stats.abilityPower).toBeCloseTo(1.75);
+    expect(reliquaryBuyer.stats.basicDamage).toBeCloseTo(60);
     expect(reliquaryBuyer.stats.abilityPower).toBeCloseTo(1.15);
     const events = game.takePendingEvents().filter((event) => event.kind === "item_purchased");
     expect(events).toHaveLength(2);

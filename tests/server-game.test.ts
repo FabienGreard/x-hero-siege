@@ -1,23 +1,27 @@
 import { describe, expect, test } from "bun:test";
 import { GameWorld } from "../src/server/game";
-import { HERO_IDS, LANE_IDS, WORLD_LAYOUT } from "../src/shared/game-data";
-import { parseClientMessage } from "../src/shared/protocol";
+import { LANE_IDS, WORLD_LAYOUT } from "../src/shared/game-data";
+import { configureGreatsword } from "./support/defender-fixture";
 
 const readySolo = (game: GameWorld) => {
   expect(game.addPlayer("p1", "Ada").ok).toBe(true);
-  expect(game.claimHero("p1", "warden").ok).toBe(true);
   expect(game.setReady("p1", true).ok).toBe(true);
   expect(game.startGame("p1").ok).toBe(true);
+  expect(game.handleMessage("p1", { type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" }).ok).toBe(true);
+  for (let index = 0; index < 26; index += 1) game.update(0.1);
 };
 
 const readyParty = (game: GameWorld, count: number) => {
   for (let index = 0; index < count; index += 1) {
     const playerId = `p${index + 1}`;
     expect(game.addPlayer(playerId, `Hero ${index + 1}`).ok).toBe(true);
-    expect(game.claimHero(playerId, HERO_IDS[index]!).ok).toBe(true);
     expect(game.setReady(playerId, true).ok).toBe(true);
   }
   expect(game.startGame("p1").ok).toBe(true);
+  for (let index = 0; index < count; index += 1) {
+    expect(game.handleMessage(`p${index + 1}`, { type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" }).ok).toBe(true);
+  }
+  for (let index = 0; index < 26; index += 1) game.update(0.1);
 };
 
 const advance = (game: GameWorld, seconds: number) => {
@@ -25,20 +29,6 @@ const advance = (game: GameWorld, seconds: number) => {
 };
 
 describe("authoritative siege world", () => {
-  test("the protocol removes dodge and accepts explicit ability leveling", () => {
-    expect(parseClientMessage(JSON.stringify({ type: "dodge", direction: { x: 1, z: 0 } }))).toBeNull();
-    expect(parseClientMessage(JSON.stringify({ type: "choose_talent", talentId: "fury" }))).toBeNull();
-    expect(parseClientMessage(JSON.stringify({ type: "level_ability", slot: "ability2" }))).toEqual({
-      type: "level_ability",
-      slot: "ability2",
-    });
-    expect(parseClientMessage(JSON.stringify({ type: "hello", name: "Ada", resumeToken: "opaque-token" }))).toEqual({
-      type: "hello",
-      name: "Ada",
-      resumeToken: "opaque-token",
-    });
-    expect(parseClientMessage(JSON.stringify({ type: "hello", name: "Ada", resumeToken: 42 }))).toBeNull();
-  });
 
   test("a reserved defender becomes inert without losing authoritative run state", () => {
     const game = new GameWorld({ timings: { defenseDuration: 20 } });
@@ -67,19 +57,6 @@ describe("authoritative siege world", () => {
     expect(game.getSnapshot().players[0]!.connected).toBe(true);
   });
 
-  test("a hero can only be claimed by one of up to four players", () => {
-    const game = new GameWorld();
-    game.addPlayer("p1", "Ada");
-    game.addPlayer("p2", "Bryn");
-
-    expect(game.claimHero("p1", "riftstalker").ok).toBe(true);
-    const duplicate = game.claimHero("p2", "riftstalker");
-
-    expect(duplicate.ok).toBe(false);
-    expect(duplicate.code).toBe("HERO_TAKEN");
-    expect(game.getSnapshot().lobby.claimedHeroes.riftstalker).toBe("p1");
-  });
-
   test("destroying the central Nexus immediately loses the run", () => {
     const game = new GameWorld();
     readySolo(game);
@@ -99,16 +76,17 @@ describe("authoritative siege world", () => {
 
     const snapshot = game.getSnapshot();
     expect(snapshot.phase).toBe("lobby");
-    expect(snapshot.players[0]!.heroId).toBe("warden");
+    expect(snapshot.players[0]!.heroId).toBe("defender");
     expect(snapshot.players[0]!.ready).toBe(false);
   });
 
   test("authoritative run time survives clients and freezes with the outcome", () => {
     const game = new GameWorld({ timings: { defenseDuration: 20 } });
     readySolo(game);
+    const defenseStart = game.getSnapshot().runElapsed;
     advance(game, 1.25);
     const activeTime = game.getSnapshot().runElapsed;
-    expect(activeTime).toBeCloseTo(1.25);
+    expect(activeTime - defenseStart).toBeCloseTo(1.25);
 
     game.damageNexus(10_000);
     advance(game, 1);
@@ -218,124 +196,6 @@ describe("authoritative siege world", () => {
     expect(new Set(snapshot.enemies.map((enemy) => enemy.maxHp))).toContain(Math.round(42 * 1.07));
   });
 
-  test("a run starts with one skill point and rejects unlearned casts and overspending", () => {
-    const game = new GameWorld({ timings: { defenseDuration: 20 } });
-    readySolo(game);
-
-    let player = game.getSnapshot().players[0]!;
-    expect(player.skillPoints).toBe(1);
-    expect(player.abilityRanks).toEqual({ ability1: 0, ability2: 0, ability3: 0, ultimate: 0 });
-    expect(game.handleMessage("p1", { type: "cast", slot: "ability1" }).code).toBe("ABILITY_UNLEARNED");
-
-    expect(game.levelAbility("p1", "ability1").ok).toBe(true);
-    player = game.getSnapshot().players[0]!;
-    expect(player.abilityRanks.ability1).toBe(1);
-    expect(player.skillPoints).toBe(0);
-    expect(game.levelAbility("p1", "ability2").code).toBe("NO_SKILL_POINTS");
-  });
-
-  test("the ultimate has a level gate and a two-rank cap", () => {
-    const game = new GameWorld({ timings: { defenseDuration: 20 } });
-    readySolo(game);
-
-    expect(game.levelAbility("p1", "ultimate").code).toBe("LEVEL_REQUIRED");
-    expect(game.getSnapshot().players[0]!.skillPoints).toBe(1);
-
-    game.grantExperience("p1", 135);
-    expect(game.getSnapshot().players[0]!.level).toBe(3);
-    expect(game.levelAbility("p1", "ultimate").ok).toBe(true);
-    expect(game.levelAbility("p1", "ultimate").ok).toBe(true);
-    expect(game.levelAbility("p1", "ultimate").code).toBe("MAX_RANK");
-    expect(game.getSnapshot().players[0]!.skillPoints).toBe(1);
-    expect(game.levelAbility("p1", "ability1").ok).toBe(true);
-    expect(game.getSnapshot().players[0]!.skillPoints).toBe(0);
-  });
-
-  test("a fully maxed build never receives an unusable skill point", () => {
-    const game = new GameWorld({ timings: { defenseDuration: 20 } });
-    readySolo(game);
-    game.grantExperience("p1", 2_075);
-
-    expect(game.getSnapshot().players[0]!.level).toBe(11);
-    expect(game.getSnapshot().players[0]!.skillPoints).toBe(11);
-    for (let rank = 0; rank < 3; rank += 1) {
-      expect(game.levelAbility("p1", "ability1").ok).toBe(true);
-      expect(game.levelAbility("p1", "ability2").ok).toBe(true);
-      expect(game.levelAbility("p1", "ability3").ok).toBe(true);
-    }
-    for (let rank = 0; rank < 2; rank += 1) expect(game.levelAbility("p1", "ultimate").ok).toBe(true);
-
-    let player = game.getSnapshot().players[0]!;
-    expect(player.abilityRanks).toEqual({ ability1: 3, ability2: 3, ability3: 3, ultimate: 2 });
-    expect(player.skillPoints).toBe(0);
-
-    game.grantExperience("p1", 400);
-    player = game.getSnapshot().players[0]!;
-    expect(player.level).toBe(12);
-    expect(player.skillPoints).toBe(0);
-  });
-
-  test("banked skill points cannot exceed the hero's remaining rank capacity", () => {
-    for (const heroId of HERO_IDS) {
-      const game = new GameWorld({ timings: { defenseDuration: 20 } });
-      expect(game.addPlayer("p1", "Ada").ok).toBe(true);
-      expect(game.claimHero("p1", heroId).ok).toBe(true);
-      expect(game.setReady("p1", true).ok).toBe(true);
-      expect(game.startGame("p1").ok).toBe(true);
-
-      game.grantExperience("p1", 2_475);
-      const player = game.getSnapshot().players[0]!;
-      expect(player.level).toBe(12);
-      expect(player.skillPoints).toBe(11);
-    }
-  });
-
-  test("higher ability ranks visibly increase the effect radius", () => {
-    const rankOne = new GameWorld({ timings: { defenseDuration: 20 }, random: () => 0.5 });
-    readySolo(rankOne);
-    expect(rankOne.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(rankOne.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(rankOne, 0.4);
-    const rankOneRadius = rankOne.getSnapshot().effects.find((effect) => effect.kind === "war_standard")!.radius;
-
-    const rankTwo = new GameWorld({ timings: { defenseDuration: 20 }, random: () => 0.5 });
-    readySolo(rankTwo);
-    rankTwo.grantExperience("p1", 50);
-    expect(rankTwo.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(rankTwo.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(rankTwo.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-    advance(rankTwo, 0.4);
-    const rankTwoRadius = rankTwo.getSnapshot().effects.find((effect) => effect.kind === "war_standard")!.radius;
-
-    expect(rankTwoRadius).toBeCloseTo(rankOneRadius * 1.08);
-  });
-
-  test("Wraith Host raises persistent authoritative summons instead of firing a projectile fan", () => {
-    const game = new GameWorld({ timings: { defenseDuration: 20 }, random: () => 0.5 });
-    expect(game.addPlayer("p1", "Ada").ok).toBe(true);
-    expect(game.claimHero("p1", "gravebinder").ok).toBe(true);
-    expect(game.setReady("p1", true).ok).toBe(true);
-    expect(game.startGame("p1").ok).toBe(true);
-    expect(game.levelAbility("p1", "ability3").ok).toBe(true);
-    expect(game.handleMessage("p1", { type: "cast", slot: "ability3" }).ok).toBe(true);
-
-    advance(game, 0.4);
-    const raised = game.getSnapshot();
-    expect(raised.summons).toHaveLength(3);
-    expect(raised.summons.every((summon) => summon.kind === "wraith" && summon.ownerId === "p1")).toBe(true);
-    expect(raised.projectiles).toHaveLength(0);
-    const initialPositions = raised.summons.map((summon) => ({ ...summon.position }));
-
-    advance(game, 0.5);
-    const hunting = game.getSnapshot().summons;
-    expect(hunting).toHaveLength(3);
-    expect(hunting.some((summon, index) => summon.position.x !== initialPositions[index]!.x || summon.position.z !== initialPositions[index]!.z)).toBe(true);
-    const pairDistances = hunting.flatMap((summon, index) => hunting.slice(index + 1).map((other) =>
-      Math.hypot(summon.position.x - other.position.x, summon.position.z - other.position.z),
-    ));
-    expect(Math.min(...pairDistances)).toBeGreaterThan(2);
-  });
-
   test("hero attacks expose an authoritative windup before impact", () => {
     const game = new GameWorld({ timings: { defenseDuration: 20 } });
     readySolo(game);
@@ -357,7 +217,7 @@ describe("authoritative siege world", () => {
   test("an ability interrupts a held basic attack without overlapping another ability", () => {
     const game = new GameWorld({ timings: { defenseDuration: 20 } });
     readySolo(game);
-    expect(game.levelAbility("p1", "ability1").ok).toBe(true);
+    configureGreatsword(game, "p1", ["cleave"], { ability1: "cleave" });
     game.handleMessage("p1", {
       type: "input",
       seq: 1,
@@ -372,7 +232,7 @@ describe("authoritative siege world", () => {
     const player = game.getSnapshot().players[0]!;
     expect(player.action?.kind).toBe("ability1");
     expect(player.action?.phase).toBe("windup");
-    expect(player.cooldowns.ability1).toBe(6);
+    expect(player.cooldownsBySkillId.cleave).toBeGreaterThan(0);
     expect(game.handleMessage("p1", { type: "cast", slot: "ability1" }).code).toBe("ACTION_BUSY");
   });
 

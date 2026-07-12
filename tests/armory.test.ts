@@ -10,6 +10,7 @@ import { parseClientMessage, type ClientMessage, type EquipmentSlots } from "../
 import { goldFromUnits, goldToUnits } from "../src/server/economy";
 import { GameWorld } from "../src/server/game";
 import { deriveHeroStats } from "../src/server/hero-stats";
+import { completeArming } from "./support/defender-fixture";
 
 const forge = VENDOR_DEFINITIONS.ironbound_forge;
 
@@ -17,10 +18,10 @@ function readyParty(game: GameWorld, count: number): void {
   for (let index = 0; index < count; index += 1) {
     const playerId = `p${index + 1}`;
     expect(game.addPlayer(playerId, `Hero ${index + 1}`).ok).toBe(true);
-    expect(game.claimHero(playerId, HERO_IDS[index]!).ok).toBe(true);
     expect(game.setReady(playerId, true).ok).toBe(true);
   }
   expect(game.startGame("p1").ok).toBe(true);
+  completeArming(game, Array.from({ length: count }, (_, index) => `p${index + 1}`));
 }
 
 function placeAtForge(game: GameWorld, playerId = "p1"): void {
@@ -162,13 +163,13 @@ describe("authoritative Ironbound Forge", () => {
   test("only a living hero in an active run can trade", () => {
     const game = new GameWorld();
     expect(game.addPlayer("p1", "Ada").ok).toBe(true);
-    expect(game.claimHero("p1", "warden").ok).toBe(true);
     placeAtForge(game);
     fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "tempered_edge").code).toBe("RUN_INACTIVE");
 
     expect(game.setReady("p1", true).ok).toBe(true);
     expect(game.startGame("p1").ok).toBe(true);
+    completeArming(game, ["p1"]);
     placeAtForge(game);
     game.players.get("p1")!.downedFor = 1;
     expect(buy(game, "tempered_edge").code).toBe("PLAYER_DOWNED");
@@ -204,9 +205,9 @@ describe("authoritative Ironbound Forge", () => {
       null,
     ]);
     expect(player.stats.basicDamage).toBeCloseTo(36);
-    expect(player.stats.moveSpeed).toBeCloseTo(11.55);
-    expect(player.stats.maxHp).toBe(190);
-    expect(player.stats.basicAttackInterval).toBe(0.52);
+    expect(player.stats.moveSpeed).toBeCloseTo(12.32);
+    expect(player.stats.maxHp).toBe(150);
+    expect(player.stats.basicAttackInterval).toBe(0.56);
     expect(player.stats.abilityPower).toBe(1);
     expect(player.stats.cooldownRecovery).toBe(1);
     expect(game.takePendingEvents().filter((event) => event.kind === "item_purchased")).toHaveLength(2);
@@ -239,12 +240,12 @@ describe("authoritative Ironbound Forge", () => {
     game.update(0.1);
     const boostedDistance = game.getSnapshot().players[0]!.position.x - boostedStart;
 
-    expect(baselineDistance).toBeCloseTo(1.05);
-    expect(boostedDistance).toBeCloseTo(1.155);
+    expect(baselineDistance).toBeCloseTo(1.12);
+    expect(boostedDistance).toBeCloseTo(1.232);
     expect(boostedDistance / baselineDistance).toBeCloseTo(1.1);
   });
 
-  test("Tempered Edge increases a real subsequent Warden basic hit from thirty to thirty-six", () => {
+  test("Tempered Edge increases a real subsequent Greatsword basic hit from thirty to thirty-six", () => {
     function strikeRift(withEdge: boolean): number {
       const game = enterFundedPush();
       let sequence = 1;
@@ -291,14 +292,14 @@ describe("authoritative Ironbound Forge", () => {
     ];
     let player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(sixEdges);
-    expect(player.stats.basicDamage).toBeCloseTo(72);
+    expect(player.stats.basicDamage).toBeCloseTo(66);
     expect(player.gold).toBe(ARMORY_WARE_PRICE);
 
     expect(buy(game, "fleetstep_greaves").code).toBe("EQUIPMENT_FULL");
     player = game.getSnapshot().players[0]!;
     expect(player.gold).toBe(ARMORY_WARE_PRICE);
     expect(player.equipment).toEqual(sixEdges);
-    expect(player.stats.basicDamage).toBeCloseTo(72);
+    expect(player.stats.basicDamage).toBeCloseTo(66);
   });
 
   test("one hero's purchase never changes an ally's wallet, equipment, or stats", () => {
@@ -315,8 +316,8 @@ describe("authoritative Ironbound Forge", () => {
     expect(buyer.equipment[0]).toBe("tempered_edge");
     expect(ally.gold).toBe(0);
     expect(ally.equipment).toEqual(createEmptyEquipment());
-    expect(ally.stats.basicDamage).toBe(19);
-    expect(ally.stats.moveSpeed).toBe(12.5);
+    expect(ally.stats.basicDamage).toBe(30);
+    expect(ally.stats.moveSpeed).toBe(11.2);
   });
 
   test("equipment is run-only and reset restores the verified baseline", () => {
@@ -325,19 +326,19 @@ describe("authoritative Ironbound Forge", () => {
     placeAtForge(game);
     fund(game, ARMORY_WARE_PRICE);
     expect(buy(game, "fleetstep_greaves").ok).toBe(true);
-    expect(game.getSnapshot().players[0]!.stats.moveSpeed).toBeCloseTo(11.55);
+    expect(game.getSnapshot().players[0]!.stats.moveSpeed).toBeCloseTo(12.32);
 
     game.damageNexus(10_000);
     expect(game.resetRun("p1").ok).toBe(true);
     let player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(createEmptyEquipment());
-    expect(player.stats).toEqual(deriveHeroStats("warden", 1));
+    expect(player.stats).toEqual(deriveHeroStats("defender", 1));
 
     expect(game.setReady("p1", true).ok).toBe(true);
     expect(game.startGame("p1").ok).toBe(true);
     player = game.getSnapshot().players[0]!;
     expect(player.equipment).toEqual(createEmptyEquipment());
-    expect(player.stats).toEqual(deriveHeroStats("warden", 1));
+    expect(player.stats).toEqual(deriveHeroStats("defender", 1));
   });
 
   test("equipped items survive downing and authoritative revival", () => {

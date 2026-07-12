@@ -8,16 +8,11 @@ import {
 import {
   ARMORY_SELL_VALUE,
   EQUIPMENT_SLOT_COUNT,
-  ITEM_ATTUNEMENT_THRESHOLD,
   ITEM_DEFINITIONS,
   VENDOR_DEFINITIONS,
   armoryReforgeNetCost,
-  deriveAttunementProgress,
-  deriveItemEvolutionProgress,
   dominantEquipmentStack,
-  effectiveStackCopies,
   equipmentCopyCount,
-  isStackAttuned,
   legalEquipmentReplacementSlots,
   projectEquipmentChange,
   projectEquipmentRemoval,
@@ -31,6 +26,8 @@ import { deriveAbilityImpactReadout } from "../shared/ability-impact";
 import { derivePrimaryImpactReadout } from "../shared/primary-impact";
 import {
   GREATSWORD_MASTERY_NODES,
+  ARSENAL_INTERACTION_RADIUS,
+  ARSENAL_POSITION,
   PRACTICE_WEAPON,
   SKILL_DEFINITIONS,
   WEAPON_DEFINITIONS,
@@ -76,7 +73,7 @@ import {
   equipmentStatFieldForItem,
   formatEquipmentStat,
   projectAcceptedPurchaseImpact,
-  projectLearnedAbilityCooldowns,
+  projectLearnedSkillCooldowns,
   projectOrdinaryPurchasePreview,
   type LearnedAbilityCooldownProjection,
 } from "./shop-preview";
@@ -86,6 +83,10 @@ import {
 } from "./shop-readiness";
 import { deriveShopReplacementOffer } from "./shop-replacement-offer";
 import { deriveWraithImpactPresentation } from "./wraith-impact";
+import { transitionAdministrativeSurface } from "./administrative-surfaces";
+import { armingKeyboardAction, deriveArmingUiState, deriveArsenalRespecView, reconcileArsenalOpen } from "./arming-ui";
+import { pendingRevisionAfterDispatch } from "./pending-revision";
+import { nearestInRangeVendorId } from "./vendor-routing";
 import {
   BUILD_SIGNATURE_COLORS,
   HERO_PRESENTATION,
@@ -97,7 +98,6 @@ import {
   createPickupVisual,
   createProjectileVisual,
   createWraithVisual,
-  pulseEntityBuildSignature,
   pulseEntityWareReceipt,
   setEntityFlash,
   setEntityBuildSignature,
@@ -121,7 +121,20 @@ function requiredMatch<T extends Element>(element: T | null, description: string
 }
 
 const viewport = requiredElement<HTMLDivElement>("viewport");
+const gameShell = requiredElement<HTMLElement>("game-shell");
 const hud = requiredElement<HTMLElement>("hud");
+const armingPanel = requiredElement<HTMLElement>("arming-panel");
+const armingTitle = requiredElement<HTMLElement>("arming-title");
+const armingStatus = requiredElement<HTMLElement>("arming-status");
+const greatswordPurchase = requiredElement<HTMLButtonElement>("greatsword-purchase");
+const arsenalLoadout = requiredElement<HTMLElement>("arsenal-loadout");
+const arsenalMastery = requiredElement<HTMLButtonElement>("arsenal-mastery");
+const arsenalRespec = requiredElement<HTMLButtonElement>("arsenal-respec");
+const masteryPanel = requiredElement<HTMLElement>("mastery-panel");
+const masteryClose = requiredElement<HTMLButtonElement>("mastery-close");
+const masteryStatus = requiredElement<HTMLElement>("mastery-status");
+const masteryLoadout = requiredElement<HTMLDivElement>("mastery-loadout");
+const masteryNetwork = requiredElement<HTMLDivElement>("mastery-network");
 const heroSelect = requiredElement<HTMLElement>("hero-select");
 const heroGrid = requiredElement<HTMLDivElement>("hero-grid");
 const playerNameInput = requiredElement<HTMLInputElement>("player-name");
@@ -304,7 +317,14 @@ let endScheduledFor: "victory" | "defeat" | null = null;
 let victoryVisualStartedAt: number | null = null;
 let heroStatsOpen = false;
 let shopOpen = false;
-let heroStatsOpenBeforeShop = false;
+let masteryOpen = false;
+let selectedMasterySkill: SkillId | null = null;
+let masteryRequestRevision: number | null = null;
+let respecRequestRevision: number | null = null;
+let weaponPurchasePending = false;
+let armingFocusReturn: HTMLElement | null = null;
+let arsenalOpen = false;
+let focusedMasteryNodeId: MasteryNodeId = "tempered_stance";
 let activeVendorId: VendorId | null = null;
 let replacementItemId: ItemId | null = null;
 let replacementSlotIndex: EquipmentSlotIndex | null = null;
@@ -427,7 +447,7 @@ class SiegeAudio {
     this.master.connect(this.context.destination);
   }
 
-  play(kind: "attack" | "impact" | "cast" | "warning" | "loot" | "attune" | "unattune" | "victory"): void {
+  play(kind: "attack" | "impact" | "cast" | "warning" | "loot" | "victory"): void {
     if (!this.context || !this.master) return;
     const nowMs = performance.now();
     const throttle = kind === "impact" ? 45 : kind === "attack" ? 90 : 0;
@@ -443,8 +463,6 @@ class SiegeAudio {
       cast: [220, 620, 0.16, "triangle"],
       warning: [105, 92, 0.3, "sawtooth"],
       loot: [440, 880, 0.14, "sine"],
-      attune: [260, 1040, 0.42, "triangle"],
-      unattune: [520, 180, 0.3, "sine"],
       victory: [330, 990, 0.7, "triangle"],
     } as const;
     const [start, end, duration, wave] = settings[kind];
@@ -452,9 +470,9 @@ class SiegeAudio {
     oscillator.frequency.setValueAtTime(start, now);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, end), now + duration);
     filter.type = "lowpass";
-    filter.frequency.value = kind === "impact" ? 500 : kind === "unattune" ? 900 : 1800;
+    filter.frequency.value = kind === "impact" ? 500 : 1800;
     gain.gain.setValueAtTime(0.001, now);
-    const peakGain = kind === "impact" ? 0.32 : kind === "attune" ? 0.24 : kind === "unattune" ? 0.15 : 0.18;
+    const peakGain = kind === "impact" ? 0.32 : 0.18;
     gain.gain.exponentialRampToValueAtTime(peakGain, now + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     oscillator.connect(filter).connect(gain).connect(this.master);
@@ -528,6 +546,10 @@ function suspendTransactionalUi(): void {
   ordinaryPurchaseRequest = null;
   replacementRequestPending = false;
   saleRequestPending = false;
+  weaponPurchasePending = false;
+  masteryRequestRevision = null;
+  if (masteryOpen) setMasteryOpen(false);
+  if (heroStatsOpen) setHeroStatsOpen(false);
   if (shopOpen) {
     setShopOpen(false);
   } else {
@@ -689,6 +711,16 @@ function connect(): void {
         const self = currentPlayer();
         if (shopOpen && self) refreshShopTradeState(self);
       }
+      if (weaponPurchasePending) weaponPurchasePending = false;
+      if (masteryRequestRevision !== null) {
+        masteryRequestRevision = null;
+        const self = currentPlayer();
+        if (masteryOpen && self) renderMastery(self);
+      }
+      if (respecRequestRevision !== null) {
+        respecRequestRevision = null;
+        arsenalStatusFromSnapshot();
+      }
       toast(message.message, "warning");
       setTextIfChanged(lobbyNote, message.message);
     }
@@ -727,12 +759,189 @@ function isHeroStatsPhase(phase: GamePhase | undefined): boolean {
 function setHeroStatsOpen(open: boolean): void {
   const self = snapshot?.players.find((player) => player.id === localPlayerId);
   const nextOpen = open && isHeroStatsPhase(snapshot?.phase) && Boolean(self?.heroId);
+  const surfaces = transitionAdministrativeSurface({ stats: heroStatsOpen, mastery: masteryOpen, shop: shopOpen, arsenal: arsenalOpen }, "stats", nextOpen);
+  if (nextOpen) {
+    if (!surfaces.shop && shopOpen) setShopOpen(false);
+    if (!surfaces.mastery && masteryOpen) setMasteryOpen(false);
+    if (!surfaces.arsenal && arsenalOpen) closeArsenalPanel();
+    neutralizeCombatInput();
+  }
   heroStatsOpen = nextOpen;
   heroStatsPanel.classList.toggle("is-hidden", !nextOpen);
   heroStatsPanel.setAttribute("aria-hidden", String(!nextOpen));
   heroStatsToggle.classList.toggle("is-open", nextOpen);
   heroStatsToggle.setAttribute("aria-expanded", String(nextOpen));
-  heroStatsToggle.setAttribute("aria-label", `${nextOpen ? "Close" : "Open"} hero stats (C)`);
+  heroStatsToggle.setAttribute("aria-label", `${nextOpen ? "Close" : "Open"} Defender stats (C)`);
+}
+
+function neutralizeCombatInput(): void {
+  keys.clear();
+  attacking = false;
+}
+
+function setMasteryOpen(open: boolean): void {
+  const self = currentPlayer();
+  const nextOpen = Boolean(open && self?.mastery && snapshot && snapshot.phase !== "lobby");
+  const surfaces = transitionAdministrativeSurface({ stats: heroStatsOpen, mastery: masteryOpen, shop: shopOpen, arsenal: arsenalOpen }, "mastery", nextOpen);
+  masteryOpen = nextOpen;
+  masteryPanel.classList.toggle("is-hidden", !nextOpen);
+  masteryPanel.setAttribute("aria-hidden", String(!nextOpen));
+  if (nextOpen) {
+    if (!surfaces.shop && shopOpen) setShopOpen(false);
+    if (!surfaces.stats && heroStatsOpen) setHeroStatsOpen(false);
+    if (!surfaces.arsenal && arsenalOpen) closeArsenalPanel();
+    neutralizeCombatInput();
+    renderMastery(self!);
+    requestAnimationFrame(() => masteryNetwork.querySelector<HTMLButtonElement>(`[data-node-id="${focusedMasteryNodeId}"]`)?.focus());
+  }
+}
+
+function renderMastery(self: PlayerSnapshot): void {
+  const allocation = self.mastery;
+  if (!allocation) return;
+  if (masteryRequestRevision !== null && allocation.revision !== masteryRequestRevision) masteryRequestRevision = null;
+  const editable = allocation.loadoutMutationContext !== "none";
+  masteryStatus.textContent = editable
+    ? `${allocation.pointBudget - allocation.learnedNodeIds.length} points available · changes are server-confirmed.`
+    : "Inspect anywhere. Spend server-legal points here; Q/E/R/F assignment requires the Arsenal or a level-up interaction.";
+  masteryLoadout.replaceChildren(...(["ability1", "ability2", "ability3", "ultimate"] as const).map((slot) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    const equipped = allocation.equipped[slot];
+    button.textContent = `${abilityKeyLabel(slot)} · ${equipped ? SKILL_DEFINITIONS[equipped].name : "EMPTY"}`;
+    button.disabled = !editable || !selectedMasterySkill || masteryRequestRevision !== null ||
+      (slot === "ultimate") !== (selectedMasterySkill ? SKILL_DEFINITIONS[selectedMasterySkill].kind === "mastery" : false);
+    button.addEventListener("click", () => {
+      if (!selectedMasterySkill || !editable || masteryRequestRevision !== null) return;
+      masteryRequestRevision = allocation.revision;
+      const dispatched = send({ type: "assign_skill", weaponId: "greatsword", skillId: selectedMasterySkill, slot, expectedRevision: allocation.revision });
+      masteryRequestRevision = pendingRevisionAfterDispatch(allocation.revision, dispatched);
+      renderMastery(self);
+    });
+    return button;
+  }));
+
+  const nodes = GREATSWORD_MASTERY_NODES.map((node, index) => {
+    const state = allocation.learnedNodeIds.includes(node.id) ? "learned"
+      : allocation.legalNodeIds.includes(node.id) ? "legal"
+        : allocation.excludedNodeIds.includes(node.id) ? "excluded"
+          : "locked";
+    const reason = allocation.unavailableNodeReasons[node.id];
+    const learned = state === "learned";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `mastery-node is-${state}`;
+    button.dataset.nodeId = node.id;
+    button.dataset.graphX = String(node.graphPosition.x);
+    button.dataset.graphY = String(node.graphPosition.y);
+    button.style.left = `${90 + node.graphPosition.x * 190}px`;
+    button.style.top = `${34 + node.graphPosition.y * 58}px`;
+    button.tabIndex = node.id === focusedMasteryNodeId ? 0 : -1;
+    button.classList.toggle("is-selected", selectedMasterySkill === node.id);
+    button.innerHTML = `<strong>${node.name}</strong><small>${state === "legal" ? node.description : state === "learned" ? "LEARNED" : reason ?? "Unavailable"}</small>`;
+    const unavailable = masteryRequestRevision !== null || (state !== "legal" && !learned);
+    button.setAttribute("aria-disabled", String(unavailable));
+    button.addEventListener("click", () => {
+      if (learned && Object.hasOwn(SKILL_DEFINITIONS, node.id)) {
+        selectedMasterySkill = node.id as SkillId;
+        renderMastery(self);
+        return;
+      }
+      if (state !== "legal" || masteryRequestRevision !== null) return;
+      masteryRequestRevision = allocation.revision;
+      const dispatched = send({ type: "allocate_mastery", weaponId: "greatsword", nodeId: node.id, expectedRevision: allocation.revision });
+      masteryRequestRevision = pendingRevisionAfterDispatch(allocation.revision, dispatched);
+      renderMastery(self);
+    });
+    return button;
+  });
+  masteryNetwork.style.minHeight = `${Math.max(390, 90 + Math.max(...GREATSWORD_MASTERY_NODES.map((node) => node.graphPosition.y)) * 58)}px`;
+  masteryNetwork.replaceChildren(...nodes);
+}
+
+function updateArmingUi(state: GameSnapshot, self: PlayerSnapshot | undefined): void {
+  gameShell.dataset.gamePhase = state.phase;
+  const arming = state.phase === "arming";
+  const armed = Boolean(self && state.arming?.armedPlayerIds.includes(self.id));
+  if (weaponPurchasePending && armed) weaponPurchasePending = false;
+  if (respecRequestRevision !== null && self?.mastery?.revision !== respecRequestRevision) respecRequestRevision = null;
+  const inRange = Boolean(self && distanceBetween(self.position, ARSENAL_POSITION) <= ARSENAL_INTERACTION_RADIUS);
+  arsenalOpen = reconcileArsenalOpen({ phase: state.phase, arsenalInRange: inRange, open: arsenalOpen });
+  armingPanel.classList.toggle("is-hidden", !arsenalOpen);
+  armingPanel.setAttribute("aria-busy", String(weaponPurchasePending || respecRequestRevision !== null));
+  if (!arsenalOpen && armingFocusReturn) {
+    armingFocusReturn.focus();
+    armingFocusReturn = null;
+  }
+  const armingState = deriveArmingUiState({ phase: state.phase, armed, countdownEndsAt: state.arming?.countdownEndsAt ?? null });
+  if (armingState) gameShell.dataset.armingState = armingState;
+  else delete gameShell.dataset.armingState;
+  if (arming) gameShell.dataset.arsenalProximity = inRange ? "in-range" : "out-of-range";
+  else delete gameShell.dataset.arsenalProximity;
+  gameShell.dataset.weaponPurchasePending = String(weaponPurchasePending);
+  if (!self) return;
+  if (!arming) {
+    armingTitle.textContent = "CITADEL ARSENAL";
+    armingStatus.textContent = inRange ? "Accepted Greatsword loadout. Inspect or reset mastery." : "Return to the physical Arsenal seal.";
+    greatswordPurchase.hidden = true;
+    arsenalLoadout.hidden = false;
+    arsenalMastery.hidden = false;
+    arsenalRespec.hidden = false;
+    const equipped = self.mastery?.equipped;
+    arsenalLoadout.textContent = equipped
+      ? (["ability1", "ability2", "ability3", "ultimate"] as const).map((slot) => `${abilityKeyLabel(slot)} ${equipped[slot] ? SKILL_DEFINITIONS[equipped[slot]!].name : "Empty"}`).join(" · ")
+      : "No accepted Greatsword mastery.";
+    const respec = deriveArsenalRespecView({
+      freeRespecUsed: self.mastery?.freeRespecUsed ?? false,
+      gold: self.gold,
+      inRange,
+      pending: respecRequestRevision !== null,
+    });
+    arsenalRespec.textContent = respec.label;
+    arsenalRespec.disabled = !self.mastery || respec.disabled;
+    return;
+  }
+  arsenalLoadout.hidden = true;
+  arsenalMastery.hidden = true;
+  arsenalRespec.hidden = true;
+  const waiting = state.arming?.armedPlayerIds.length ?? 0;
+  const total = state.players.filter((player) => player.connected).length;
+  const countdownSeconds = state.arming?.countdownEndsAt ? Math.max(0, Math.ceil((state.arming.countdownEndsAt - state.serverTime) / 1000)) : null;
+  armingTitle.textContent = armed ? "GREATSWORD FORGED" : "FORGE YOUR GREATSWORD";
+  armingStatus.textContent = countdownSeconds !== null
+    ? `All Defenders armed · siege begins in ${countdownSeconds}.`
+    : armed ? `${waiting} / ${total} armed · waiting for the party.`
+      : inRange ? "The Arsenal seal recognizes you. Forge the 100-gold Greatsword."
+        : "Return to the physical Arsenal seal to forge the Greatsword.";
+  greatswordPurchase.hidden = armed;
+  greatswordPurchase.disabled = armed || !inRange || weaponPurchasePending || self.gold < 100;
+  greatswordPurchase.textContent = weaponPurchasePending ? "FORGING…" : "FORGE GREATSWORD · 100 GOLD";
+}
+
+function arsenalStatusFromSnapshot(): void {
+  if (snapshot) updateArmingUi(snapshot, currentPlayer(snapshot));
+}
+
+function closeArsenalPanel(): void {
+  arsenalOpen = false;
+  armingPanel.classList.add("is-hidden");
+  armingFocusReturn?.focus();
+  armingFocusReturn = null;
+}
+
+function openArsenalPanel(): void {
+  if (!snapshot) return;
+  const self = currentPlayer(snapshot);
+  const inRange = Boolean(self && distanceBetween(self.position, ARSENAL_POSITION) <= ARSENAL_INTERACTION_RADIUS);
+  if (!self || !reconcileArsenalOpen({ phase: snapshot.phase, arsenalInRange: inRange, open: true })) return;
+  const surfaces = transitionAdministrativeSurface({ stats: heroStatsOpen, mastery: masteryOpen, shop: shopOpen, arsenal: arsenalOpen }, "arsenal", true);
+  if (!surfaces.stats && heroStatsOpen) setHeroStatsOpen(false);
+  if (!surfaces.mastery && masteryOpen) setMasteryOpen(false);
+  if (!surfaces.shop && shopOpen) setShopOpen(false);
+  arsenalOpen = true;
+  neutralizeCombatInput();
+  updateArmingUi(snapshot, self);
+  requestAnimationFrame(() => (self.weaponId === "greatsword" ? arsenalRespec : greatswordPurchase).focus());
 }
 
 function formatHeroStat(value: number, decimals = 0): string {
@@ -764,20 +973,14 @@ function updateHeroPrimaryImpact(self: PlayerSnapshot): void {
     .map((metric) => `${formatHeroStat(metric.value, 1)} ${PRIMARY_METRIC_SHORT_LABELS[metric.label] ?? metric.label}`)
     .join(" / ");
   const attacksPerSecond = `${formatHeroStat(impact.attacksPerSecond, 2)}/S`;
-  const strideDescription = impact.moveRetention > 0
-    ? ` Combat Stride moves at ${formatHeroStat(impact.moveSpeedDuringWindupImpact, 1)} world units per second during windup and impact, retaining ${formatHeroStat(impact.moveRetention * 100)} percent Move Speed. It does not apply to abilities.`
-    : "";
-  const strideLine = impact.moveRetention > 0
-    ? `<div class="primary-impact-stride"><strong>COMBAT STRIDE</strong><span>${formatHeroStat(impact.moveSpeedDuringWindupImpact, 1)} WORLD/S</span><em>WINDUP + IMPACT</em></div>`
-    : "";
   heroPrimaryImpact.setAttribute(
     "aria-label",
-    `LMB, ${impact.name}. ${fullMetrics}. ${formatHeroStat(impact.attacksPerSecond, 2)} attacks per second.${strideDescription}`,
+    `LMB, ${impact.name}. ${fullMetrics}. ${formatHeroStat(impact.attacksPerSecond, 2)} attacks per second.`,
   );
   heroPrimaryImpact.innerHTML = `
     <div class="ability-impact-heading"><kbd>LMB</kbd><strong>${impact.name}</strong><small>PRIMARY</small></div>
     <div class="ability-impact-result"><span>${compactMetrics}</span><em>${attacksPerSecond}</em></div>
-    ${strideLine}`;
+    `;
 }
 
 function updateHeroAbilityImpact(self: PlayerSnapshot): void {
@@ -858,9 +1061,7 @@ function replacementStackPreview(
 ): string {
   return [outgoingItemId, incomingItemId]
     .map((itemId) => {
-      const currentAttuned = isStackAttuned(equipmentCopyCount(current, itemId));
-      const projectedAttuned = isStackAttuned(equipmentCopyCount(projected, itemId));
-      return `${REFORGE_ITEM_NAMES[itemId]} ×${equipmentCopyCount(current, itemId)}${currentAttuned ? " ATTUNED" : ""} → ×${equipmentCopyCount(projected, itemId)}${projectedAttuned ? " ATTUNED" : ""}`;
+      return `${REFORGE_ITEM_NAMES[itemId]} ×${equipmentCopyCount(current, itemId)} → ×${equipmentCopyCount(projected, itemId)}`;
     })
     .join(" · ");
 }
@@ -872,17 +1073,14 @@ function saleStackPreview(
 ): string {
   const currentCount = equipmentCopyCount(current, outgoingItemId);
   const projectedCount = equipmentCopyCount(projected, outgoingItemId);
-  const currentAttuned = isStackAttuned(currentCount);
-  const projectedAttuned = isStackAttuned(projectedCount);
-  return `${REFORGE_ITEM_NAMES[outgoingItemId]} ×${currentCount}${currentAttuned ? " ATTUNED" : ""} → ×${projectedCount}${projectedAttuned ? " ATTUNED" : ""}`;
+  return `${REFORGE_ITEM_NAMES[outgoingItemId]} ×${currentCount} → ×${projectedCount}`;
 }
 
 function replacementStatsPreview(
   current: HeroStatsSnapshot,
   projected: HeroStatsSnapshot,
   currentHp: number,
-  heroId: HeroId,
-  abilityRanks: PlayerSnapshot["abilityRanks"],
+  mastery: PlayerSnapshot["mastery"],
 ): string {
   const changes = EQUIPMENT_STAT_FIELDS
     .filter(({ key }) => key !== "basicMoveRetention" && Math.abs(current[key] - projected[key]) > 1e-9)
@@ -896,16 +1094,9 @@ function replacementStatsPreview(
       `Current HP ${formatHeroStat(currentHp, 1)}/${formatHeroStat(current.maxHp)} → ${formatHeroStat(projectedHp, 1)}/${formatHeroStat(projected.maxHp)} · ${formatHeroStat(heldRatio * 100, 1)}% HELD`,
     );
   }
-  const currentStride = current.moveSpeed * current.basicMoveRetention;
-  const projectedStride = projected.moveSpeed * projected.basicMoveRetention;
-  if (Math.abs(currentStride - projectedStride) > 1e-9) {
-    const strideValue = (speed: number) => speed > 0 ? `${formatHeroStat(speed, 1)} WORLD/S` : "LOCKED";
-    changes.push(`Combat Stride ${strideValue(currentStride)} → ${strideValue(projectedStride)}`);
-  }
   if (Math.abs(current.cooldownRecovery - projected.cooldownRecovery) > 1e-9) {
-    const learnedCooldowns = projectLearnedAbilityCooldowns(
-      heroId,
-      abilityRanks,
+    const learnedCooldowns = projectLearnedSkillCooldowns(
+      mastery,
       current,
       projected,
     );
@@ -924,13 +1115,9 @@ function replacementSignaturePreview(
 ): string {
   const currentStack = dominantEquipmentStack(current);
   const projectedStack = dominantEquipmentStack(projected);
-  const currentName = currentStack
-    ? `${REFORGE_ITEM_NAMES[currentStack.itemId]}${currentStack.attuned ? " Attuned" : ""}`
-    : "None";
-  const projectedName = projectedStack
-    ? `${REFORGE_ITEM_NAMES[projectedStack.itemId]}${projectedStack.attuned ? " Attuned" : ""}`
-    : "None";
-  const unchanged = currentStack?.itemId === projectedStack?.itemId && currentStack?.attuned === projectedStack?.attuned;
+  const currentName = currentStack ? REFORGE_ITEM_NAMES[currentStack.itemId] : "None";
+  const projectedName = projectedStack ? REFORGE_ITEM_NAMES[projectedStack.itemId] : "None";
+  const unchanged = currentStack?.itemId === projectedStack?.itemId;
   return unchanged ? `${currentName} · unchanged` : `${currentName} → ${projectedName}`;
 }
 
@@ -962,10 +1149,10 @@ function currentPlayer(state: GameSnapshot | null = snapshot): PlayerSnapshot | 
 }
 
 function nearestInRangeVendor(state: GameSnapshot, self: PlayerSnapshot | undefined): GameSnapshot["vendors"][number] | undefined {
-  if (!self?.heroId || self.downed || !isHeroStatsPhase(state.phase)) return undefined;
-  return state.vendors
-    .filter((vendor) => distanceBetween(self.position, vendor.position) <= vendor.interactionRadius)
-    .sort((left, right) => distanceBetween(self.position, left.position) - distanceBetween(self.position, right.position))[0];
+  const active = state.phase === "arming" || isHeroStatsPhase(state.phase);
+  if (!self?.heroId || self.downed || !active) return undefined;
+  const vendorId = nearestInRangeVendorId(self.position, state.vendors);
+  return vendorId ? state.vendors.find((vendor) => vendor.id === vendorId) : undefined;
 }
 
 function equipmentIsFull(equipment: PlayerSnapshot["equipment"]): boolean {
@@ -1048,30 +1235,21 @@ function renderEquipmentSummary(equipment: PlayerSnapshot["equipment"]): void {
     stacks
       .map(({ itemId, count, totalEffectLabel }) => {
         const copyLabel = `${count} equipped ${count === 1 ? "copy" : "copies"}`;
-        const progress = deriveAttunementProgress(count);
-        const evolution = deriveItemEvolutionProgress(itemId, count);
-        return `${ITEM_DEFINITIONS[itemId].name}, ${copyLabel}, ${progress.accessibleDescription}${evolution ? ` ${evolution.accessibleDescription}` : ""} ${totalEffectLabel}`;
+        return `${ITEM_DEFINITIONS[itemId].name}, ${copyLabel}, ${totalEffectLabel}`;
       })
       .join("; "),
   );
-  for (const { itemId, count, attuned, totalEffectLabel } of stacks) {
+  for (const { itemId, count, totalEffectLabel } of stacks) {
     const item = ITEM_DEFINITIONS[itemId];
-    const progress = deriveAttunementProgress(count);
-    const evolution = deriveItemEvolutionProgress(itemId, count);
-    const progressLabel = evolution?.visualLabel ?? progress.visualLabel;
     const stack = document.createElement("div");
     stack.className = "equipment-stack";
     stack.dataset.item = itemId;
-    stack.dataset.attunement = progress.state;
-    stack.classList.toggle("is-attuned", attuned);
-    stack.classList.toggle("will-attune", progress.state === "next");
     stack.setAttribute("role", "listitem");
     stack.innerHTML = `
       <span class="equipment-stack-icon" aria-hidden="true">${ITEM_SYMBOLS[itemId]}</span>
       <span class="equipment-stack-copy">
         <strong><span>${item.name}</span><b>×${count}</b></strong>
         <small>${totalEffectLabel}</small>
-        <em>${progressLabel}</em>
       </span>`;
     heroEquipmentSummary.append(stack);
   }
@@ -1098,14 +1276,14 @@ function renderLearnedCooldownProjection(
   cooldowns: readonly LearnedAbilityCooldownProjection[],
 ): void {
   const projectionKey = cooldowns
-    .map(({ slot, rank, currentValue, projectedValue }) => `${slot}:${rank}:${currentValue}:${projectedValue}`)
+    .map(({ skillId, slot, currentValue, projectedValue }) => `${skillId}:${slot}:${currentValue}:${projectedValue}`)
     .join("|");
   if (grid.dataset.projection === projectionKey) return;
   grid.dataset.projection = projectionKey;
   grid.replaceChildren(...cooldowns.map((cooldown) => {
     const row = document.createElement("span");
     row.className = "shop-item-cast-return";
-    row.title = `${cooldown.name} rank ${cooldown.rank} fresh-cast cooldown: ${cooldown.currentValue} to ${cooldown.projectedValue}`;
+    row.title = `${cooldown.name} fresh-cast cooldown: ${cooldown.currentValue} to ${cooldown.projectedValue}`;
     const key = document.createElement("b");
     key.textContent = abilityKeyLabel(cooldown.slot);
     const value = document.createElement("span");
@@ -1131,7 +1309,7 @@ function renderShopCatalog(vendorId: VendorId): void {
       <strong class="shop-item-name">${item.name}</strong>
       <span class="shop-item-meta"><span class="shop-item-effect">${item.effectLabel}</span><small class="shop-item-owned" data-shop-owned aria-hidden="true">×0</small></span>
       <small class="shop-item-description">${item.description}</small>
-      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><em data-shop-projection-attunement hidden>ATTUNES</em><span class="shop-item-evolution" data-shop-evolution hidden><small>COMBAT STRIDE</small><strong data-shop-evolution-value>—</strong></span><span class="shop-item-cast-preview" data-shop-cast-preview hidden><small>RETURNS</small><span class="shop-item-cast-grid" data-shop-cast-grid></span></span></span>
+      <span class="shop-item-projection" data-shop-projection aria-hidden="true" hidden><small>NEXT</small><strong data-shop-projection-value>—</strong><span class="shop-item-cast-preview" data-shop-cast-preview hidden><small>RETURNS</small><span class="shop-item-cast-grid" data-shop-cast-grid></span></span></span>
       <span class="shop-item-price"><span data-shop-price>● ${item.price}</span><small data-shop-status>BUY &amp; EQUIP</small></span>`;
     button.addEventListener("click", () => buyShopItem(itemId));
     shopItems.append(button);
@@ -1208,7 +1386,7 @@ function refreshShopTradeState(self: PlayerSnapshot | undefined = currentPlayer(
     shopReplaceTerms.textContent = `BUY ${selectedItem.price} − TRADE-IN ${ARMORY_SELL_VALUE} = ${selectedReforgeCost} GOLD NET`;
     const projection = projectEquipmentChange(self.equipment, selectedItem.id, replacementSlotIndex);
     if (projection?.replacedItemId === selectedOutgoing.id) {
-      const projectedStats = deriveHeroStats(self.heroId, self.level, projection.equipment);
+      const projectedStats = deriveHeroStats(self.heroId, self.level, projection.equipment, self.weaponId);
       shopReplaceStacks.textContent = replacementStackPreview(
         self.equipment,
         projection.equipment,
@@ -1219,13 +1397,12 @@ function refreshShopTradeState(self: PlayerSnapshot | undefined = currentPlayer(
         self.stats,
         projectedStats,
         self.hp,
-        self.heroId,
-        self.abilityRanks,
-      ) || "No Hero Stat change";
+        self.mastery,
+      ) || "No Build stat change";
       shopReplaceSignature.textContent = replacementSignaturePreview(self.equipment, projection.equipment);
       shopReplaceConfirm.setAttribute(
         "aria-label",
-        `${shopReplacePreview.textContent}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${shopReplaceTerms.textContent}.`,
+        `${shopReplacePreview.textContent}. Stacks: ${shopReplaceStacks.textContent}. Build Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${shopReplaceTerms.textContent}.`,
       );
       previewReady = true;
     }
@@ -1233,20 +1410,19 @@ function refreshShopTradeState(self: PlayerSnapshot | undefined = currentPlayer(
     const projection = projectEquipmentRemoval(self.equipment, saleSlotIndex, saleOutgoing.id);
     shopReplacePreview.textContent = `SELL SLOT ${saleSlotIndex + 1} — ${saleOutgoing.name.toUpperCase()} ${saleOutgoing.effectLabel}`;
     if (projection?.removedItemId === saleOutgoing.id) {
-      const projectedStats = deriveHeroStats(self.heroId, self.level, projection.equipment);
+      const projectedStats = deriveHeroStats(self.heroId, self.level, projection.equipment, self.weaponId);
       shopReplaceStacks.textContent = saleStackPreview(self.equipment, projection.equipment, saleOutgoing.id);
       shopReplaceStats.textContent = replacementStatsPreview(
         self.stats,
         projectedStats,
         self.hp,
-        self.heroId,
-        self.abilityRanks,
-      ) || "No Hero Stat change";
+        self.mastery,
+      ) || "No Build stat change";
       shopReplaceSignature.textContent = replacementSignaturePreview(self.equipment, projection.equipment);
       shopReplaceTerms.textContent = `GOLD ${formatHeroStat(self.gold, 1)} → ${formatHeroStat(self.gold + ARMORY_SELL_VALUE, 1)} · +${ARMORY_SELL_VALUE} · SLOT ${saleSlotIndex + 1} BECOMES EMPTY`;
       shopReplaceConfirm.setAttribute(
         "aria-label",
-        `${shopReplacePreview.textContent}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${shopReplaceTerms.textContent}.`,
+        `${shopReplacePreview.textContent}. Stacks: ${shopReplaceStacks.textContent}. Build Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. ${shopReplaceTerms.textContent}.`,
       );
       previewReady = true;
     }
@@ -1364,7 +1540,7 @@ function selectSaleSlot(slotIndex: EquipmentSlotIndex): void {
   saleExpectedItemId = outgoingItemId;
   refreshShopTradeState(self);
   const outgoing = ITEM_DEFINITIONS[outgoingItemId];
-  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Sell ${outgoing.name}, ${outgoing.effectLabel}, for ${ARMORY_SELL_VALUE} gold. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. Wallet: ${formatHeroStat(self.gold, 1)} to ${formatHeroStat(self.gold + ARMORY_SELL_VALUE, 1)} gold. Press Enter or choose Sell Item to confirm, or Escape to go back.`;
+  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Sell ${outgoing.name}, ${outgoing.effectLabel}, for ${ARMORY_SELL_VALUE} gold. Stacks: ${shopReplaceStacks.textContent}. Build Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. Wallet: ${formatHeroStat(self.gold, 1)} to ${formatHeroStat(self.gold + ARMORY_SELL_VALUE, 1)} gold. Press Enter or choose Sell Item to confirm, or Escape to go back.`;
   requestAnimationFrame(() => shopReplaceSubmit.focus());
 }
 
@@ -1469,7 +1645,7 @@ function selectReplacementSlot(slotIndex: EquipmentSlotIndex): void {
   replacementSlotIndex = slotIndex;
   replacementExpectedItemId = outgoingItemId;
   refreshShopTradeState(self);
-  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Out ${outgoing.name}, ${outgoing.effectLabel}; in ${incoming.name}, ${incoming.effectLabel}. Stacks: ${shopReplaceStacks.textContent}. Hero Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. Buy ${incoming.price}, trade in for ${ARMORY_SELL_VALUE}, ${reforgeCost} gold net. Press Enter or choose Buy and Replace to confirm, or Escape to go back.`;
+  shopAnnouncement.textContent = `Slot ${slotIndex + 1} selected. Out ${outgoing.name}, ${outgoing.effectLabel}; in ${incoming.name}, ${incoming.effectLabel}. Stacks: ${shopReplaceStacks.textContent}. Build Stats: ${shopReplaceStats.textContent}. Signature: ${shopReplaceSignature.textContent}. Buy ${incoming.price}, trade in for ${ARMORY_SELL_VALUE}, ${reforgeCost} gold net. Press Enter or choose Buy and Replace to confirm, or Escape to go back.`;
   requestAnimationFrame(() => shopReplaceSubmit.focus());
 }
 
@@ -1554,10 +1730,6 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
     const price = button.querySelector<HTMLElement>("[data-shop-price]");
     if (price) price.textContent = slotsFull ? `● ${reforgeCost} NET` : `● ${item.price}`;
     const owned = equipmentCopyCount(self.equipment, itemId);
-    const attunementProgress = deriveAttunementProgress(owned);
-    const evolutionProgress = deriveItemEvolutionProgress(itemId, owned);
-    const attuned = attunementProgress.state === "attuned";
-    const nextCopyAttunes = attunementProgress.state === "next";
     const ownedLabel = button.querySelector<HTMLElement>("[data-shop-owned]");
     const purchasePreview = slotsFull
       ? null
@@ -1567,48 +1739,25 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
             level: self.level,
             equipment: self.equipment,
             stats: self.stats,
-            abilityRanks: self.abilityRanks,
+            mastery: self.mastery,
+            weaponId: self.weaponId,
           },
           itemId,
         );
     const preview = button.querySelector<HTMLElement>("[data-shop-projection]");
     const previewValue = button.querySelector<HTMLElement>("[data-shop-projection-value]");
-    const previewAttunement = button.querySelector<HTMLElement>("[data-shop-projection-attunement]");
-    const previewEvolution = button.querySelector<HTMLElement>("[data-shop-evolution]");
-    const previewEvolutionValue = button.querySelector<HTMLElement>("[data-shop-evolution-value]");
     const previewCast = button.querySelector<HTMLElement>("[data-shop-cast-preview]");
     const previewCastGrid = button.querySelector<HTMLElement>("[data-shop-cast-grid]");
     const learnedCooldowns = purchasePreview?.learnedCooldowns ?? [];
     button.classList.toggle("has-purchase-preview", purchasePreview !== null);
-    button.classList.toggle("has-evolution-preview", purchasePreview?.combatStride !== null && purchasePreview?.combatStride !== undefined);
     button.classList.toggle("has-cast-preview", learnedCooldowns.length > 0);
     if (preview) preview.hidden = purchasePreview === null;
     if (previewValue) previewValue.textContent = purchasePreview?.resultText ?? "—";
-    if (previewAttunement) previewAttunement.hidden = !purchasePreview?.attunes;
-    if (previewEvolution) previewEvolution.hidden = !purchasePreview?.combatStride;
-    if (previewEvolutionValue) {
-      const stride = purchasePreview?.combatStride;
-      previewEvolutionValue.textContent = stride
-        ? stride.currentSpeed <= 0
-          ? `${stride.projectedValue} WORLD/S DURING LMB`
-          : `${stride.currentValue} → ${stride.projectedValue} WORLD/S`
-        : "—";
-    }
     if (previewCast) previewCast.hidden = learnedCooldowns.length === 0;
     if (previewCastGrid) renderLearnedCooldownProjection(previewCastGrid, learnedCooldowns);
     if (ownedLabel) {
-      ownedLabel.textContent = attunementProgress.state === "building"
-        ? `×${owned}/${ITEM_ATTUNEMENT_THRESHOLD}`
-        : attunementProgress.state === "next"
-          ? `×${owned}/${ITEM_ATTUNEMENT_THRESHOLD} NEXT`
-          : attunementProgress.state === "attuned"
-            ? `×${owned} ${evolutionProgress?.state === "active" ? "STRIDE" : "ATTUNED"}`
-            : `×${owned}`;
-      ownedLabel.dataset.attunement = attunementProgress.state;
+      ownedLabel.textContent = `×${owned}`;
       ownedLabel.classList.toggle("has-items", owned > 0);
-      ownedLabel.classList.toggle("is-building", attunementProgress.state === "building");
-      ownedLabel.classList.toggle("will-attune", nextCopyAttunes);
-      ownedLabel.classList.toggle("is-attuned", attuned);
     }
     button.disabled = !canBuy;
     button.classList.toggle("can-buy", canBuy);
@@ -1658,13 +1807,12 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
                         ? "BUY & EQUIP"
                         : `NEED ${Math.max(1, Math.ceil(transactionCost - self.gold))}`;
     if (status) status.textContent = statusLabel;
-    const attunementDescription = ` ${attunementProgress.accessibleDescription}${evolutionProgress ? ` ${evolutionProgress.accessibleDescription}` : ""}`;
     const previewDescription = purchasePreview
-      ? ` Next Hero Stat result: ${purchasePreview.accessibleResult}`
+      ? ` Next Build stat result: ${purchasePreview.accessibleResult}`
       : "";
     button.setAttribute(
       "aria-label",
-      `${item.name}, ${item.effectLabel}, ${item.price} gold${slotsFull ? `; full-build reforge costs ${reforgeCost} gold after a ${ARMORY_SELL_VALUE}-gold trade-in` : ""}. You own ${owned} ${owned === 1 ? "copy" : "copies"}.${attunementDescription}${previewDescription} ${actionLabel}`,
+      `${item.name}, ${item.effectLabel}, ${item.price} gold${slotsFull ? `; full-build reforge costs ${reforgeCost} gold after a ${ARMORY_SELL_VALUE}-gold trade-in` : ""}. You own ${owned} ${owned === 1 ? "copy" : "copies"}.${previewDescription} ${actionLabel}`,
     );
   }
 }
@@ -1672,7 +1820,7 @@ function updateShopCards(self: PlayerSnapshot, withinPurchaseRange = true): void
 function canOpenVendor(state: GameSnapshot, self: PlayerSnapshot | undefined, vendorId: VendorId | null): boolean {
   const vendor = vendorSnapshot(vendorId, state);
   return Boolean(
-    vendor &&
+    vendor && vendor.id !== "citadel_arsenal" &&
     self?.heroId &&
     !self.downed &&
     isHeroStatsPhase(state.phase) &&
@@ -1691,7 +1839,11 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
   if (nextOpen && shopOpen && activeVendorId === targetVendorId) return;
   if (!nextOpen && !shopOpen) return;
   if (nextOpen) {
-    if (!shopOpen) heroStatsOpenBeforeShop = heroStatsOpen;
+    const surfaces = transitionAdministrativeSurface({ stats: heroStatsOpen, mastery: masteryOpen, shop: shopOpen, arsenal: arsenalOpen }, "shop", true);
+    if (!surfaces.stats && heroStatsOpen) setHeroStatsOpen(false);
+    if (!surfaces.mastery && masteryOpen) setMasteryOpen(false);
+    if (!surfaces.arsenal && arsenalOpen) closeArsenalPanel();
+    neutralizeCombatInput();
     shopOpen = true;
     activeVendorId = targetVendorId;
     replacementItemId = null;
@@ -1707,10 +1859,8 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
       updateShopPresentation(activeVendorId, vendor.name);
       shopAnnouncement.textContent = `${vendor.name} opened. ${vendor.itemIds.map((itemId) => ITEM_DEFINITIONS[itemId].name).join(" and ")} available for ${ITEM_DEFINITIONS[vendor.itemIds[0]!].price} gold; any equipped item sells here for ${ARMORY_SELL_VALUE}.`;
     }
-    setHeroStatsOpen(true);
     interactionPrompt.classList.add("is-hidden");
   } else {
-    const restoreStats = heroStatsOpenBeforeShop;
     shopOpen = false;
     activeVendorId = null;
     replacementItemId = null;
@@ -1722,7 +1872,6 @@ function setShopOpen(open: boolean, requestedVendorId: VendorId | null = null): 
     saleExpectedItemId = null;
     saleRequestPending = false;
     shopAnnouncement.textContent = "Shop closed.";
-    setHeroStatsOpen(restoreStats);
   }
   shopPanel.classList.toggle("is-hidden", !shopOpen);
   shopPanel.setAttribute("aria-hidden", String(!shopOpen));
@@ -1879,26 +2028,11 @@ function pulsePurchasedStat(itemId: ItemId | undefined): void {
 
 function renderHeroCards(): void {
   heroGrid.replaceChildren();
-  for (const heroId of HERO_IDS) {
-    const definition = HERO_DEFINITIONS[heroId];
-    const presentation = HERO_PRESENTATION[heroId];
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "hero-card";
-    card.dataset.hero = heroId;
-    card.style.setProperty("--card-color", presentation.color);
-    card.innerHTML = `
-      <span class="hero-card-art"><span class="hero-card-runes"></span><span class="hero-silhouette"></span></span>
-      <span class="hero-owner is-hidden"></span>
-      <span class="hero-card-copy">
-        <span class="hero-role">${definition.role}</span>
-        <h3>${definition.name}</h3>
-        <p>${presentation.fantasy}</p>
-        <span class="hero-tags"><span>${presentation.tags[0]}</span><span>${presentation.tags[1]}</span></span>
-      </span>`;
-    card.addEventListener("click", () => chooseHero(heroId));
-    heroGrid.append(card);
-  }
+  selectedHero = "defender";
+  const identity = document.createElement("div");
+  identity.className = "defender-identity panel-chrome";
+  identity.innerHTML = `<span class="eyebrow">NEUTRAL CITADEL IDENTITY</span><strong>CITADEL DEFENDER</strong><p>Cloth and ring accents identify each player. Weapon mastery defines the build.</p>`;
+  heroGrid.append(identity);
 }
 
 function chooseHero(heroId: HeroId): void {
@@ -1917,17 +2051,6 @@ function updateLobby(): void {
   if (!snapshot) return;
   const self = snapshot.players.find((player) => player.id === localPlayerId);
   selectedHero = "defender";
-  for (const card of heroGrid.querySelectorAll<HTMLButtonElement>(".hero-card")) {
-    const heroId = card.dataset.hero as HeroId;
-    card.classList.toggle("is-selected", heroId === "defender");
-    card.classList.remove("is-taken");
-    card.disabled = false;
-    const ownerLabel = card.querySelector<HTMLElement>(".hero-owner");
-    if (ownerLabel) {
-      ownerLabel.classList.remove("is-hidden");
-      ownerLabel.textContent = "EVERY PLAYER · ONE DEFENDER";
-    }
-  }
   const reconnectingPlayers = snapshot.players.filter((player) => !player.connected).length;
   setTextIfChanged(lobbyCount, `${snapshot.players.length} / 4 defender${snapshot.players.length === 1 ? "" : "s"}${reconnectingPlayers > 0 ? ` · ${reconnectingPlayers} reconnecting` : ""}`);
   const isHost = snapshot.lobby.hostId === localPlayerId;
@@ -1990,51 +2113,6 @@ playAgain.addEventListener("click", () => {
   if (replayMain) replayMain.textContent = "RETURNING…";
   if (replaySub) replaySub.textContent = "REOPENING THE WAR TABLE";
 });
-
-function playAttunementTransition(
-  event: GameEvent,
-  transition: NonNullable<GameEvent["attunementTransition"]>,
-): void {
-  const tracked = event.playerId ? playerVisuals.get(event.playerId) : null;
-  const player = event.playerId
-    ? snapshot?.players.find((candidate) => candidate.id === event.playerId)
-    : null;
-  const position = tracked
-    ? { x: tracked.visual.position.x, z: tracked.visual.position.z }
-    : player?.position ?? event.position ?? WORLD_LAYOUT.nexus;
-  const local = event.playerId === localPlayerId;
-  const color = new THREE.Color(BUILD_SIGNATURE_COLORS[transition.itemId]).getHex();
-  spawnBurst(
-    position,
-    color,
-    transition.change === "gained" ? local ? 26 : 15 : local ? 11 : 7,
-    transition.change === "gained" ? local ? 1.65 : 1.2 : local ? 0.85 : 0.6,
-  );
-  if (tracked) {
-    pulseEntityBuildSignature(
-      tracked.visual,
-      transition.itemId,
-      transition.change,
-    );
-  }
-  if (!local) return;
-  const text = createFloatingText(
-    transition.change === "gained" ? "ATTUNED" : "RELEASED",
-    BUILD_SIGNATURE_COLORS[transition.itemId],
-    transition.change === "gained" ? 17 : 14,
-  );
-  text.position.set(
-    position.x,
-    (tracked?.visual.userData.baseScale ?? 6.2) + 1.2,
-    position.z,
-  );
-  if (event.playerId) {
-    text.userData.followPlayerId = event.playerId;
-    text.userData.followHeight = (tracked?.visual.userData.baseScale ?? 6.2) + 1.2;
-  }
-  scene.add(text);
-  floatingTexts.push(text);
-}
 
 const PURCHASE_STAT_SHORT_LABELS = {
   basicDamage: "BASIC",
@@ -2099,9 +2177,7 @@ function handleEvent(event: GameEvent, playTransient = false): void {
     toast("Skill point ready — choose Q, E, R, or F", "loot");
     audio.play("loot");
   } else if (event.kind === "item_purchased") {
-    const transition = event.attunementTransition;
     const delivery = itemPurchaseDeliveryPolicy(event, localPlayerId, playTransient);
-    if (transition && delivery.playAttunementTransient) playAttunementTransition(event, transition);
     const purchaseImpact = delivery.playWareReceiptTransient ? playWareReceipt(event) : null;
     if (delivery.acknowledgeLocalPurchase) {
       const self = currentPlayer();
@@ -2111,33 +2187,20 @@ function handleEvent(event: GameEvent, playTransient = false): void {
         shopAnnouncement.textContent = `${event.text} Build remains six of six.`;
       }
       if (!delivery.playLocalPurchaseFeedback) return;
-      const itemName = transition ? ITEM_DEFINITIONS[transition.itemId].name : null;
-      const evolved = transition?.change === "gained"
-        ? deriveItemEvolutionProgress(transition.itemId, transition.toCount)?.state === "active"
-        : false;
-      const transitionToast = transition?.change === "gained"
-        ? `${itemName} Attuned · ×${transition.fromCount} → ×${transition.toCount} · effective ×${effectiveStackCopies(transition.toCount)}${evolved ? " · Combat Stride unlocked" : ""}`
-        : transition?.change === "lost"
-          ? `${itemName} Attunement lost · ×${transition.fromCount} → ×${transition.toCount}`
-          : purchaseImpact
-            ? `${event.text} ${purchaseImpact.resultText}.`
-            : event.text;
-      toast(transitionToast, "loot");
-      audio.play(transition?.change === "gained" ? "attune" : transition?.change === "lost" ? "unattune" : "loot");
-      if (!transition && !delivery.playWareReceiptTransient) spawnBurst(position, 0xf1c56f, 13, 1.15);
+      toast(purchaseImpact ? `${event.text} ${purchaseImpact.resultText}.` : event.text, "loot");
+      audio.play("loot");
+      if (!delivery.playWareReceiptTransient) spawnBurst(position, 0xf1c56f, 13, 1.15);
       pulsePurchasedStat(event.itemId);
       if (event.replacedItemId) pulsePurchasedStat(event.replacedItemId);
     }
   } else if (event.kind === "item_sold") {
-    const transition = event.attunementTransition;
     const delivery = itemSaleDeliveryPolicy(event, localPlayerId, playTransient);
-    if (transition && delivery.playAttunementTransient) playAttunementTransition(event, transition);
     if (delivery.acknowledgeLocalSale) {
       if (saleMode) clearSaleSelection();
       shopAnnouncement.textContent = `${event.text} The selected equipment slot is now open.`;
       if (!delivery.playLocalSaleFeedback) return;
       toast(event.text, "loot");
-      audio.play(transition ? "unattune" : "loot");
+      audio.play("loot");
       pulsePurchasedStat(event.itemId);
     }
   } else if (event.kind === "rift_exposed") {
@@ -2195,6 +2258,8 @@ function applySnapshot(next: GameSnapshot, options: { hydrate?: boolean } = {}):
     for (const event of next.events) handleEvent(event, false);
   }
   const self = next.players.find((player) => player.id === localPlayerId);
+  updateArmingUi(next, self);
+  if (masteryOpen && self?.mastery) renderMastery(self);
   if (self?.heroId) {
     selectedHero = self.heroId;
     heroCss(self.heroId);
@@ -2292,7 +2357,7 @@ function syncPlayers(players: PlayerSnapshot[]): void {
     tracked.action = player.action;
     tracked.visual.userData.isLocal = player.id === localPlayerId;
     const dominantStack = dominantEquipmentStack(player.equipment);
-    setEntityBuildSignature(tracked.visual, dominantStack?.itemId ?? null, dominantStack?.attuned ?? false);
+    setEntityBuildSignature(tracked.visual, dominantStack?.itemId ?? null);
     const oldHp = previousHp.get(`p-${player.id}`);
     if (oldHp !== undefined) {
       const comparableOldHp = projectHealthAtPreservedRatio(
@@ -2520,7 +2585,12 @@ const PHASE_LABELS: Record<GamePhase, string> = {
 function updateHud(state: GameSnapshot, self: PlayerSnapshot | undefined): void {
   phaseLabel.textContent = PHASE_LABELS[state.phase];
   waveLabel.textContent = state.phase === "defense" ? `WAVE ${Math.max(1, state.wave.number)} / ${state.wave.total}` : state.phase === "push" ? "RIFT ASSAULT" : state.phase === "breach" ? "SIEGE EVENT" : "";
-  objectiveCopy.textContent = state.objective;
+  const armedCount = state.arming?.armedPlayerIds.length ?? 0;
+  const connectedCount = state.players.filter((player) => player.connected).length;
+  const countdownSeconds = state.arming?.countdownEndsAt ? Math.max(0, Math.ceil((state.arming.countdownEndsAt - state.serverTime) / 1000)) : null;
+  objectiveCopy.textContent = state.phase === "arming"
+    ? countdownSeconds !== null ? `ALL DEFENDERS ARMED · SIEGE IN ${countdownSeconds}` : `FORGE AT THE ARSENAL · ${armedCount}/${connectedCount} ARMED`
+    : state.objective;
   const nexusRatio = state.nexus.hp / Math.max(1, state.nexus.maxHp);
   nexusBar.style.width = `${Math.max(0, nexusRatio * 100)}%`;
   nexusBar.classList.toggle("is-critical", nexusRatio < 0.3);
@@ -2629,12 +2699,13 @@ function escapeText(text: string): string {
 
 function updateAbilityBar(self: PlayerSnapshot): void {
   if (!self.heroId) return;
-  basicAttackName.textContent = self.weaponId === "greatsword" ? WEAPON_DEFINITIONS.greatsword.basicName : PRACTICE_WEAPON.basicName;
+  const greatswordEquipped = self.weaponId === "greatsword";
+  basicAttackName.textContent = greatswordEquipped ? WEAPON_DEFINITIONS.greatsword.basicName : PRACTICE_WEAPON.basicName;
   const allocation = self.mastery;
   for (const action of ["ability1", "ability2", "ability3", "ultimate"] as const) {
     const element = abilityBar.querySelector<HTMLButtonElement>(`[data-action="${action}"]`);
     if (!element) continue;
-    const skillId = allocation?.equipped[action] ?? null;
+    const skillId = greatswordEquipped ? allocation?.equipped[action] ?? null : null;
     const skill = skillId ? SKILL_DEFINITIONS[skillId] : null;
     const cooldown = skillId ? Math.max(0, self.cooldownsBySkillId[skillId] ?? 0) : 0;
     const effectiveCooldown = skill ? skill.cooldown / Math.max(0.01, self.stats.cooldownRecovery) : 1;
@@ -2646,12 +2717,16 @@ function updateAbilityBar(self: PlayerSnapshot): void {
     element.classList.toggle("is-cooling", Boolean(skill) && cooldown > 0.1);
     element.classList.toggle("is-ready", action === "ultimate" && Boolean(skill) && cooldown <= 0);
     element.disabled = !skill;
-    element.title = skill ? skill.description : `${abilityKeyLabel(action)}, empty ${action === "ultimate" ? "mastery" : "standard skill"} slot`;
+    element.title = skill ? skill.description : greatswordEquipped
+      ? `${abilityKeyLabel(action)}, empty ${action === "ultimate" ? "mastery" : "standard skill"} slot`
+      : `${abilityKeyLabel(action)}, unavailable while the Practice Blade is equipped`;
     element.setAttribute("aria-label", skill
       ? `${abilityKeyLabel(action)}, ${skill.name}, ${cooldown > 0.1 ? `${cooldown.toFixed(1)} seconds remaining` : "ready"}.`
-      : `${abilityKeyLabel(action)}, empty ${action === "ultimate" ? "mastery" : "standard skill"} slot.`);
+      : greatswordEquipped
+        ? `${abilityKeyLabel(action)}, empty ${action === "ultimate" ? "mastery" : "standard skill"} slot.`
+        : `${abilityKeyLabel(action)}, unavailable until the Greatsword purchase is accepted.`);
     const label = element.querySelector<HTMLElement>(".ability-name");
-    if (label) label.textContent = skill?.name ?? (action === "ultimate" ? "No Mastery" : "Empty");
+    if (label) label.textContent = skill?.name ?? (greatswordEquipped ? action === "ultimate" ? "No Mastery" : "Empty" : "Practice Only");
     const cooldownLabel = element.querySelector<HTMLElement>(".cooldown-value");
     if (cooldownLabel) cooldownLabel.textContent = cooldown > 0.1 ? cooldown.toFixed(cooldown >= 10 ? 0 : 1) : "";
     const status = element.querySelector<HTMLElement>(".ability-status");
@@ -2669,8 +2744,11 @@ function updateAbilityBar(self: PlayerSnapshot): void {
   skillPointCount.textContent = `${unspent} MASTERY POINT${unspent === 1 ? "" : "S"} · M`;
   skillPointCount.setAttribute("aria-label", `${unspent} mastery point${unspent === 1 ? "" : "s"} available; press M to inspect the network`);
   abilityBar.classList.toggle("has-upgrades", unspent > 0);
+  abilityBar.classList.toggle("is-practice", !greatswordEquipped);
   abilityBar.dataset.skillPoints = String(unspent);
-  abilityBar.setAttribute("aria-label", "Defender equipped Greatsword skills");
+  abilityBar.setAttribute("aria-label", greatswordEquipped
+    ? "Defender equipped Greatsword skills"
+    : "Practice Blade basic attack only; Greatsword skills unavailable");
 }
 
 const SKILL_SLOTS: ReadonlyArray<{ slot: AbilitySlot; key: "Q" | "E" | "R" | "F" }> = [
@@ -2843,6 +2921,7 @@ function formatTime(milliseconds: number): string {
 }
 
 function movementInput(): Vec2 {
+  if (shopOpen || heroStatsOpen || masteryOpen || arsenalOpen) return { x: 0, z: 0 };
   let x = 0;
   let z = 0;
   if (keys.has("KeyA")) x -= 1;
@@ -2859,12 +2938,13 @@ function sendInput(): void {
   const aim = self
     ? { x: aimWorld.x - self.position.x, z: aimWorld.z - self.position.z }
     : { x: 0, z: -1 };
+  const overlayOpen = shopOpen || heroStatsOpen || masteryOpen || arsenalOpen;
   send({
     type: "input",
     seq: ++inputSequence,
     move: movementInput(),
     aim,
-    attacking,
+    attacking: overlayOpen ? false : attacking,
   });
 }
 
@@ -2873,8 +2953,9 @@ window.setInterval(sendInput, 50);
 function cast(slot: AbilitySlot): void {
   if (!connectionReady) return;
   if (snapshot?.phase === "lobby") return;
+  if (shopOpen || heroStatsOpen || masteryOpen || arsenalOpen) return;
   const self = snapshot?.players.find((player) => player.id === localPlayerId);
-  if (!self || (self.abilityRanks[slot] ?? 0) <= 0) return;
+  if (!self?.mastery?.equipped[slot]) return;
   audio.unlock();
   audio.play("cast");
   send({ type: "cast", slot });
@@ -2883,6 +2964,67 @@ function cast(slot: AbilitySlot): void {
 }
 
 heroStatsToggle.addEventListener("click", () => setHeroStatsOpen(!heroStatsOpen));
+greatswordPurchase.addEventListener("click", () => {
+  if (!connectionReady || weaponPurchasePending) return;
+  weaponPurchasePending = true;
+  greatswordPurchase.disabled = true;
+  greatswordPurchase.textContent = "FORGING…";
+  const dispatched = send({ type: "buy_weapon", arsenalId: "citadel_arsenal", weaponId: "greatsword" });
+  if (!dispatched) {
+    weaponPurchasePending = false;
+    arsenalStatusFromSnapshot();
+  }
+});
+masteryClose.addEventListener("click", () => setMasteryOpen(false));
+arsenalMastery.addEventListener("click", () => {
+  closeArsenalPanel();
+  setMasteryOpen(true);
+});
+arsenalRespec.addEventListener("click", () => {
+  const self = currentPlayer();
+  if (!self?.mastery || respecRequestRevision !== null) return;
+  respecRequestRevision = self.mastery.revision;
+  arsenalStatusFromSnapshot();
+  const dispatched = send({ type: "respec_mastery", arsenalId: "citadel_arsenal", weaponId: "greatsword", expectedRevision: self.mastery.revision });
+  respecRequestRevision = pendingRevisionAfterDispatch(self.mastery.revision, dispatched);
+  if (!dispatched) {
+    arsenalStatusFromSnapshot();
+  }
+});
+masteryNetwork.addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+  const current = (event.target as HTMLElement).closest<HTMLButtonElement>(".mastery-node");
+  if (!current) return;
+  event.preventDefault();
+  const x = Number(current.dataset.graphX);
+  const y = Number(current.dataset.graphY);
+  const candidates = [...masteryNetwork.querySelectorAll<HTMLButtonElement>(".mastery-node")].filter((button) => button !== current);
+  const directional = candidates.filter((button) => {
+    const dx = Number(button.dataset.graphX) - x;
+    const dy = Number(button.dataset.graphY) - y;
+    return event.key === "ArrowLeft" ? dx < 0 : event.key === "ArrowRight" ? dx > 0 : event.key === "ArrowUp" ? dy < 0 : dy > 0;
+  });
+  directional.sort((left, right) => {
+    const distanceFor = (button: HTMLButtonElement) => {
+      const dx = Number(button.dataset.graphX) - x;
+      const dy = Number(button.dataset.graphY) - y;
+      return Math.hypot(dx, dy);
+    };
+    return distanceFor(left) - distanceFor(right);
+  });
+  const next = directional[0];
+  if (!next) return;
+  current.tabIndex = -1;
+  next.tabIndex = 0;
+  next.focus();
+});
+masteryNetwork.addEventListener("focusin", (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".mastery-node");
+  const nodeId = button?.dataset.nodeId;
+  if (!nodeId) return;
+  focusedMasteryNodeId = nodeId as MasteryNodeId;
+  for (const node of masteryNetwork.querySelectorAll<HTMLButtonElement>(".mastery-node")) node.tabIndex = node === button ? 0 : -1;
+});
 shopClose.addEventListener("click", () => {
   if (replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest) {
     shopAnnouncement.textContent = "The current trade is already being verified by the server.";
@@ -2907,13 +3049,57 @@ shopReplaceCancel.addEventListener("click", () => {
 window.addEventListener("keydown", (event) => {
   if (event.target instanceof HTMLInputElement) return;
   const unmodified = !event.ctrlKey && !event.metaKey && !event.altKey;
+  if (event.code === "KeyM" && unmodified) {
+    if (!event.repeat) {
+      event.preventDefault();
+      setMasteryOpen(!masteryOpen);
+    }
+    return;
+  }
+  if (event.code === "Space" && unmodified) {
+    if (!event.repeat && !shopOpen && !heroStatsOpen && !masteryOpen && !arsenalOpen && connectionReady) {
+      event.preventDefault();
+      const self = currentPlayer();
+      const move = movementInput();
+      const direction = Math.hypot(move.x, move.z) > 0.01 ? move : self?.aim ?? { x: 0, z: -1 };
+      send({ type: "dodge", seq: ++inputSequence, direction });
+    }
+    return;
+  }
   if (event.code === "KeyB" && unmodified) {
     if (!event.repeat) {
       event.preventDefault();
+      const self = currentPlayer();
+      const nearest = snapshot && self ? nearestInRangeVendor(snapshot, self) : undefined;
+      const arsenalInRange = nearest?.id === "citadel_arsenal";
+      const armingAction = snapshot ? armingKeyboardAction({
+        phase: snapshot.phase,
+        arsenalInRange,
+        purchaseFocused: armingPanel.contains(document.activeElement),
+      }) : null;
+      if (armingAction === "focus_purchase") {
+        armingFocusReturn = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        openArsenalPanel();
+        return;
+      }
+      if (armingAction === "restore_focus") {
+        closeArsenalPanel();
+        return;
+      }
+      if (snapshot?.phase === "arming") return;
+      if (nearest?.id === "citadel_arsenal") {
+        if (arsenalOpen) closeArsenalPanel();
+        else {
+          armingFocusReturn = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          openArsenalPanel();
+        }
+        return;
+      }
+      if (!nearest) return;
       if (shopOpen && (replacementRequestPending || saleRequestPending || ordinaryPurchaseRequest)) {
         shopAnnouncement.textContent = "The current trade is already being verified by the server.";
       } else {
-        setShopOpen(!shopOpen);
+        setShopOpen(!shopOpen, nearest.id);
       }
     }
     return;
@@ -2994,6 +3180,16 @@ window.addEventListener("keydown", (event) => {
     setHeroStatsOpen(false);
     return;
   }
+  if (event.code === "Escape" && masteryOpen) {
+    event.preventDefault();
+    setMasteryOpen(false);
+    return;
+  }
+  if (event.code === "Escape" && armingPanel.contains(document.activeElement)) {
+    event.preventDefault();
+    closeArsenalPanel();
+    return;
+  }
   if (connectionReady && (event.code === "KeyW" || event.code === "KeyA" || event.code === "KeyS" || event.code === "KeyD")) keys.add(event.code);
   if (event.repeat) return;
   const keyedSkill = event.code === "KeyQ" ? "ability1"
@@ -3041,7 +3237,7 @@ renderer.domElement.addEventListener("pointermove", (event) => {
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 });
 renderer.domElement.addEventListener("pointerdown", (event) => {
-  if (!connectionReady) return;
+  if (!connectionReady || shopOpen || heroStatsOpen || masteryOpen || arsenalOpen) return;
   audio.unlock();
   if (event.button === 0) {
     attacking = true;
