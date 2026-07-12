@@ -2,6 +2,8 @@
 
 A browser-first, 1–4 player co-op action RPG about defending humanity's last city from a demon invasion. Four distinct heroes protect the central Heartfire Nexus, survive a breach, then counterattack through the rift.
 
+`0.1.34` remains the latest playable checkpoint. The approved next direction replaces its four fixed heroes incrementally with one neutral Citadel Defender whose purchased weapon, mastery network, equipped skills, and run-only items create the combat identity. The existing heroes remain transition technology until each replacement checkpoint is rendered and verified.
+
 Version `0.1.34` is deliberately small: one 5–10 minute run that proves a readable dark-fantasy battlefield and decision hierarchy, four distinct champions including an execution-earned Splitbolt branch, a persistent server-owned Cinder Wall, and a bounded knowable Wraith Host, trustworthy identity-specific ranged primaries, party-sized lane defense with exact active-gate durability, direct action-bar progression, truthful cooperative gold whose purchasing power and local destinations are readable from combat, two physical shops with five distinct run-only wares, exact-slot selling and atomic full-build reforging, champion-specific current consequences for every primary and learned ability, exact learned fresh-cast returns before Quickening purchases and reforges, a readable and visibly resonant six-slot build whose early duplicate commitment and meaningful threshold stay legible, one earned ware evolution that carries movement into a primary attack and leaves a restrained in-world step, knowable ordinary purchases whose accepted power lands on the hero, bounded same-run reconnect recovery, one pressure spike, and one boss payoff.
 
 ![Riftstalker's single pale-violet Splitbolt seed travels down a readable lane](docs/playtest/splitbolt-seed.jpg)
@@ -74,4 +76,5 @@ Runtime diagnostics are available at `/health` and `/debug/state`.
 - [Playtest script](docs/PLAYTEST.md)
 - [Changelog](CHANGELOG.md)
 - [Human-readable devlog](docs/DEVLOG.md)
+- [One-hero weapon and mastery redesign draft](docs/ONE_HERO_WEAPON_MASTERY_DRAFT.md)
 - [Live companion website](https://fabiengreard.github.io/x-hero-siege/) and [source](site/index.html)

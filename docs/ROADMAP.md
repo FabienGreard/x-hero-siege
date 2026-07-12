@@ -2,6 +2,18 @@
 
 This roadmap is a scope guard, not a content backlog. Work proceeds as one played, rendered, verified checkpoint at a time; expansion remains deferred until the 5–10 minute run earns it.
 
+## Approved next direction — Defender and weapon mastery migration
+
+**Status:** product direction approved on 2026-07-12; implementation not started; `0.1.34` remains the latest verified playable checkpoint.
+
+- Replace the four fixed heroes incrementally with one neutral Citadel Defender whose purchased Greatsword, Bow, Staff, Greathammer, or Daggers defines the primary attack and mastery network.
+- Keep the verified Citadel siege, authoritative multiplayer, physical shops, six run-only item slots, exact-slot transactions, reconnect behavior, and defense-to-counterattack payoff as migration foundations.
+- Use the approved mastery contract: full tree visibility, Arsenal/level-up loadout changes, always-on general passives, equipped-skill mutations, and an eighth-point branch mastery usable before the finale.
+- Keep Three.js and close the concept-art gap through a defined Blender-to-Three.js pipeline, modular authored assets, animation, materials, lighting, and restrained effects.
+- Begin with cross-workstream audits, then assign exactly one implementation owner to the smallest complete playable migration checkpoint. Do not launch five parallel rewrites.
+
+**First-checkpoint gate:** play the current build, review the five workstream audits, choose one player-visible transition boundary, and specify its authority, compatibility, rendered, multiplayer, balance, and rollback evidence before implementation.
+
 ## `0.1.34` — Make the Kill Branch
 
 **Status:** implemented, pushed, and locally verified on 2026-07-11; companion site deployed and live-render verified; playable game deployment pending a configured Bun/WebSocket host and the remaining public-host gates.

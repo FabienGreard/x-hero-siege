@@ -2,6 +2,16 @@
 
 All notable project changes are recorded here.
 
+## [Unreleased]
+
+### Direction
+
+- Approved the migration from four fixed heroes to one neutral Citadel Defender whose purchased weapon, mastery network, equipped skills, and run-only items create the combat identity.
+- Approved Greatsword, Bow, Staff, Greathammer, and Daggers as the first weapon families, including duplicate weapon choice in multiplayer and the resolved mastery/loadout contract.
+- Kept the verified `0.1.34` game as the transition baseline and preserved its Citadel siege, authoritative multiplayer, shops, transactions, reconnects, camera, and checkpoint gates.
+- Approved a concept-art-led low-poly/pixel-hybrid target in Three.js, supported by a defined Blender asset and animation pipeline before production volume.
+- Approved the battlefield-first four-anchor HUD direction and its first CSS composition pass without claiming the broader single-Defender migration is playable yet.
+
 ## [0.1.34] - 2026-07-11
 
 ### Added

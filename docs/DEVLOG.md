@@ -2,6 +2,16 @@
 
 This is the human-readable record of why each verified checkpoint exists. Mechanical detail and formal verification remain in the changelog, roadmap, and playtest log.
 
+## 2026-07-12 — The weapon becomes the legend
+
+Thirty-four checkpoints proved that the Citadel, its pressure, its shops, and its authoritative multiplayer loop can carry a short action RPG. They also made the next ceiling visible. Fixed heroes let the first slice establish four identities quickly, but they make every new playstyle another class-sized promise. The approved direction now keeps one practical Citadel Defender and moves identity into the weapon the player buys, the skills they learn, the mastery branch they complete, and the items they combine.
+
+This is a migration, not permission to erase the working game. Greatsword, Bow, Staff, Greathammer, and Daggers will reuse proven action, projectile, wall, summon, shop, and reconnect technology through bounded playable checkpoints. The old heroes remain the verified baseline until replacement evidence is stronger than the behavior it removes.
+
+The visual target stays with the approved artwork. Three.js remains the renderer, but primitive placeholders are no longer the production destination. A Blender-to-Three.js pipeline must establish scale, pivots, modularity, materials, rigs, clips, export validation, and horde budgets before asset volume begins. The first battlefield-first HUD pass follows the same rule: prove hierarchy around the world before decorating it.
+
+Five workstreams may study the game at once; only one owns implementation for a checkpoint. Interface, player systems, encounters, art direction, and asset production report into the same player-visible outcome so the project gains depth instead of five incompatible futures.
+
 ## 2026-07-11 — Make the kill branch
 
 Playing Riftstalker after `0.1.33` made the remaining skill sameness visible in one button. Splitbolt promised a piercing shot that divided after a kill. The game instead launched three purple blobs at once, before anything died. Execution Volley was larger, but both skills began with the same sentence: press the button and receive several projectiles. For the class already asking the most of aim and survival, its supposed execution reward was neither earned nor readable.

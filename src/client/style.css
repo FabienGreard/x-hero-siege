@@ -3173,3 +3173,406 @@ kbd,
     transition-duration: 0.001ms !important;
   }
 }
+
+/*
+ * Decision 0001 — artwork-led battlefield interface.
+ * Prove the four-anchor composition before producing bespoke frame art.
+ * See docs/decisions/0001-artwork-led-interface-direction.md.
+ */
+:root {
+  --panel: rgba(9, 9, 11, 0.78);
+  --panel-strong: rgba(7, 7, 9, 0.94);
+  --line: rgba(178, 144, 90, 0.24);
+  --line-hot: rgba(218, 178, 104, 0.72);
+  --text: #eee6d6;
+  --muted: #96989a;
+  --blue: #78c9e6;
+  --blue-hot: #c9f0f4;
+  --gold: #d4a957;
+}
+
+.panel-chrome {
+  background: linear-gradient(180deg, rgba(18, 18, 20, 0.88), rgba(7, 7, 9, 0.72));
+  border-color: var(--line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38), inset 0 1px rgba(234, 208, 158, 0.035);
+  clip-path: none;
+}
+
+.eyebrow {
+  color: #a99a82;
+  letter-spacing: 0.18em;
+}
+
+/* Anchor 1: party stack. The members, not a dashboard card, are the surface. */
+.team-panel {
+  top: 20px;
+  left: 20px;
+  width: 196px;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.team-panel > .eyebrow {
+  margin: 0 0 7px 1px;
+}
+
+.team-list {
+  gap: 4px;
+}
+
+.team-member {
+  grid-template-columns: 30px 1fr auto;
+  min-height: 34px;
+  padding: 3px 7px 3px 3px;
+  background: linear-gradient(90deg, rgba(8, 8, 10, 0.9), rgba(8, 8, 10, 0.58));
+  border-color: rgba(188, 153, 96, 0.2);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.25);
+}
+
+.team-member.is-self {
+  border-color: rgba(211, 171, 101, 0.48);
+}
+
+.team-portrait {
+  width: 27px;
+  height: 27px;
+  background: #111113;
+  border-color: color-mix(in srgb, var(--hero-color, #83d9ff) 62%, #9b7c4a);
+  font-size: 15px;
+}
+
+.team-copy strong {
+  color: #eae1d1;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.team-copy small,
+.team-level {
+  font-size: 7px;
+}
+
+.team-health {
+  left: 38px;
+  bottom: 3px;
+  height: 2px;
+}
+
+/* Anchor 2: a single objective rail. */
+.objective-hud {
+  top: 15px;
+  width: min(520px, 43vw);
+}
+
+.objective-heading {
+  padding: 0 18px 5px;
+  color: #b5aa98;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 8px;
+}
+
+.nexus-frame {
+  height: 18px;
+  padding: 3px;
+  background: rgba(8, 8, 10, 0.9);
+  border-color: rgba(194, 158, 98, 0.5);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.48), inset 0 0 6px rgba(113, 196, 224, 0.08);
+  clip-path: polygon(11px 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 11px 100%, 0 50%);
+}
+
+.nexus-fill {
+  background: linear-gradient(90deg, #235f70, #75cce5 72%, #b7edf0);
+  box-shadow: inset 0 0 5px rgba(216, 248, 244, 0.45), 0 0 8px rgba(91, 190, 218, 0.22);
+}
+
+.nexus-sheen {
+  inset: 3px;
+}
+
+.nexus-label {
+  inset-inline: 15px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 8px;
+  letter-spacing: 0.13em;
+}
+
+.objective-copy {
+  margin-top: 4px;
+  padding: 2px 10px;
+  color: #b7b0a5;
+  background: linear-gradient(90deg, transparent, rgba(4, 4, 6, 0.64) 18%, rgba(4, 4, 6, 0.64) 82%, transparent);
+  font-size: 8px;
+}
+
+/* Anchor 3: a circular tactical seal, closer to the artwork's minimap. */
+.threat-panel {
+  top: 17px;
+  right: 20px;
+  width: 158px;
+  height: 158px;
+  padding: 0;
+  overflow: visible;
+  background: radial-gradient(circle, rgba(9, 9, 11, 0.92) 0 65%, rgba(22, 19, 17, 0.9) 66% 70%, rgba(7, 7, 9, 0.92) 71%);
+  border: 1px solid rgba(190, 153, 92, 0.56);
+  border-radius: 50%;
+  box-shadow: 0 7px 26px rgba(0, 0, 0, 0.5), inset 0 0 0 4px rgba(6, 6, 8, 0.78), inset 0 0 0 5px rgba(190, 153, 92, 0.12);
+}
+
+.threat-panel > .eyebrow,
+.lane-status-list {
+  display: none;
+}
+
+.threat-compass {
+  top: 5px;
+  right: 50%;
+  z-index: 2;
+  transform: translateX(50%) rotate(45deg) scale(0.78);
+}
+
+.minimap {
+  width: 132px;
+  height: 132px;
+  margin: 13px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  clip-path: circle(50%);
+}
+
+/* Anchor 4: one compact action belt instead of several adjacent cards. */
+.action-hud {
+  bottom: 14px;
+  grid-template-columns: 116px auto 88px;
+  gap: 8px;
+}
+
+.combat-actions {
+  gap: 4px;
+  padding: 6px;
+  background: linear-gradient(180deg, rgba(16, 15, 15, 0.92), rgba(6, 6, 8, 0.94));
+  border: 1px solid rgba(188, 153, 96, 0.34);
+  box-shadow: 0 9px 30px rgba(0, 0, 0, 0.56), inset 0 0 0 2px rgba(0, 0, 0, 0.44);
+}
+
+.ability-bar {
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  clip-path: none;
+}
+
+.basic-readout,
+.ability-slot,
+.ability-slot.ultimate {
+  width: 62px;
+  height: 62px;
+  margin: 0;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--hero-color, #68d8ff) 20%, #171719), #08080a 72%);
+  border-color: rgba(190, 153, 92, 0.36);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.7);
+}
+
+.basic-readout {
+  display: grid;
+  grid-template: 1fr / 1fr;
+  place-items: center;
+  padding: 0;
+}
+
+.basic-key,
+.ability-key {
+  top: 4px;
+  left: 4px;
+  width: auto;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 3px;
+  background: rgba(5, 5, 7, 0.88);
+  border-color: rgba(210, 178, 119, 0.36);
+  font-size: 8px;
+}
+
+.basic-icon {
+  grid-row: auto;
+  color: #d9c49c;
+  font-size: 24px;
+}
+
+.basic-name,
+.ability-name {
+  right: 3px;
+  bottom: 10px;
+  left: 3px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 7px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.basic-readout::after {
+  display: none;
+}
+
+.ability-icon {
+  margin-top: -6px;
+  font-size: 25px;
+}
+
+.ability-status {
+  top: 27px;
+  font-size: 6px;
+}
+
+.ability-ranks {
+  right: 5px;
+  bottom: 4px;
+  left: 5px;
+  gap: 2px;
+}
+
+.ability-ranks span {
+  width: 10px;
+  height: 2px;
+}
+
+.ability-requirement {
+  top: 5px;
+  right: 4px;
+  font-size: 5px;
+}
+
+.cooldown-value {
+  top: 20px;
+  font-size: 17px;
+}
+
+.ability-upgrade {
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  border-width: 1px;
+  font-size: 18px;
+}
+
+.ability-point-bank {
+  right: 0;
+  bottom: calc(100% + 8px);
+  color: #261c0d;
+  background: #d9b65d;
+  border-color: #f0d488;
+}
+
+.hero-orb-wrap {
+  height: 62px;
+  padding-left: 62px;
+}
+
+.hero-orb {
+  width: 62px;
+  height: 62px;
+  background: radial-gradient(circle at 38% 32%, #f08a74, #8d2528 45%, #250a0e 72%);
+  border-color: #342c27;
+  box-shadow: 0 0 0 1px #070708, 0 0 16px rgba(160, 42, 44, 0.34), inset 0 0 12px rgba(255, 198, 142, 0.14);
+}
+
+.hero-orb::before,
+.hero-orb::after {
+  background: #171310;
+  border-color: #695437;
+}
+
+.hero-health-track {
+  right: 2px;
+  bottom: 18px;
+  left: 52px;
+  height: 11px;
+  padding: 2px;
+  border-color: rgba(172, 134, 77, 0.42);
+}
+
+#hero-health-value {
+  right: 4px;
+  bottom: 4px;
+  color: #d8cfc0;
+  font-size: 7px;
+}
+
+.resource-readout {
+  gap: 3px;
+  width: 88px;
+  padding-bottom: 0;
+}
+
+.resource-readout > div {
+  grid-template-columns: 13px 1fr;
+  grid-template-rows: 16px 8px;
+  padding: 5px 4px 4px;
+  background: linear-gradient(180deg, rgba(15, 14, 14, 0.88), rgba(6, 6, 8, 0.86));
+  border-color: rgba(188, 153, 96, 0.22);
+}
+
+.resource-icon {
+  font-size: 10px;
+}
+
+.resource-readout strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11px;
+}
+
+.resource-readout small {
+  font-size: 6px;
+}
+
+.controls-hint {
+  display: none;
+}
+
+.connection-pill {
+  left: 20px;
+  bottom: 14px;
+  padding: 4px 7px;
+  background: rgba(5, 5, 7, 0.6);
+  border-color: rgba(188, 153, 96, 0.16);
+  font-size: 7px;
+}
+
+.hero-stats-toggle {
+  bottom: 42px;
+  left: 20px;
+}
+
+.boss-hud {
+  bottom: 98px;
+}
+
+.interaction-prompt {
+  bottom: 92px;
+}
+
+@media (max-width: 1050px) {
+  .objective-hud { width: 43vw; }
+  .team-panel { width: 178px; }
+  .threat-panel { width: 138px; height: 138px; }
+  .minimap { width: 114px; height: 114px; margin: 12px; }
+  .action-hud { grid-template-columns: 102px auto 78px; }
+  .basic-readout { display: grid; }
+  .basic-readout, .ability-slot, .ability-slot.ultimate { width: 54px; height: 54px; }
+  .ability-name { font-size: 6px; }
+  .hero-orb { width: 56px; height: 56px; }
+  .hero-orb-wrap { height: 56px; padding-left: 56px; }
+  .resource-readout { width: 78px; }
+}
+
+@media (max-width: 760px) {
+  .team-panel { transform: scale(0.78); transform-origin: top left; }
+  .threat-panel { transform: scale(0.78); transform-origin: top right; }
+  .action-hud { transform: translateX(-50%) scale(0.72); transform-origin: bottom center; }
+}

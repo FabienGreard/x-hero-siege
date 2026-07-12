@@ -1,5 +1,11 @@
 # Approved game direction
 
+## Direction supersession — 2026-07-12
+
+The [single-Defender weapon and mastery direction](ONE_HERO_WEAPON_MASTERY_DRAFT.md) supersedes this document wherever it specifies four fixed heroes, unique hero reservations, fixed hero kits, direct ability ranks, removal of Space dodge, the five-item ceiling, or universal four-copy Attunement. Those clauses remain below as the historical contract of the verified `0.1.34` transition baseline; they are not the destination.
+
+The Citadel, Heartfire Nexus, four-gate topology, defense-to-counterattack run, authoritative multiplayer, physical shops, exact-slot trading, reconnect behavior, camera, readability, and action-before-administration principles remain approved. Migration occurs through played and rendered checkpoints rather than a broad rewrite.
+
 ## Product promise
 
 This is a browser-first dark-fantasy pixel action RPG for one to four players. A party of legendary heroes defends the Aegis Citadel against dense demon waves, grows stronger during the assault, survives a city breach, and then pushes together into enemy territory to destroy the invasion rift.
