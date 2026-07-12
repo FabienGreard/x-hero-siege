@@ -387,8 +387,18 @@ if (visualCaptureEnabled) {
       let maxX = -1;
       let maxY = -1;
       let count = 0;
-      for (let y = 0; y < height; y += 1) {
-        for (let x = 0; x < width; x += 1) {
+      const local = visualDiagnostics?.playerScreen;
+      if (!local) return null;
+      const centerX = local.x * width / window.innerWidth;
+      const centerY = height - local.y * height / window.innerHeight;
+      const radiusX = 180 * width / window.innerWidth;
+      const radiusY = 180 * height / window.innerHeight;
+      const startX = Math.max(0, Math.floor(centerX - radiusX));
+      const endX = Math.min(width - 1, Math.ceil(centerX + radiusX));
+      const startY = Math.max(0, Math.floor(centerY - radiusY));
+      const endY = Math.min(height - 1, Math.ceil(centerY + radiusY));
+      for (let y = startY; y <= endY; y += 1) {
+        for (let x = startX; x <= endX; x += 1) {
           const offset = (y * width + x) * 4;
           if (pixels[offset]! > 32 || pixels[offset + 1]! > 32 || pixels[offset + 2]! > 32 || pixels[offset + 3]! < 200) continue;
           minX = Math.min(minX, x);
