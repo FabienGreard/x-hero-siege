@@ -13,6 +13,16 @@ const metadata = JSON.parse(await readFile(`${absolutePrefix}-metadata.json`, "u
 const cropSize = 360;
 const cropX = Math.round(metadata.playerScreen.x - cropSize / 2);
 const cropY = Math.round(metadata.playerScreen.y - cropSize / 2);
+const silhouetteCropWidth = 300;
+const silhouetteCropHeight = 240;
+const silhouetteCropX = Math.round(metadata.playerScreen.x - silhouetteCropWidth / 2);
+const silhouetteCropY = Math.round(metadata.playerScreen.y - silhouetteCropHeight / 2);
+if (
+  Math.abs(silhouetteCropX + silhouetteCropWidth / 2 - metadata.playerScreen.x) > 1
+  || Math.abs(silhouetteCropY + silhouetteCropHeight / 2 - metadata.playerScreen.y) > 1
+) {
+  throw new Error("Silhouette crop center does not match the recorded player coordinate.");
+}
 if (Math.abs(cropX + cropSize / 2 - metadata.playerScreen.x) > 1 || Math.abs(cropY + cropSize / 2 - metadata.playerScreen.y) > 1) {
   throw new Error("Crop center does not match the recorded player coordinate.");
 }
@@ -45,7 +55,10 @@ ffmpeg([
 ]);
 ffmpeg([
   "-i", silhouetteFullPath,
-  "-vf", `crop=${cropSize}:${cropSize}:${cropX}:${cropY}`,
+  // The full silhouette render is a processing intermediate. Keep the full
+  // horizontal weapon arc, while excluding the known off-centre lower
+  // health/selection artifact from the retained local-player proof crop.
+  "-vf", `crop=${silhouetteCropWidth}:${silhouetteCropHeight}:${silhouetteCropX}:${silhouetteCropY}`,
   silhouettePath,
 ]);
 
