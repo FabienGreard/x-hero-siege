@@ -43,6 +43,15 @@ export const LANE_COLOR: Record<LaneId, number> = {
   west: 0x51ba84,
 };
 
+export const GREATSWORD_SLASH_OUTER_COLOR = 0xf1e6d0;
+export const GREATSWORD_SLASH_EDGE_COLOR = 0xd8bd78;
+export const GREATSWORD_SLASH_DECAY_SECONDS = 0.18;
+
+export function greatswordSlashOpacity(ageSeconds: number): number {
+  if (!Number.isFinite(ageSeconds)) return 0;
+  return Math.max(0, Math.min(1, 1 - Math.max(0, ageSeconds) / GREATSWORD_SLASH_DECAY_SECONDS));
+}
+
 const textureCache = new Map<string, THREE.Texture>();
 const materialCache = new Map<string, THREE.MeshLambertMaterial>();
 
@@ -1066,7 +1075,7 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
   group.rotation.y = rotation;
 
   const colorByKind: Record<EffectKind, number> = {
-    slash: 0xeaf7ff,
+    slash: GREATSWORD_SLASH_OUTER_COLOR,
     impact: 0xffb866,
     repeater_impact: 0xf3edff,
     ember_impact: 0xffd58a,
@@ -1166,7 +1175,7 @@ export function createEffectVisual(kind: EffectKind, radius: number, rotation: n
   } else if (kind === "slash") {
     // Local +X is the strike direction; the server-provided yaw turns this arc.
     addFlatRing(group, radius * 0.42, radius, color, 0.78, -0.56, 1.12);
-    addFlatRing(group, radius * 0.75, radius * 0.88, 0x8cdcff, 0.48, -0.7, 1.4);
+    addFlatRing(group, radius * 0.81, radius * 0.88, GREATSWORD_SLASH_EDGE_COLOR, 0.72, -0.7, 1.4);
   } else if (kind === "warden_charge") {
     // The effect position is the path midpoint and radius is half its length.
     const trailLength = Math.max(3, radius * 2);
@@ -1257,9 +1266,17 @@ export function updateEffectVisual(group: THREE.Group, remaining: number, elapse
   }
 
   const compactImpact = kind === "repeater_impact" || kind === "ember_impact" || kind === "wraith_impact";
-  const fade = compactImpact
-    ? THREE.MathUtils.clamp(remaining / 0.16, 0, 1)
-    : THREE.MathUtils.clamp(remaining * 2.5, 0, 1);
+  if (kind === "slash" && group.userData.initialRemaining === undefined) {
+    group.userData.initialRemaining = remaining;
+  }
+  const slashAge = kind === "slash"
+    ? Math.max(0, Number(group.userData.initialRemaining) - remaining)
+    : 0;
+  const fade = kind === "slash"
+    ? greatswordSlashOpacity(slashAge)
+    : compactImpact
+      ? THREE.MathUtils.clamp(remaining / 0.16, 0, 1)
+      : THREE.MathUtils.clamp(remaining * 2.5, 0, 1);
   const pulse = 1 + (1 - THREE.MathUtils.clamp(remaining, 0, 1)) * 0.2;
 
   if (kind === "meteor_warning") {
