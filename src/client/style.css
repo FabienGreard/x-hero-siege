@@ -2388,6 +2388,10 @@ kbd {
   width: 300px;
 }
 
+#game-shell[data-game-phase="arming"] .combat-feed {
+  top: 204px;
+}
+
 .feed-line {
   color: #bfc7ca;
   font-size: 9px;
@@ -2698,6 +2702,86 @@ kbd {
   min-height: 68px;
   padding: 10px 12px;
   text-align: left;
+}
+
+.lobby-party-readiness {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 980px;
+  margin: 0 auto 10px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.lobby-party-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 43px;
+  padding: 5px 8px 5px 5px;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(8, 10, 13, 0.94), rgba(8, 10, 13, 0.7));
+  border: 1px solid rgba(188, 153, 96, 0.24);
+  border-left: 3px solid var(--party-accent, #5f9cbb);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.32);
+}
+
+.lobby-party-row.is-local {
+  outline: 1px solid rgba(231, 215, 181, 0.66);
+  outline-offset: -3px;
+}
+
+.lobby-party-row.is-reconnecting {
+  border-style: dashed;
+  opacity: 0.72;
+}
+
+.lobby-party-marker {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: #eee5d2;
+  background: color-mix(in srgb, var(--party-accent, #5f9cbb) 22%, #0a0c0f);
+  border: 1px solid var(--party-accent, #5f9cbb);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.lobby-party-copy,
+.lobby-party-copy strong,
+.lobby-party-copy small {
+  display: block;
+  min-width: 0;
+}
+
+.lobby-party-copy strong {
+  overflow: hidden;
+  color: #eee5d6;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-party-copy small {
+  margin-top: 2px;
+  color: #9aa5a8;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.lobby-party-identity {
+  align-self: start;
+  color: #877b68;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
 }
 
 .name-field span {
@@ -3106,6 +3190,9 @@ kbd,
   .brand-lockup h1 { font-size: 31px; }
   .select-heading p { display: none; }
   .hero-grid { margin-top: 10px; }
+  .defender-identity-container { margin-bottom: 9px; }
+  .defender-identity { padding: 18px; }
+  .lobby-party-readiness { margin-bottom: 8px; }
   .hero-card { height: 330px; min-height: 245px; }
   .hero-silhouette { top: 5%; transform: translateX(-50%) scale(0.85); }
   .hero-card-copy p { height: 25px; }

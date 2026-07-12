@@ -121,6 +121,7 @@ import {
   type EntityVisual,
 } from "./visuals";
 import { arsenalCloseFocusTarget, deriveDodgeReadout, deriveVendorPrompt } from "./action-ui";
+import { deriveLobbyPartyRows } from "./lobby-party-ui";
 
 function requiredElement<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -154,6 +155,7 @@ const playerNameInput = requiredElement<HTMLInputElement>("player-name");
 const readyButton = requiredElement<HTMLButtonElement>("ready-button");
 const lobbyCount = requiredElement<HTMLSpanElement>("lobby-count");
 const lobbyNote = requiredElement<HTMLSpanElement>("lobby-note");
+const lobbyPartyReadiness = requiredElement<HTMLOListElement>("lobby-party-readiness");
 const connectionPill = requiredElement<HTMLDivElement>("connection-pill");
 const connectionLabel = requiredElement<HTMLSpanElement>("connection-label");
 const heroStatsToggle = requiredElement<HTMLButtonElement>("hero-stats-toggle");
@@ -2227,6 +2229,17 @@ function updateLobby(): void {
   if (!snapshot) return;
   const self = snapshot.players.find((player) => player.id === localPlayerId);
   selectedHero = "defender";
+  lobbyPartyReadiness.replaceChildren(...deriveLobbyPartyRows(snapshot.players, localPlayerId).map((row) => {
+    const item = document.createElement("li");
+    item.className = `lobby-party-row${row.isLocal ? " is-local" : ""}${row.isReady ? " is-ready" : ""}${row.isConnected ? "" : " is-reconnecting"}`;
+    item.style.setProperty("--party-accent", row.accent);
+    item.setAttribute("aria-label", row.ariaLabel);
+    item.innerHTML = `
+      <span class="lobby-party-marker" aria-hidden="true">${row.marker}</span>
+      <span class="lobby-party-copy"><strong>${escapeText(row.name)}</strong><small>${row.status}</small></span>
+      <span class="lobby-party-identity">DEFENDER</span>`;
+    return item;
+  }));
   const reconnectingPlayers = snapshot.players.filter((player) => !player.connected).length;
   setTextIfChanged(lobbyCount, `${snapshot.players.length} / 4 defender${snapshot.players.length === 1 ? "" : "s"}${reconnectingPlayers > 0 ? ` · ${reconnectingPlayers} reconnecting` : ""}`);
   const isHost = snapshot.lobby.hostId === localPlayerId;
