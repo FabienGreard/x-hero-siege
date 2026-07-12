@@ -342,17 +342,21 @@ def create_weapon(name: str, target: bpy.types.Collection, material: bpy.types.M
         # 1.3x a realistic two-handed sword, calibrated to an approximately
         # body-height gameplay silhouette rather than a fantasy oversized blade.
         parts = [
-            {"kind": "prism", "center": (0.34, 0, 0), "radius": 0.10, "depth": 0.68, "sides": 8, "axis": "x", "swatch": "leather"},
-            {"kind": "box", "center": (0.76, 0, 0), "size": (0.12, 0.92, 0.17), "swatch": "brass"},
-            {"kind": "blade", "start_x": 0.79, "end_x": 3.72, "width_start": 0.46, "width_end": 0.31, "thickness": 0.14, "swatch": "steel_edge"},
-            {"kind": "blade", "start_x": 3.72, "end_x": 4.30, "width_start": 0.31, "width_end": 0.04, "thickness": 0.12, "swatch": "iron_light"},
-            {"kind": "prism", "center": (-0.08, 0, 0), "radius": 0.19, "depth": 0.22, "sides": 8, "axis": "x", "swatch": "brass"},
+            {"kind": "prism", "center": (0.34, 0, 0), "radius": 0.15, "depth": 0.68, "sides": 8, "axis": "x", "swatch": "leather"},
+            {"kind": "box", "center": (0.76, 0, 0), "size": (0.16, 1.32, 0.24), "swatch": "brass"},
+            {"kind": "blade", "start_x": 0.79, "end_x": 3.72, "width_start": 0.82, "width_end": 0.60, "thickness": 0.22, "swatch": "steel_edge"},
+            {"kind": "blade", "start_x": 3.72, "end_x": 4.30, "width_start": 0.60, "width_end": 0.05, "thickness": 0.18, "swatch": "iron_light"},
+            {"kind": "blade", "start_x": 0.98, "end_x": 3.78, "width_start": 0.18, "width_end": 0.12, "thickness": 0.25, "swatch": "iron_mid"},
+            {"kind": "prism", "center": (-0.08, 0, 0), "radius": 0.26, "depth": 0.22, "sides": 8, "axis": "x", "swatch": "brass"},
         ]
     else:
         parts = [
-            {"kind": "prism", "center": (0.34, 0, 0), "radius": 0.09, "depth": 0.68, "sides": 6, "axis": "x", "swatch": "leather"},
-            {"kind": "box", "center": (0.78, 0, 0), "size": (0.12, 0.72, 0.12), "swatch": "iron_mid"},
-            {"kind": "box", "center": (1.52, 0, 0), "size": (1.42, 0.28, 0.10), "swatch": "iron_light"},
+            {"kind": "prism", "center": (0.34, 0, 0), "radius": 0.13, "depth": 0.68, "sides": 6, "axis": "x", "swatch": "leather"},
+            {"kind": "box", "center": (0.78, 0, 0), "size": (0.15, 0.94, 0.18), "swatch": "iron_mid"},
+            {"kind": "blade", "start_x": 0.84, "end_x": 2.05, "width_start": 0.44, "width_end": 0.22, "thickness": 0.16, "swatch": "iron_light"},
+            {"kind": "blade", "start_x": 2.05, "end_x": 2.28, "width_start": 0.22, "width_end": 0.03, "thickness": 0.14, "swatch": "steel_edge"},
+            {"kind": "blade", "start_x": 1.00, "end_x": 2.06, "width_start": 0.10, "width_end": 0.06, "thickness": 0.19, "swatch": "iron_shadow"},
+            {"kind": "prism", "center": (-0.06, 0, 0), "radius": 0.16, "depth": 0.18, "sides": 6, "axis": "x", "swatch": "iron_mid"},
         ]
     obj = mesh_from_parts(name, parts, material, target)
     obj["origin_contract"] = "primary grip"

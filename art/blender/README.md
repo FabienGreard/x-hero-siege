@@ -40,6 +40,24 @@ must remain at or below two draw calls. The proof uses one 256x256 RGBA palette
 atlas, stays below 1 MiB of decoded texture memory, 3 MiB transferred runtime
 assets, and 512 KiB of animation data.
 
+## Runtime-distance weapon revision
+
+The production `0.1.35` practice and Arsenal captures showed that both original
+cross-sections collapsed at gameplay distance. Authored X extents remain
+unchanged; only silhouette-bearing dimensions changed:
+
+- Greatsword blade width grows from `0.46 -> 0.31` to `0.82 -> 0.60` world
+  units, thickness from `0.14` to `0.22`, guard span from `0.92` to `1.32`,
+  grip radius from `0.10` to `0.15`, and pommel radius from `0.19` to `0.26`.
+  A raised `0.18 -> 0.12` restrained dark fuller adds internal value structure.
+- Practice blade becomes a `0.44 -> 0.22` taper at `0.16` thickness, with a
+  `0.94` guard, `0.13` grip radius, `0.16` pommel, and narrow dark fuller. Its
+  `2.43`-unit overall extent remains plainly inferior to the Greatsword's
+  unchanged `4.49`-unit overall extent.
+
+Node names, primary-grip origin, local `+X`, material, atlas, rig, sockets, and
+all animation clips remain unchanged.
+
 ## Reproduction
 
 From the repository root:
