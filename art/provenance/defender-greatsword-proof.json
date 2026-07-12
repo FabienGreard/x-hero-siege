@@ -1,0 +1,17 @@
+{
+  "package": "siegeheart-defender-greatsword-proof",
+  "checkpoint": "0.1.35",
+  "license": "Project-original; repository license applies",
+  "authors": ["Siegeheart asset production workstream"],
+  "external_sources": [],
+  "concept_references": [
+    "docs/concepts/defender-weapons-concept-v1.png",
+    "docs/concepts/gameplay-triptych.png",
+    "docs/concepts/battlefield-first-hud-concept.png"
+  ],
+  "generation": {
+    "blender": "5.1.2",
+    "script": "scripts/blender/build_defender_proof.py",
+    "notes": "All geometry, rigging, animation, palette pixels, lighting, and reference layouts are generated from project-authored code. No external mesh, texture, brush, font, or motion source is used."
+  }
+}

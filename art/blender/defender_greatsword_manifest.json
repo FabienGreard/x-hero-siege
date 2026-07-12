@@ -1,0 +1,190 @@
+{
+  "package": "siegeheart-defender-greatsword-proof",
+  "checkpoint": "0.1.35",
+  "support_only": true,
+  "acceptance_contract": {
+    "path": "docs/VISUAL_ACCEPTANCE_0.1.35.md",
+    "reviewed_from_origin_master": "6ffd1062fc4f8c88afe6dd3998be72d42fdac7d8",
+    "status": "pipeline proof only; not visual acceptance"
+  },
+  "blender": "5.1.2",
+  "source": {
+    "path": "art/blender/defender_greatsword_proof.blend",
+    "bytes": 116526,
+    "sha256": "6e3b0e877a6a65e0b3ee8154ddb6f1668e7f4dc7baf5781f0c5963a4fc6c7beb"
+  },
+  "contract": {
+    "units": "1 Blender unit = 1 Siegeheart world unit",
+    "source_up": "+Z",
+    "gltf_up": "+Y",
+    "forward": "+X",
+    "character_origin": "ground contact between feet",
+    "weapon_origin": "primary grip",
+    "greatsword_proportion": 1.3,
+    "max_bone_influences": 1,
+    "draw_calls_defender_plus_weapon": 2,
+    "clips": [
+      "Basic_Active",
+      "Basic_Recovery",
+      "Basic_Windup",
+      "Dodge",
+      "Idle",
+      "Run"
+    ],
+    "clip_fps": 24
+  },
+  "texture": {
+    "path": "art/blender/textures/siegeheart_palette.png",
+    "bytes": 7213,
+    "sha256": "4cb7cb27ca9497cb8bc63fe63a5bde67cd808d1685b0be4328ec57f818c0a6b0",
+    "dimensions": [
+      256,
+      256
+    ],
+    "decoded_bytes": 262144,
+    "decoded_byte_ceiling": 1048576,
+    "filter": "nearest",
+    "treatment": "authored palette with baked AO/value/detail bands"
+  },
+  "assets": {
+    "defender": {
+      "collection": "ASSET_Defender",
+      "triangles": 408,
+      "triangle_ceiling": 12000,
+      "materials": [
+        "MAT_SiegeheartPalette"
+      ],
+      "material_ceiling": 1
+    },
+    "practice_weapon": {
+      "collection": "ASSET_PracticeWeapon",
+      "triangles": 44,
+      "triangle_ceiling": 2500,
+      "materials": [
+        "MAT_SiegeheartPalette"
+      ],
+      "material_ceiling": 1
+    },
+    "greatsword": {
+      "collection": "ASSET_Greatsword",
+      "triangles": 92,
+      "triangle_ceiling": 2500,
+      "materials": [
+        "MAT_SiegeheartPalette"
+      ],
+      "material_ceiling": 1
+    },
+    "wall": {
+      "collection": "ASSET_Wall",
+      "triangles": 84,
+      "triangle_ceiling": 3000,
+      "materials": [
+        "MAT_SiegeheartPalette"
+      ],
+      "material_ceiling": 1
+    },
+    "brazier": {
+      "collection": "ASSET_Brazier",
+      "triangles": 76,
+      "triangle_ceiling": 1000,
+      "materials": [
+        "MAT_SiegeheartPalette"
+      ],
+      "material_ceiling": 1
+    },
+    "slash": {
+      "collection": "ASSET_Slash",
+      "triangles": 24,
+      "triangle_ceiling": 256,
+      "materials": [
+        "MAT_SiegeheartPalette"
+      ],
+      "material_ceiling": 1
+    }
+  },
+  "runtime_package": {
+    "path": "public/assets/models/proof/siegeheart-defender-proof.glb",
+    "bytes": 144580,
+    "sha256": "73cb4a241070ab4e6e29c9139bbf4218f35462ce827e87e1d94b97df74bf8fa7"
+  },
+  "gltf_validation": {
+    "generator": "Khronos glTF Blender I/O v5.1.20",
+    "nodes": 26,
+    "meshes": 6,
+    "skins": 1,
+    "animations": [
+      "Basic_Active",
+      "Basic_Recovery",
+      "Basic_Windup",
+      "Dodge",
+      "Idle",
+      "Run"
+    ],
+    "animation_bytes": 7800,
+    "animation_byte_ceiling": 524288,
+    "images": 1,
+    "materials": 1
+  },
+  "delivery_budgets": {
+    "transferred_runtime_bytes": 144580,
+    "transferred_runtime_byte_ceiling": 3145728,
+    "animation_bytes": 7800,
+    "animation_byte_ceiling": 524288,
+    "decoded_texture_bytes": 262144,
+    "decoded_texture_byte_ceiling": 1048576
+  },
+  "renders": {
+    "neutral": {
+      "path": "docs/reference/blender-proof/defender-practice-fixed-camera.png",
+      "bytes": 1011488,
+      "sha256": "f93a3cfde975fb604a0f5104eb4bc36753206b2c6e3b4c5825e87b076df63802"
+    },
+    "greatsword": {
+      "path": "docs/reference/blender-proof/defender-greatsword-fixed-camera.png",
+      "bytes": 1014026,
+      "sha256": "be60557d90acda4ec1ed76d24d3ba3456ac1d22f03e99a79c9dc32fa3e5e3d2b"
+    },
+    "four_player": {
+      "path": "docs/reference/blender-proof/four-defenders-fixed-camera.png",
+      "bytes": 1066696,
+      "sha256": "84c7b0a87cfec7b7afd695aa4385d492bc5785a4c374051dcd199aa9996026d2"
+    },
+    "kit": {
+      "path": "docs/reference/blender-proof/proof-kit-fixed-camera.png",
+      "bytes": 1022722,
+      "sha256": "92f3c1c3fca0dc3e80a5d1d7424aa58fe4a12e5edca135b559f888fad218fa4c"
+    }
+  },
+  "plate_support": {
+    "plate_1_silhouette": "pipeline lookdev only: practice and Greatsword fixed-camera references",
+    "plate_2_action_weight": "source clips and slash mesh supplied; authoritative in-game timing required",
+    "plate_3_dense_solo": "requires implementation owner runtime integration",
+    "plate_4_four_player": "accent/silhouette lookdev only; legal dense in-game plate required",
+    "plate_5_lobby_arsenal": "requires implementation owner runtime integration",
+    "plate_6_materials_environment": "wall/brazier/Defender pipeline lookdev only",
+    "plate_7_breach": "requires implementation owner runtime integration",
+    "plate_8_rift_mastery": "requires implementation owner runtime integration",
+    "binary_visual_acceptance": "NOT_EVALUATED"
+  },
+  "provenance": "art/provenance/defender-greatsword-proof.json",
+  "runtime_integration": {
+    "owner": "0.1.35 exclusive implementation owner",
+    "required_seam": "Named loader/static-asset/animation-state seam requested after director review",
+    "forbidden_here": [
+      "protocol edits",
+      "server simulation edits",
+      "renderer replacement",
+      "build or route edits"
+    ],
+    "benchmark_gate": {
+      "status": "blocked pending named runtime seam",
+      "required": "300-frame legal dense four-player plate plus cold/warm local production asset readiness",
+      "frame_p95_ms": 16.7,
+      "frame_p99_ms": 25,
+      "candidate_p95_delta_ms": 2,
+      "sustained_frame_max_ms": 33,
+      "asset_ready_max_ms": 500
+    }
+  },
+  "semantic_manifest_sha256": "7911455590493e2e4a451668dd93af7bf6c2e35ff61de31b8fb3eacffd9bf7b9"
+}

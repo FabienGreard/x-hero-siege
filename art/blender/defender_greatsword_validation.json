@@ -1,0 +1,39 @@
+{
+  "status": "PASS_ASSET_PIPELINE_PROOF",
+  "visual_acceptance": "NOT_EVALUATED_REQUIRES_EIGHT_IN_GAME_PLATES",
+  "roundtrip_objects": [
+    "CHR_Defender",
+    "ENV_Citadel_Wall_Straight_A",
+    "PRP_Brazier_A",
+    "RIG_Defender",
+    "VFX_Greatsword_Slash_A",
+    "WPN_Greatsword_A",
+    "WPN_Practice_A"
+  ],
+  "roundtrip_clips": [
+    "Basic_Active",
+    "Basic_Recovery",
+    "Basic_Windup",
+    "Dodge",
+    "Idle",
+    "Run"
+  ],
+  "checks": {
+    "runtime_transfer": true,
+    "animation_transfer": true,
+    "decoded_texture": true,
+    "single_skin": true,
+    "single_material": true,
+    "single_atlas": true,
+    "bone_influences": true,
+    "defender_weapon_draw_calls": true,
+    "defender_triangles": true,
+    "practice_weapon_triangles": true,
+    "greatsword_triangles": true,
+    "wall_triangles": true,
+    "brazier_triangles": true,
+    "slash_triangles": true
+  },
+  "runtime_export_sha256": "73cb4a241070ab4e6e29c9139bbf4218f35462ce827e87e1d94b97df74bf8fa7",
+  "semantic_manifest_sha256": "7911455590493e2e4a451668dd93af7bf6c2e35ff61de31b8fb3eacffd9bf7b9"
+}

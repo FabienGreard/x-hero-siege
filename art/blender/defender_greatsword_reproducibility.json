@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "cycles": 2,
+  "isolated_temporary_outputs": true,
+  "semantic_manifest_stable": true,
+  "semantic_manifest_sha256": "7911455590493e2e4a451668dd93af7bf6c2e35ff61de31b8fb3eacffd9bf7b9",
+  "runtime_export_stable": true,
+  "runtime_export_sha256": "73cb4a241070ab4e6e29c9139bbf4218f35462ce827e87e1d94b97df74bf8fa7",
+  "nondeterministic_samples": [
+    "Blender container bytes",
+    "Eevee PNG bytes"
+  ],
+  "detailed_samples": "printed to stdout only",
+  "note": "Verification never writes generated proof artifacts into the checkout. Only stable semantic/export results are tracked."
+}
