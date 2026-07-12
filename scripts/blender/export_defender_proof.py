@@ -302,6 +302,13 @@ def render_reference(name: str, arrangement: str, render_collection: bpy.types.C
         sword.location = (0.86, -0.12, 2.52)
         sword.rotation_euler = (0, math.radians(-8), math.radians(68))
         fixed_camera(camera, (0, 0, 2.2), 8.2)
+    elif arrangement == "greatsword_native":
+        hero = duplicate_for_render(defender_source, "SHOT_Defender", render_collection)
+        sword = duplicate_for_render(sword_source, "SHOT_Greatsword", render_collection)
+        sword.visible_shadow = False
+        sword.location = (0.86, -0.12, 2.52)
+        sword.rotation_euler = (0, math.radians(-8), math.radians(68))
+        fixed_camera(camera, (0, 0, 2.2), 42)
     elif arrangement == "four_player":
         positions = [(-5.0, -2.7, 0), (0, -1.5, 0), (5.0, 0.3, 0), (0, 4.0, 0)]
         accents = [(0.15, 0.48, 0.78), (0.76, 0.22, 0.18), (0.30, 0.68, 0.34), (0.62, 0.30, 0.78)]
@@ -383,6 +390,7 @@ def main() -> None:
     renders = {
         "neutral": render_reference("defender-practice-fixed-camera", "neutral", render_collection, camera),
         "greatsword": render_reference("defender-greatsword-fixed-camera", "greatsword", render_collection, camera),
+        "greatsword_native": render_reference("defender-greatsword-native-scale", "greatsword_native", render_collection, camera),
         "four_player": render_reference("four-defenders-fixed-camera", "four_player", render_collection, camera),
         "kit": render_reference("proof-kit-fixed-camera", "kit", render_collection, camera),
     }
@@ -423,7 +431,13 @@ def main() -> None:
                 "guard_span": 1.32,
                 "grip_radius": 0.15,
                 "pommel_radius": 0.26,
-                "fuller_width": [0.18, 0.12],
+                "raised_fuller_removed": {
+                    "x_extent": [0.98, 3.78],
+                    "width": [0.18, 0.12],
+                    "thickness": 0.25,
+                    "swatch": "iron_mid",
+                    "reason": "native runtime read split the blade into twin rails",
+                },
             },
             "practice_weapon": {
                 "overall_x_extent": 2.43,

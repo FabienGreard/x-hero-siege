@@ -49,7 +49,9 @@ unchanged; only silhouette-bearing dimensions changed:
 - Greatsword blade width grows from `0.46 -> 0.31` to `0.82 -> 0.60` world
   units, thickness from `0.14` to `0.22`, guard span from `0.92` to `1.32`,
   grip radius from `0.10` to `0.15`, and pommel radius from `0.19` to `0.26`.
-  A raised `0.18 -> 0.12` restrained dark fuller adds internal value structure.
+  The later raised dark fuller at X `0.98–3.78` was removed after the legal
+  native runtime frame made its two bright sides read as twin rails. The broad
+  main blade now remains one uninterrupted surface at gameplay distance.
 - Practice blade becomes a `0.44 -> 0.22` taper at `0.16` thickness, with a
   `0.94` guard, `0.13` grip radius, `0.16` pommel, and narrow dark fuller. Its
   `2.43`-unit overall extent remains plainly inferior to the Greatsword's

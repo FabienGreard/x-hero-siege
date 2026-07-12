@@ -346,7 +346,6 @@ def create_weapon(name: str, target: bpy.types.Collection, material: bpy.types.M
             {"kind": "box", "center": (0.76, 0, 0), "size": (0.16, 1.32, 0.24), "swatch": "brass"},
             {"kind": "blade", "start_x": 0.79, "end_x": 3.72, "width_start": 0.82, "width_end": 0.60, "thickness": 0.22, "swatch": "steel_edge"},
             {"kind": "blade", "start_x": 3.72, "end_x": 4.30, "width_start": 0.60, "width_end": 0.05, "thickness": 0.18, "swatch": "iron_light"},
-            {"kind": "blade", "start_x": 0.98, "end_x": 3.78, "width_start": 0.18, "width_end": 0.12, "thickness": 0.25, "swatch": "iron_mid"},
             {"kind": "prism", "center": (-0.08, 0, 0), "radius": 0.26, "depth": 0.22, "sides": 8, "axis": "x", "swatch": "brass"},
         ]
     else:
